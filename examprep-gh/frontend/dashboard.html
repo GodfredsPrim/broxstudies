@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — BisaME Osuani</title>
+  <meta name="description" content="Choose your subject and topic, then generate AI-powered practice questions for your WASSCE preparation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="static/css/custom.css" />
+</head>
+<body>
+
+  <!-- ── Nav ────────────────────────────────────────────────────────── -->
+  <nav class="nav-main px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="index.html" class="nav-brand flex items-center gap-2">
+        <span class="text-2xl">📚</span> BisaME Osuani
+      </a>
+      <div class="flex items-center gap-4" id="auth-nav">
+        <a href="index.html" class="text-sm text-slate-400 hover:text-white transition">Home</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-6 py-10">
+    <!-- ── Header ───────────────────────────────────────────────────── -->
+    <div class="mb-10 fade-up">
+      <h1 class="text-3xl font-extrabold mb-2">Your <span class="highlight">Dashboard</span></h1>
+      <p class="text-slate-400">Select a subject and topic, then let AI generate exam-ready questions for you.</p>
+    </div>
+
+    <!-- ── Generator Panel ──────────────────────────────────────────── -->
+    <div class="glass-card gradient-border p-8 mb-10 fade-up" style="animation-delay:.1s">
+      <h2 class="text-lg font-bold mb-6 flex items-center gap-2">
+        <span class="text-xl">⚡</span> Generate Questions
+      </h2>
+
+      <form id="gen-form" class="grid md:grid-cols-2 gap-5" onsubmit="handleGenerate(event)">
+        <!-- Subject -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Subject</label>
+          <select id="gen-subject" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400 appearance-none">
+            <option value="">Select subject…</option>
+          </select>
+        </div>
+
+        <!-- Topic -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Topic</label>
+          <input type="text" id="gen-topic" required placeholder="e.g. Algebra, Photosynthesis…"
+            class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        </div>
+
+        <!-- Format -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Format</label>
+          <select id="gen-format" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400 appearance-none">
+            <option value="MCQ">Multiple Choice (MCQ)</option>
+            <option value="Essay">Essay / Structured</option>
+            <option value="MockExam">Mock Exam Mix</option>
+          </select>
+        </div>
+
+        <!-- Num Questions -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Number of Questions</label>
+          <input type="number" id="gen-num" value="5" min="1" max="50"
+            class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        </div>
+
+        <div class="md:col-span-2">
+          <button type="submit" class="btn-gold py-3 px-10 text-base" id="gen-btn">
+            🚀 Generate Questions
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Loading Skeleton ─────────────────────────────────────────── -->
+    <div id="loading-state" class="hidden space-y-4 mb-10">
+      <div class="skeleton h-20 w-full"></div>
+      <div class="skeleton h-20 w-full"></div>
+      <div class="skeleton h-20 w-full"></div>
+    </div>
+
+    <!-- ── Results ──────────────────────────────────────────────────── -->
+    <div id="results-section" class="hidden fade-up">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold">Practice Questions</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-slate-400">Score:</span>
+          <span id="live-score" class="text-lg font-extrabold text-yellow-400">0 / 0</span>
+        </div>
+      </div>
+      <div id="questions-container"></div>
+      <div class="text-center mt-8">
+        <a href="exam.html" class="btn-outline py-3 px-8">Try a Timed Exam →</a>
+      </div>
+    </div>
+
+    <!-- ── Subject Grid (quick pick) ────────────────────────────────── -->
+    <div class="mt-16 fade-up" style="animation-delay:.2s">
+      <h2 class="text-lg font-bold mb-4">Quick Pick a Subject</h2>
+      <div class="subject-grid" id="dash-subject-grid"></div>
+    </div>
+
+  </main>
+
+  <div id="toast-container" class="fixed top-4 right-4 z-[60] flex flex-col gap-2"></div>
+
+  <script src="static/js/app.js"></script>
+  <script>
+    // Populate subject dropdown and quick-pick grid
+    (async () => {
+      let subjects;
+      try { subjects = await loadSubjects(); }
+      catch {
+        subjects = {
+          core: [
+            { name: 'English Language', code: 'ENG' },
+            { name: 'Mathematics (Core)', code: 'CMATH' },
+            { name: 'Integrated Science', code: 'ISCI' },
+            { name: 'Social Studies', code: 'SSCI' },
+          ],
+          elective: [
+            { name: 'Physics', code: 'PHY' },
+            { name: 'Chemistry', code: 'CHEM' },
+            { name: 'Biology', code: 'BIO' },
+            { name: 'Economics', code: 'ECON' },
+          ],
+        };
+      }
+
+      const sel = document.getElementById('gen-subject');
+      const grid = document.getElementById('dash-subject-grid');
+
+      const addGroup = (label, list) => {
+        const og = document.createElement('optgroup');
+        og.label = label;
+        list.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          opt.textContent = s.name;
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+
+        list.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'glass-card subject-card';
+          card.innerHTML = `<div class="icon">${subjectIcons[s.code] || '📘'}</div><p class="text-sm font-semibold">${s.name}</p>`;
+          card.onclick = () => { sel.value = s.name; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+          grid.appendChild(card);
+        });
+      };
+
+      addGroup('Core Subjects', subjects.core);
+      addGroup('Elective Subjects', subjects.elective);
+
+      // Pre-select from URL param
+      const urlSubject = new URLSearchParams(location.search).get('subject');
+      if (urlSubject) {
+        const all = [...subjects.core, ...subjects.elective];
+        const match = all.find(s => s.code === urlSubject);
+        if (match) sel.value = match.name;
+      }
+    })();
+
+    async function handleGenerate(e) {
+      e.preventDefault();
+      const btn = document.getElementById('gen-btn');
+      const loading = document.getElementById('loading-state');
+      const results = document.getElementById('results-section');
+      const container = document.getElementById('questions-container');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating…';
+      show(loading);
+      hide(results);
+      container.innerHTML = '';
+
+      try {
+        const questions = await generateQuestions(
+          document.getElementById('gen-subject').value,
+          document.getElementById('gen-topic').value,
+          document.getElementById('gen-format').value,
+          parseInt(document.getElementById('gen-num').value) || 5,
+        );
+        hide(loading);
+        show(results);
+        document.getElementById('live-score').textContent = `0 / ${questions.length}`;
+        questions.forEach((q, i) => renderQuestion(q, i, container));
+      } catch (err) {
+        hide(loading);
+        toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 Generate Questions';
+      }
+    }
+  </script>
+
+</body>
+</html>

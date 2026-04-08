@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pdfplumber
+supabase
+openai
+python-jose[cryptography]
+passlib[bcrypt]
+httpx

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BisaME Osuani — Ghana SHS Exam Prep</title>
+  <meta name="description" content="AI-powered Ghana SHS exam preparation platform. Practice WAEC & WASSCE questions with instant AI feedback." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="static/css/custom.css" />
+</head>
+<body>
+
+  <!-- ── Navigation ─────────────────────────────────────────────────── -->
+  <nav class="nav-main px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="index.html" class="nav-brand flex items-center gap-2">
+        <span class="text-2xl">📚</span> BisaME Osuani
+      </a>
+      <div class="flex items-center gap-4" id="auth-nav">
+        <button onclick="document.getElementById('auth-modal').classList.remove('hidden')" class="btn-outline text-sm py-2 px-4">
+          Sign In
+        </button>
+        <button onclick="document.getElementById('auth-modal').classList.remove('hidden')" class="btn-gold text-sm py-2 px-4">
+          Get Started
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Hero ───────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="max-w-3xl mx-auto fade-up">
+      <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-sm text-slate-300 mb-6">
+        <span class="pulse-dot"></span> AI-Powered Exam Prep
+      </div>
+      <h1 class="mb-4">
+        Ace Your <span class="highlight">WASSCE</span><br />
+        With Confidence
+      </h1>
+      <p class="text-lg text-slate-400 max-w-xl mx-auto mb-8">
+        Practice with thousands of AI-generated questions tailored to the Ghana SHS syllabus.
+        Get instant explanations and track your progress.
+      </p>
+      <div class="flex justify-center gap-4 flex-wrap">
+        <a href="dashboard.html" class="btn-gold text-base py-3 px-8">Start Practicing</a>
+        <button class="btn-outline text-base py-3 px-8">Watch Demo</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ───────────────────────────────────────────────────── -->
+  <section class="max-w-6xl mx-auto px-6 py-16">
+    <h2 class="text-2xl font-bold text-center mb-10">Why Students Love <span class="highlight">BisaME</span></h2>
+    <div class="grid md:grid-cols-3 gap-6">
+
+      <div class="glass-card gradient-border p-6 text-center">
+        <div class="text-4xl mb-3">🤖</div>
+        <h3 class="text-lg font-bold mb-2">AI Question Engine</h3>
+        <p class="text-sm text-slate-400">GPT-4o generates questions from real past papers and textbooks, matching WAEC difficulty.</p>
+      </div>
+
+      <div class="glass-card gradient-border p-6 text-center">
+        <div class="text-4xl mb-3">📊</div>
+        <h3 class="text-lg font-bold mb-2">Smart Analytics</h3>
+        <p class="text-sm text-slate-400">Track weak topics, view score trends, and get personalised study recommendations.</p>
+      </div>
+
+      <div class="glass-card gradient-border p-6 text-center">
+        <div class="text-4xl mb-3">⏱️</div>
+        <h3 class="text-lg font-bold mb-2">Timed Mock Exams</h3>
+        <p class="text-sm text-slate-400">Simulate real exam conditions with full-length mock tests and automatic grading.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Subject Preview ────────────────────────────────────────────── -->
+  <section class="max-w-6xl mx-auto px-6 pb-20">
+    <h2 class="text-2xl font-bold text-center mb-2">All Your SHS Subjects</h2>
+    <p class="text-center text-slate-400 mb-10">Core and elective subjects covered — pick any to start</p>
+    <div class="subject-grid" id="subject-preview-grid">
+      <!-- Populated by JS -->
+    </div>
+  </section>
+
+  <!-- ── Pricing ────────────────────────────────────────────────────── -->
+  <section class="max-w-4xl mx-auto px-6 pb-20">
+    <h2 class="text-2xl font-bold text-center mb-10">Simple Pricing</h2>
+    <div class="grid md:grid-cols-2 gap-6">
+
+      <div class="glass-card p-8">
+        <h3 class="text-lg font-bold mb-1">Free</h3>
+        <p class="text-3xl font-extrabold mb-4">GH₵ 0<span class="text-base font-normal text-slate-400">/mo</span></p>
+        <ul class="space-y-2 text-sm text-slate-300 mb-6">
+          <li>✅ 10 AI questions / day</li>
+          <li>✅ 4 core subjects</li>
+          <li>✅ Basic explanations</li>
+          <li class="text-slate-500">✖ Mock exams</li>
+          <li class="text-slate-500">✖ Analytics dashboard</li>
+        </ul>
+        <button class="btn-outline w-full">Current Plan</button>
+      </div>
+
+      <div class="glass-card gradient-border p-8">
+        <div class="flex items-center gap-2 mb-1">
+          <h3 class="text-lg font-bold">Premium</h3>
+          <span class="text-xs bg-gold-400 text-black font-bold px-2 py-0.5 rounded-full" style="background:var(--gold-400);">POPULAR</span>
+        </div>
+        <p class="text-3xl font-extrabold mb-4">GH₵ 25<span class="text-base font-normal text-slate-400">/mo</span></p>
+        <ul class="space-y-2 text-sm text-slate-300 mb-6">
+          <li>✅ Unlimited AI questions</li>
+          <li>✅ All 17+ subjects</li>
+          <li>✅ Detailed explanations</li>
+          <li>✅ Full mock exams</li>
+          <li>✅ Analytics & progress tracking</li>
+        </ul>
+        <button class="btn-gold w-full" onclick="alert('Paystack integration coming soon!')">Upgrade Now</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────── -->
+  <footer class="border-t border-white/5 py-8 text-center text-sm text-slate-500">
+    <p>© 2026 BisaME Osuani · Built for Ghana SHS students 🇬🇭</p>
+  </footer>
+
+  <!-- ── Auth Modal ─────────────────────────────────────────────────── -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-md mx-4 p-8 relative">
+      <button onclick="this.closest('#auth-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">&times;</button>
+      <h2 class="text-xl font-bold mb-6 text-center">Welcome to <span class="highlight">BisaME</span></h2>
+
+      <div class="flex mb-6 border border-white/10 rounded-lg overflow-hidden">
+        <button id="tab-signin" onclick="showAuthTab('signin')" class="flex-1 py-2 text-sm font-semibold bg-white/5">Sign In</button>
+        <button id="tab-signup" onclick="showAuthTab('signup')" class="flex-1 py-2 text-sm font-semibold">Sign Up</button>
+      </div>
+
+      <!-- Sign In Form -->
+      <form id="signin-form" onsubmit="handleSignIn(event)" class="space-y-4">
+        <input type="email" id="si-email" placeholder="Email" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        <input type="password" id="si-password" placeholder="Password" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        <button type="submit" class="btn-gold w-full py-3">Sign In</button>
+      </form>
+
+      <!-- Sign Up Form -->
+      <form id="signup-form" onsubmit="handleSignUp(event)" class="space-y-4 hidden">
+        <input type="text" id="su-name" placeholder="Full Name" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        <input type="email" id="su-email" placeholder="Email" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        <input type="password" id="su-password" placeholder="Password" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
+        <button type="submit" class="btn-gold w-full py-3">Create Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Toast Container ────────────────────────────────────────────── -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[60] flex flex-col gap-2"></div>
+
+  <!-- ── Scripts ────────────────────────────────────────────────────── -->
+  <script src="static/js/app.js"></script>
+  <script>
+    // Auth tab switching
+    function showAuthTab(tab) {
+      document.getElementById('signin-form').classList.toggle('hidden', tab !== 'signin');
+      document.getElementById('signup-form').classList.toggle('hidden', tab !== 'signup');
+      document.getElementById('tab-signin').classList.toggle('bg-white/5', tab === 'signin');
+      document.getElementById('tab-signup').classList.toggle('bg-white/5', tab === 'signup');
+    }
+
+    async function handleSignIn(e) {
+      e.preventDefault();
+      try {
+        await signIn($('#si-email').value, $('#si-password').value);
+        window.location.href = 'dashboard.html';
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    async function handleSignUp(e) {
+      e.preventDefault();
+      try {
+        await signUp($('#su-email').value, $('#su-password').value, $('#su-name').value);
+        showAuthTab('signin');
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    // Load subject preview cards
+    (async () => {
+      try {
+        const subjects = await loadSubjects();
+        const grid = document.getElementById('subject-preview-grid');
+        [...subjects.core, ...subjects.elective].forEach(sub => {
+          const card = document.createElement('a');
+          card.href = 'dashboard.html?subject=' + sub.code;
+          card.className = 'glass-card subject-card fade-up';
+          card.innerHTML = `
+            <div class="icon">${subjectIcons[sub.code] || '📘'}</div>
+            <p class="text-sm font-semibold">${sub.name}</p>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (e) {
+        // API not running — show static preview
+        const grid = document.getElementById('subject-preview-grid');
+        const preview = [
+          { code: 'ENG', name: 'English Language' },
+          { code: 'CMATH', name: 'Mathematics' },
+          { code: 'ISCI', name: 'Integrated Science' },
+          { code: 'SSCI', name: 'Social Studies' },
+          { code: 'PHY', name: 'Physics' },
+          { code: 'CHEM', name: 'Chemistry' },
+          { code: 'BIO', name: 'Biology' },
+          { code: 'ECON', name: 'Economics' },
+        ];
+        preview.forEach(sub => {
+          const card = document.createElement('a');
+          card.href = 'dashboard.html?subject=' + sub.code;
+          card.className = 'glass-card subject-card fade-up';
+          card.innerHTML = `
+            <div class="icon">${subjectIcons[sub.code] || '📘'}</div>
+            <p class="text-sm font-semibold">${sub.name}</p>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    })();
+  </script>
+
+</body>
+</html>
