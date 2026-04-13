@@ -217,19 +217,24 @@ export function LiveQuiz() {
             </div>
           </div>
 
-          <div className="practice-actions" style={{ marginTop: '20px', padding: '15px', background: '#f8fbff', borderRadius: '12px' }}>
-            <button className="btn-primary" onClick={createRoom} disabled={loading} style={{ background: 'var(--battle-primary)', padding: '12px 24px' }}>
-              🚀 Create Battle Arena
-            </button>
-            <div style={{ width: '1px', background: '#dbe4ef', height: '30px', margin: '0 10px' }} />
-            <input
-              value={codeInput}
-              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-              placeholder="ENTER ROOM CODE"
-              style={{ maxWidth: 180, textAlign: 'center', letterSpacing: '2px', fontWeight: 'bold' }}
-            />
-            <button className="btn-secondary" onClick={joinRoom} disabled={loading}>
-              JOIN BATTLE
+          <div className="battle-join-area" style={{ marginTop: '30px', textAlign: 'center' }}>
+            <div style={{ marginBottom: '15px', fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>OR JOIN AN EXISTING BATTLE</div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <input
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                placeholder="PROMO CODE / ROOM CODE"
+                className="minimal-code-input"
+                />
+                <button className="btn-secondary" onClick={joinRoom} disabled={loading} style={{ padding: '0 30px' }}>
+                JOIN BATTLE
+                </button>
+            </div>
+            
+            <div style={{ margin: '30px 0', height: '1px', background: 'linear-gradient(90deg, transparent, #dbe4ef, transparent)' }} />
+            
+            <button className="btn-primary" onClick={createRoom} disabled={loading} style={{ background: 'var(--battle-primary)', padding: '16px 40px', fontSize: '1.1rem', borderRadius: '50px', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.2)' }}>
+                🚀 Host New Battle Arena
             </button>
           </div>
         </>
@@ -238,7 +243,19 @@ export function LiveQuiz() {
           <div className="battle-hud">
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>BATTLE CODE</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--battle-primary)', letterSpacing: '2px' }}>{roomCode}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '2.2rem', fontWeight: 900, color: 'var(--battle-primary)', letterSpacing: '4px' }}>{roomCode}</div>
+                <button 
+                  className="copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(roomCode);
+                    alert('Battle code copied to clipboard!');
+                  }}
+                  title="Copy Battle Code"
+                >
+                  📋
+                </button>
+              </div>
             </div>
 
             {timeLeft !== null && (

@@ -879,3 +879,51 @@ button:disabled {
   background: var(--surface-soft);
   border: 1px solid #e2e8f0;
 }
+
+/* Minimal Battle Code Input */
+.minimal-code-input {
+  background: white;
+  border: 2px solid #eef2f7;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 4px;
+  color: var(--battle-primary);
+  width: 100%;
+  max-width: 320px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.minimal-code-input:focus {
+  border-color: var(--battle-primary);
+  outline: none;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+.copy-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+}
+
+.copy-btn:hover {
+  background: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.copy-btn:active {
+  transform: scale(0.95);
+}
