@@ -128,8 +128,8 @@ export function LiveQuiz() {
   return (
     <div className="generator-section">
       <div className="generator-hero">
-        <h2>Live Quiz Battle</h2>
-        <p>Create a room, share the code, and quiz together in real time.</p>
+        <h2>Challenge Battle Quiz</h2>
+        <p>Face off against your peers in a high-stakes, real-time quiz. Create a room, share the code, and compete for the top spot!</p>
       </div>
 
       {error && <div className="error-message">{error}</div>}

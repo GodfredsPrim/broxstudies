@@ -125,8 +125,8 @@ export function StudyCoach() {
   return (
     <div className="generator-section">
       <div className="generator-hero">
-        <h2>Study With AI Coach</h2>
-        <p>Start a guided session, answer each question, and get instant AI marking.</p>
+        <h2>Study With AI</h2>
+        <p>Vividly explore core topics with your personalized AI study buddy. Answer questions and get instant, step-by-step guidance.</p>
       </div>
 
       {error && <div className="error-message">{error}</div>}

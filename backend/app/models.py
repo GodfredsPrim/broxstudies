@@ -10,6 +10,7 @@ class QuestionType(str, Enum):
     SHORT_ANSWER = "short_answer"
     ESSAY = "essay"
     TRUE_FALSE = "true_false"
+    STANDARD = "standard"
 
 
 class Subject(str, Enum):

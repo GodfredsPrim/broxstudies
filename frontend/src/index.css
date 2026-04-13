@@ -526,3 +526,62 @@ button:disabled {
     border-radius: 14px;
   }
 }
+/* Exam Simulation Mode Styles */
+.app.exam-mode {
+  background: #fdfdfd;
+  background-image: none;
+}
+
+.simulating {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+}
+
+.sim-exit-bar {
+  background: #101923 !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 1rem 1.5rem !important;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  margin-left: -2rem;
+  margin-right: -2rem;
+  margin-top: -2rem;
+}
+
+.btn-secondary.exit-sim {
+  background: var(--ghana-red);
+  color: #fff;
+}
+
+/* Print Overrides */
+@media print {
+  .app-header, .app-nav, .app-footer, .generator-panel, .exam-controls, .sim-exit-bar, .info {
+    display: none !important;
+  }
+  
+  .app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .generator-section {
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  .question-card {
+    page-break-inside: avoid;
+    border: none !important;
+    border-bottom: 1px solid #eee !important;
+    box-shadow: none !important;
+  }
+}

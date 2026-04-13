@@ -227,7 +227,7 @@ async def get_subjects():
 
     if _catalog_is_stale_or_empty():
         fetcher = CurriculumResourceFetcher()
-        await fetcher.fetch_years_subjects()
+        asyncio.create_task(fetcher.fetch_years_subjects())
 
     if catalog_path.exists():
         with open(catalog_path, "r", encoding="utf-8") as f:
@@ -313,6 +313,7 @@ async def get_question_types():
             "short_answer",
             "essay",
             "true_false",
+            "standard",
         ]
     }
 

@@ -32,6 +32,37 @@ class QuestionGenerator:
         subject_label: str | None = None,
     ):
         """Generate questions based on patterns from past questions."""
+        if question_type == QuestionType.STANDARD:
+            logger.info(f"Generating full standard exam (20 MCQ + 5 Theory) for {subject.value}")
+            try:
+                # Parallel generation to handle the large standard request faster
+                mcq_task = asyncio.create_task(
+                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 20, difficulty_level, topics, year_key, subject_slug, subject_label)
+                )
+                theory_task = asyncio.create_task(
+                    self._generate_single_batch(subject, QuestionType.ESSAY, 5, difficulty_level, topics, year_key, subject_slug, subject_label)
+                )
+                mcq_questions, theory_questions = await asyncio.gather(mcq_task, theory_task)
+                return mcq_questions + theory_questions
+            except Exception as e:
+                logger.error(f"Error generating standard exam: {str(e)}")
+                raise Exception(f"Error generating standard exam: {str(e)}")
+
+        return await self._generate_single_batch(
+            subject, question_type, num_questions, difficulty_level, topics, year_key, subject_slug, subject_label
+        )
+
+    async def _generate_single_batch(
+        self,
+        subject: Subject,
+        question_type: QuestionType,
+        num_questions: int,
+        difficulty_level,
+        topics,
+        year_key: str,
+        subject_slug: str,
+        subject_label: str | None,
+    ):
         try:
             logger.info(f"Generating {num_questions} {difficulty_level or 'medium'} level {question_type.value} questions for {subject.value}")
             prompt = self._build_prompt(
@@ -104,6 +135,10 @@ class QuestionGenerator:
         teacher_block = teacher_context if teacher_context else "No teacher resource excerpts found."
 
         display_subject = subject_label or subject_slug.replace("_", " ").title() or subject.value
+
+        # We handle standard type specially outside this class, or by passing standard sections directly below.
+
+        # ---------- Normal (non-standard) prompt ----------
         return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for Ghana SHS {display_subject} ({year_key.replace('_', ' ').title()}).
 
 Requirements:
@@ -413,11 +448,13 @@ Only include "options" for multiple choice questions. Do not include markdown or
 
             questions = []
             for item in data[:num_questions]:
+                item_qtype = question_type
                 options = item.get("options") if question_type == QuestionType.MULTIPLE_CHOICE else None
+
                 questions.append(
                     Question(
                         subject=subject,
-                        question_type=question_type,
+                        question_type=item_qtype,
                         question_text=item.get("question", ""),
                         options=options,
                         correct_answer=item.get("correct_answer", ""),
@@ -428,8 +465,8 @@ Only include "options" for multiple choice questions. Do not include markdown or
                     )
                 )
 
-            if len(questions) < num_questions:
-                raise ValueError(f"Expected {num_questions} questions, got {len(questions)}")
+            if not questions:
+                raise ValueError("No questions could be parsed from LLM response")
 
             return questions
         except Exception as e:

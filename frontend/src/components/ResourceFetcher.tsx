@@ -135,10 +135,10 @@ export const ResourceFetcher: React.FC = () => {
     <div className="resource-fetcher">
       <div className="resource-fetcher__container">
         <h2 className="resource-fetcher__title">
-          📚 Curriculum Resource Fetcher
+          📚 Get Books Here
         </h2>
         <p className="resource-fetcher__subtitle">
-          Fetch curriculum materials from Ministry of Education Ghana
+          Download textbooks, past questions, and syllabi for offline study.
         </p>
 
         {error && (

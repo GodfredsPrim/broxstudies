@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-3.5-turbo"  # Use gpt-3.5-turbo, gpt-4, or gpt-4o (gpt-4-turbo-preview is deprecated)
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-chat"
+    LLM_FALLBACK_ENABLED: bool = True
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = ""
     LLM_MODEL: str = ""

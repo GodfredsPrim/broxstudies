@@ -57,7 +57,10 @@ export function AnalysisDashboard() {
 
   return (
     <div className="analysis-section">
-      <h2>Pattern Analysis</h2>
+      <div className="generator-hero">
+        <h2>WASSCE Tricks: Question Patterns</h2>
+        <p>Explore hidden patterns and frequent topics in past WAEC exams visually to stay ahead of the curve.</p>
+      </div>
 
       <div className="form-group">
         <label htmlFor="analysisSubject">Subject:</label>

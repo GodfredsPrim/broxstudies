@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -48,6 +48,10 @@ export interface GeneratedQuestions {
       status_by_type?: Record<string, string>;
     };
   };
+}
+
+export interface MockExamCreateResponse extends GeneratedQuestions {
+  session_id: string;
 }
 
 export interface PracticeMarkResult {

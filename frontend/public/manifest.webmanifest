@@ -1,0 +1,17 @@
+﻿{
+  "name": "BisaME Exam Prep System",
+  "short_name": "BisaME",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f7fb",
+  "theme_color": "#0b7a4b",
+  "description": "Offline-first exam prep for Ghana learners with WhatsApp study support, Snap-and-Solve, and mock exams.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
