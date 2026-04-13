@@ -23,7 +23,7 @@ class TutorService:
         self.llm = ChatOpenAI(
             model=settings.resolved_llm_model,
             openai_api_key=api_key,
-            openai_api_base=settings.LLM_API_BASE,
+            base_url=settings.resolved_llm_base_url,
             temperature=0.7,
             max_tokens=2000
         )
