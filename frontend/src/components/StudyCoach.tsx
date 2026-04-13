@@ -9,6 +9,36 @@ interface Message {
   suggestions?: string[];
 }
 
+const SafeMarkdown = ({ text }: { text: string }) => {
+  // Simple regex-based formatter for bold and bullets
+  const lines = text.split('\n');
+  return (
+    <>
+      {lines.map((line, i) => {
+        let content: any = line;
+        
+        // Handle Headers (e.g. **CONCEPT**)
+        if (line.startsWith('**') && line.endsWith('**')) {
+            return <h4 key={i} style={{ margin: '15px 0 8px', color: '#162a40', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace(/\*\*/g, '')}</h4>;
+        }
+
+        // Handle Bold
+        if (line.includes('**')) {
+          const parts = line.split('**');
+          content = parts.map((part, index) => index % 1 === 0 && index % 2 !== 0 ? <strong key={index}>{part}</strong> : part);
+        }
+
+        // Handle Bullets
+        if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+          return <li key={i} style={{ marginLeft: '20px', marginBottom: '5px' }}>{content.toString().replace(/^[-*]\s/, '')}</li>;
+        }
+
+        return <p key={i} style={{ marginBottom: '8px' }}>{content}</p>;
+      })}
+    </>
+  );
+};
+
 export function StudyCoach() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -106,8 +136,8 @@ export function StudyCoach() {
         <div className="messages-list">
           {messages.map((msg) => (
             <div key={msg.id} className={`message-bubble ${msg.sender}`}>
-              <div style={{ whiteSpace: 'pre-wrap' }}>
-                {msg.text}
+              <div className="message-text">
+                {msg.sender === 'ai' ? <SafeMarkdown text={msg.text} /> : msg.text}
               </div>
               {msg.suggestions && msg.suggestions.length > 0 && (
                 <div className="follow-up-suggestions">
