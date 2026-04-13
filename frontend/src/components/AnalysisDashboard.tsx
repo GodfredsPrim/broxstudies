@@ -7,7 +7,6 @@ export function AnalysisDashboard() {
   const [studentId, setStudentId] = useState('student_demo');
   const [mastery, setMastery] = useState<StudentMasteryResponse | null>(null);
   const [teacherInsights, setTeacherInsights] = useState<TeacherInsightsResponse | null>(null);
-  const [reliability, setReliability] = useState<ReliabilityResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleAnalyze = async () => {
@@ -43,22 +42,12 @@ export function AnalysisDashboard() {
     }
   };
 
-  useEffect(() => {
-    const loadReliability = async () => {
-      try {
-        const data = await questionsAPI.getReliability();
-        setReliability(data);
-      } catch (error) {
-        console.error('Error loading reliability:', error);
-      }
-    };
-    loadReliability();
-  }, []);
+  // Removed reliability polling
 
   return (
     <div className="analysis-section">
       <div className="generator-hero">
-        <h2>WASSCE Tricks: Question Patterns</h2>
+        <h2>Likely WASSCE Questions: Patterns</h2>
         <p>Explore hidden patterns and frequent topics in past WAEC exams visually to stay ahead of the curve.</p>
       </div>
 
@@ -165,16 +154,7 @@ export function AnalysisDashboard() {
         </div>
       )}
 
-      {reliability && (
-        <div className="analysis-results">
-          <h3>System Reliability</h3>
-          <div className="result-card">
-            <p><strong>Status:</strong> {reliability.status}</p>
-            <p><strong>Event Count:</strong> {reliability.event_count}</p>
-            <pre>{JSON.stringify(reliability.recent_events, null, 2)}</pre>
-          </div>
-        </div>
-      )}
+      {/* System Reliability section removed */}
     </div>
   );
 }

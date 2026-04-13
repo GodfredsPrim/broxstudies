@@ -452,6 +452,7 @@ async def create_live_quiz(request: LiveQuizCreateRequest):
         quiz_sessions[code] = {
             "code": code,
             "created_at": time.time(),
+            "time_limit": request.time_limit,
             "host": player,
             "players": {player: {"submitted": False, "score": 0.0, "percentage": 0.0}},
             "questions": [q.model_dump() for q in questions],
@@ -501,6 +502,8 @@ async def get_live_quiz_state(code: str):
         "host": session["host"],
         "questions": public_questions,
         "leaderboard": leaderboard,
+        "time_limit": session.get("time_limit", 5),
+        "created_at": session.get("created_at", time.time()),
     }
 
 
@@ -519,14 +522,14 @@ async def submit_live_quiz(code: str, request: LiveQuizSubmitRequest):
     items = []
     for idx, q in enumerate(questions):
         items.append(
-            {
-                "question_text": q.get("question_text", ""),
-                "question_type": q.get("question_type", "multiple_choice"),
-                "correct_answer": q.get("correct_answer", ""),
-                "explanation": q.get("explanation", ""),
-                "options": q.get("options"),
-                "student_answer": request.answers[idx] if idx < len(request.answers) else "",
-            }
+            PracticeMarkItem(
+                question_text=q.get("question_text", ""),
+                question_type=q.get("question_type", "multiple_choice"),
+                correct_answer=q.get("correct_answer", ""),
+                explanation=q.get("explanation", ""),
+                options=q.get("options"),
+                student_answer=request.answers[idx] if idx < len(request.answers) else "",
+            )
         )
 
     result = await generator.mark_practice_answers(items)

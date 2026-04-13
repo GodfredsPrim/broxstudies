@@ -30,6 +30,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [error, setError] = useState('');
+  const [mockTimeLimit, setMockTimeLimit] = useState(30); // Default 30 minutes
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timerActive, setTimerActive] = useState(false);
   const availableYears = Array.from(new Set(subjects.map((s) => s.year))).sort();
   const filteredSubjects = subjects.filter((s) => s.year === selectedYear);
 
@@ -111,6 +114,10 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
     setExamResult(null);
     setShowAnswers(false);
     
+    // Initialize timer
+    setTimeLeft(mockTimeLimit * 60);
+    setTimerActive(true);
+    
     // Request fullscreen immediately to lock context
     try {
       document.documentElement.requestFullscreen().catch(err => {
@@ -146,11 +153,15 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
       alert('Error submitting exam for grading.');
     } finally {
       setIsSubmitting(false);
+      setTimerActive(false);
+      setTimeLeft(null);
       stopSimulation(); // Exit simulation mode to view results
     }
   };
 
   const stopSimulation = () => {
+    setTimerActive(false);
+    setTimeLeft(null);
     if (onSimulationToggle) {
       onSimulationToggle(false);
     }
@@ -174,6 +185,26 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [isSimulating, studentAnswers, examResult]);
+
+  // Handle countdown timer
+  useEffect(() => {
+    let interval: any;
+    if (timerActive && timeLeft !== null && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev !== null && prev <= 1) {
+            clearInterval(interval);
+            submitExamGrading();
+            return 0;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setTimerActive(false);
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, timeLeft]);
 
   // Split questions into sections for standard/full exam display
   const mcqQuestions = questions.filter(q => q.question_type === 'multiple_choice');
@@ -243,7 +274,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
   return (
     <div className={`generator-section ${isSimulating ? 'simulating' : ''}`}>
       <div className="generator-hero">
-        <h2>{isSimulating ? '📝 Official Mock Exam — Restricted Mode' : 'Exam Simulator'}</h2>
+        <h2>{isSimulating ? '📝 Official Mock Exam — Restricted Mode' : 'Generate Question'}</h2>
         <p>
           {isSimulating
             ? 'You are in exam mode. Navigation is locked. Complete the paper and press "Submit & Finish Exam" to exit.'
@@ -271,6 +302,19 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
         <div className="sim-exit-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '15px', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginBottom: '20px' }}>
           <span><strong>📋 Subject:</strong> {filteredSubjects.find(s => s.id === subject)?.name || subject}</span>
           <span><strong>Answered:</strong> {Object.keys(studentAnswers).length} / {questions.length}</span>
+          {timeLeft !== null && (
+            <span style={{ 
+              fontWeight: 'bold', 
+              color: timeLeft < 60 ? '#dc2626' : '#374151',
+              padding: '4px 12px',
+              borderRadius: '4px',
+              backgroundColor: timeLeft < 60 ? '#fee2e2' : '#f3f4f6',
+              border: timeLeft < 60 ? '1px solid #dc2626' : '1px solid #d1d5db',
+              animation: timeLeft < 60 ? 'pulse 1.5s infinite' : 'none'
+            }}>
+              ⏱️ Time Left: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </span>
+          )}
           <button onClick={submitExamGrading} disabled={isSubmitting} className="btn-secondary" style={{ background: '#10b981', color: 'white', border: 'none' }}>
             {isSubmitting ? 'Grading...' : '✅ Submit & Finish Exam'}
           </button>
@@ -370,6 +414,18 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="mockTime">Time Limit (mins):</label>
+              <input
+                id="mockTime"
+                type="number"
+                min="1"
+                max="180"
+                value={mockTimeLimit}
+                onChange={(e) => setMockTimeLimit(parseInt(e.target.value) || 1)}
+              />
             </div>
           </div>
 

@@ -75,10 +75,10 @@ class QuestionGenerator:
                 subject_slug,
                 subject_label,
             )
-            response = await asyncio.wait_for(self._call_llm(prompt), timeout=60.0)
+            response = await asyncio.wait_for(self._call_llm(prompt), timeout=120.0)
             return self._parse_response(response, subject, question_type, num_questions)
         except asyncio.TimeoutError:
-            error_msg = "Question generation took too long (timeout after 60 seconds). Please try again."
+            error_msg = "Question generation took too long (timeout after 120 seconds). Please try again."
             logger.error(error_msg)
             raise Exception(error_msg)
         except Exception as e:
@@ -100,8 +100,8 @@ class QuestionGenerator:
             "model": settings.resolved_llm_model,
             "api_key": api_key,
             "temperature": 0.7,
-            "request_timeout": 60.0,  # Add timeout
-            "max_retries": 2,  # Retry on failure
+            "request_timeout": 120.0,  # Add timeout
+            "max_retries": 3,  # Retry on failure
         }
         if settings.resolved_llm_base_url:
             kwargs["base_url"] = settings.resolved_llm_base_url
@@ -392,7 +392,7 @@ Only include "options" for multiple choice questions (leave omit for essay). Do 
         )
 
         try:
-            llm_response = await asyncio.wait_for(self._call_llm(prompt), timeout=45.0)
+            llm_response = await asyncio.wait_for(self._call_llm(prompt), timeout=90.0)
             start = llm_response.find("[")
             end = llm_response.rfind("]") + 1
             parsed = json.loads(llm_response[start:end])

@@ -200,6 +200,7 @@ class LiveQuizCreateRequest(BaseModel):
     question_type: QuestionType = QuestionType.MULTIPLE_CHOICE
     num_questions: int = 5
     difficulty_level: Optional[str] = "medium"
+    time_limit: int = 5  # in minutes
 
 
 class LiveQuizCreateResponse(BaseModel):

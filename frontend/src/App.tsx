@@ -32,7 +32,7 @@ function App() {
               className={`nav-btn ${activeTab === 'generator' ? 'active' : ''}`}
               onClick={() => setActiveTab('generator')}
             >
-              Exam Simulator
+              Generate Question
             </button>
             <button
               className={`nav-btn ${activeTab === 'study' ? 'active' : ''}`}
@@ -44,13 +44,13 @@ function App() {
               className={`nav-btn ${activeTab === 'live_quiz' ? 'active' : ''}`}
               onClick={() => setActiveTab('live_quiz')}
             >
-              Challenge Battle Quiz
+              Quiz Challenge
             </button>
             <button
               className={`nav-btn ${activeTab === 'analysis' ? 'active' : ''}`}
               onClick={() => setActiveTab('analysis')}
             >
-              WASSCE Tricks
+              Likely WASSCE Questions
             </button>
             <button
               className={`nav-btn ${activeTab === 'resources' ? 'active' : ''}`}

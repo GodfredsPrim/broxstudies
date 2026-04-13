@@ -98,6 +98,8 @@ export interface ResourceStatusResponse {
 export interface LiveQuizStateResponse {
   code: string;
   host: string;
+  time_limit: number;
+  created_at: number;
   questions: Array<{
     question_text: string;
     question_type: string;
@@ -177,6 +179,7 @@ export const questionsAPI = {
     question_type: string;
     num_questions: number;
     difficulty_level: string;
+    time_limit: number;
   }) => {
     const response = await apiClient.post('/questions/quiz/create', payload);
     return response.data as { code: string; host_player: string; total_questions: number };

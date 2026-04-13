@@ -22,6 +22,9 @@
   --radius-xl: 20px;
   --radius-lg: 16px;
   --radius-md: 12px;
+  --battle-bg: #0f172a;
+  --battle-primary: #3b82f6;
+  --battle-accent: #f59e0b;
 }
 
 body {
@@ -584,4 +587,101 @@ button:disabled {
     border-bottom: 1px solid #eee !important;
     box-shadow: none !important;
   }
+}
+@keyframes pulse-small {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Battle Mode Glassmorphism */
+.battle-room {
+  background: var(--battle-bg);
+  color: #fff;
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.battle-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timer-pill {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--battle-accent);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.leaderboard-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderboard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  transition: transform 0.2s ease;
+}
+
+.leaderboard-row:hover {
+  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.battle-option {
+  cursor: pointer;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.battle-option:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+}
+
+.battle-option.selected {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--battle-primary);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+.pulse-warning {
+  animation: pulse-small 1.5s infinite ease-in-out;
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
 }
