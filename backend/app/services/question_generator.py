@@ -33,7 +33,7 @@ class QuestionGenerator:
     ):
         """Generate questions based on patterns from past questions."""
         if question_type == QuestionType.STANDARD:
-            logger.info(f"Generating full standard exam (20 MCQ + 5 Theory) for {subject.value}")
+            logger.info(f"Generating full standard exam (40 MCQ + 6 Theory) for {subject.value}")
             try:
                 # Parallel generation to handle the large standard request faster
                 mcq_task = asyncio.create_task(

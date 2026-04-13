@@ -217,3 +217,13 @@ class LiveQuizJoinRequest(BaseModel):
 class LiveQuizSubmitRequest(BaseModel):
     player_name: str
     answers: List[str]
+
+class TutorRequest(BaseModel):
+    question: str
+    subject: Optional[str] = None
+    context: Optional[str] = None
+
+
+class TutorResponse(BaseModel):
+    explanation: str
+    related_questions: Optional[List[str]] = None

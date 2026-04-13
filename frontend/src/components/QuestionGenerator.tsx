@@ -82,12 +82,11 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
     setLoading(true);
     setError('');
     try {
-      const count = questionType === 'standard' ? 25 : numQuestions;
       const result = await questionsAPI.generateQuestions(
         subject,
         selectedYear,
         questionType,
-        count,
+        numQuestions,
         difficulty
       );
       setQuestions(result.questions);
@@ -106,27 +105,6 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
     }
   };
 
-  const startSimulation = () => {
-    if (onSimulationToggle) {
-      onSimulationToggle(true);
-    }
-    setStudentAnswers({});
-    setExamResult(null);
-    setShowAnswers(false);
-    
-    // Initialize timer
-    setTimeLeft(mockTimeLimit * 60);
-    setTimerActive(true);
-    
-    // Request fullscreen immediately to lock context
-    try {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.warn('Fullscreen request denied or unsupported:', err);
-      });
-    } catch (e) {
-      console.warn('Fullscreen API error:', e);
-    }
-  };
 
   const handleStudentAnswerChange = (index: number, val: string) => {
     setStudentAnswers(prev => ({ ...prev, [index]: val }));
@@ -209,7 +187,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
   // Split questions into sections for standard/full exam display
   const mcqQuestions = questions.filter(q => q.question_type === 'multiple_choice');
   const theoryQuestions = questions.filter(q => q.question_type === 'essay' || q.question_type === 'short_answer');
-  const isStandardExam = questionType === 'standard' && questions.length > 0 && (mcqQuestions.length > 0 || theoryQuestions.length > 0);
+  const isStandardExam = false;
 
   const renderQuestionCard = (q: Question, globalIndex: number, labelPrefix: string) => (
     <div key={`q-${globalIndex}`} className="question-card" style={{ padding: '20px', border: '1px solid #eaeaea', borderRadius: '8px', marginBottom: '15px' }}>
@@ -277,8 +255,8 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
         <h2>{isSimulating ? '📝 Official Mock Exam — Restricted Mode' : 'Generate Question'}</h2>
         <p>
           {isSimulating
-            ? 'You are in exam mode. Navigation is locked. Complete the paper and press "Submit & Finish Exam" to exit.'
-            : 'Generate realistic exam questions. Select "Standard (Full Exam)" to create a complete WASSCE-style paper with MCQs and Theory sections.'
+            ? 'You are in exam mode. Navigation is locked. Complete the session and press "Submit & Finish" to exit.'
+            : 'Generate realistic practice questions. Select a type and difficulty to build your targeted practice set.'
           }
         </p>
       </div>
@@ -380,7 +358,6 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
                 onChange={(e) => setQuestionType(e.target.value)}
               >
                 <option value="multiple_choice">Multiple Choice</option>
-                <option value="standard">Standard (Full Exam)</option>
                 <option value="short_answer">Short Answer</option>
                 <option value="essay">Essay</option>
                 <option value="true_false">True/False</option>
@@ -394,13 +371,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
                 type="number"
                 min="1"
                 max="50"
-                value={questionType === 'standard' ? 25 : numQuestions}
+                value={numQuestions}
                 onChange={(e) => setNumQuestions(parseInt(e.target.value))}
-                disabled={questionType === 'standard'}
               />
-              {questionType === 'standard' && (
-                <small style={{color: '#666', marginTop: '4px', display: 'block'}}>Fixed: 20 MCQ + 5 Theory</small>
-              )}
             </div>
 
             <div className="form-group">
@@ -435,18 +408,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
               disabled={loading || loadingSubjects}
               className="btn-primary"
             >
-              {loading ? 'Generating...' : (questionType === 'standard' ? '📄 Generate Full Exam Paper' : 'Generate Questions')}
+              {loading ? 'Generating...' : 'Generate Questions'}
             </button>
 
-            {questions.length > 0 && questionType === 'standard' && (
-              <button
-                onClick={startSimulation}
-                className="btn-primary"
-                style={{ background: 'linear-gradient(125deg, #1a1a2e, #16213e)', boxShadow: '0 10px 20px rgba(0,0,0,0.3)' }}
-              >
-                🔒 Start Mock Exam (Restricted Mode)
-              </button>
-            )}
           </div>
         </>
       )}

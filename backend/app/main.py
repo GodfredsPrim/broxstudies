@@ -10,7 +10,7 @@ from pathlib import Path
 import asyncio
 
 from app.config import settings
-from app.routes import questions, uploads, analysis, resources
+from app.routes import questions, uploads, analysis, resources, tutor
 from app.services.batch_loader import BatchLoader
 
 # Setup logging
@@ -90,6 +90,7 @@ app.include_router(uploads.router, prefix="/api/uploads", tags=["uploads"])
 app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
+app.include_router(tutor.router, prefix="/api/tutor", tags=["tutor"])
 
 if FRONTEND_DIST_DIR.exists():
     assets_dir = FRONTEND_DIST_DIR / "assets"

@@ -1,271 +1,167 @@
-import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
-import { GeneratedQuestions, PracticeMarkResponse, Question, questionsAPI } from '../services/api';
+import { useState, useRef, useEffect } from 'react';
+import { tutorAPI, questionsAPI } from '../services/api';
 
-interface Subject {
+interface Message {
   id: string;
-  name: string;
-  year: string;
+  text: string;
+  sender: 'user' | 'ai';
+  timestamp: number;
+  suggestions?: string[];
 }
 
 export function StudyCoach() {
-  const [studentId, setStudentId] = useState('student_demo');
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [selectedYear, setSelectedYear] = useState('Year 1');
-  const [subject, setSubject] = useState('');
-  const [difficulty, setDifficulty] = useState('medium');
-  const [questionType, setQuestionType] = useState('multiple_choice');
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      text: "Hello! I'm your AI Study Buddy. Ask me anything about your SHS subjects, and I'll explain it clearly for you. What would you like to learn today?",
+      sender: 'ai',
+      timestamp: Date.now(),
+    }
+  ]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [session, setSession] = useState<GeneratedQuestions | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [result, setResult] = useState<PracticeMarkResponse | null>(null);
-  const [adaptiveMode, setAdaptiveMode] = useState(true);
-  const [recommendedDifficulty, setRecommendedDifficulty] = useState('medium');
-  const [resourceStatusText, setResourceStatusText] = useState('');
-  const [prepProgress, setPrepProgress] = useState(0);
-
-  const years = useMemo(() => Array.from(new Set(subjects.map((s) => s.year))).sort(), [subjects]);
-  const filteredSubjects = useMemo(() => subjects.filter((s) => s.year === selectedYear), [subjects, selectedYear]);
-  const currentQuestion: Question | undefined = session?.questions[currentIndex];
+  const [subject, setSubject] = useState('General');
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSubjects = async () => {
       try {
         const data = await questionsAPI.getSubjects();
-        const list = Array.isArray(data.subjects) ? data.subjects : [];
-        setSubjects(list);
-        const first = list[0];
-        if (first) {
-          setSelectedYear(first.year);
-          setSubject(first.id);
-        }
-      } catch {
-        setError('Unable to load subjects for study session.');
+        setSubjects(data.subjects || []);
+      } catch (err) {
+        console.error('Failed to load subjects', err);
       }
     };
     loadSubjects();
   }, []);
 
-  useEffect(() => {
-    const first = filteredSubjects[0];
-    if (first) setSubject(first.id);
-  }, [selectedYear, filteredSubjects]);
-
-  const startSession = async () => {
-    setLoading(true);
-    setError('');
-    setResult(null);
-    setResourceStatusText('Checking subject resources...');
-    setPrepProgress(8);
-    const progressTimer = setInterval(() => {
-      setPrepProgress((prev) => (prev < 92 ? prev + 6 : prev));
-    }, 600);
-    try {
-      const status = await questionsAPI.getResourceStatus(selectedYear, subject);
-      const statusSummary = Object.entries(status.status)
-        .map(([k, v]) => `${k}: ${v.cached ? 'cached' : 'not cached'}`)
-        .join(' | ');
-      setResourceStatusText(statusSummary);
-
-      const targetDifficulty = adaptiveMode ? recommendedDifficulty : difficulty;
-      const generated = await questionsAPI.generateQuestions(subject, selectedYear, questionType, 5, targetDifficulty);
-      setSession(generated);
-      setCurrentIndex(0);
-      setAnswers({});
-      setPrepProgress(100);
-      const fetchSummary = generated.source_details?.fetch_summary;
-      if (fetchSummary) {
-        setResourceStatusText(
-          `Download check -> downloaded: ${fetchSummary.downloaded ?? 0}, cached: ${fetchSummary.existing ?? 0}, failed: ${fetchSummary.failed ?? 0}`
-        );
-      }
-    } catch (err) {
-      const msg = axios.isAxiosError(err) ? (err.response?.data?.detail || err.message) : 'Failed to start session.';
-      setError(msg);
-    } finally {
-      clearInterval(progressTimer);
-      setLoading(false);
-      setTimeout(() => setPrepProgress(0), 700);
-    }
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const submitAndMark = async () => {
-    if (!session) return;
+  useEffect(scrollToBottom, [messages]);
+
+  const handleSend = async (textOverride?: string) => {
+    const textToSend = textOverride || input;
+    if (!textToSend.trim() || loading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: textToSend,
+      sender: 'user',
+      timestamp: Date.now(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
     setLoading(true);
+
     try {
-      const payload = session.questions.map((q, idx) => ({
-        question_text: q.question_text,
-        question_type: q.question_type,
-        correct_answer: q.correct_answer,
-        explanation: q.explanation,
-        options: q.options,
-        student_answer: answers[idx] || '',
-      }));
-      const subjectKey = subject.includes(':') ? subject.split(':', 2)[1] : subject;
-      const marked = await questionsAPI.markPractice(payload, studentId.trim() || 'anonymous', subjectKey);
-      setResult(marked);
-      if (adaptiveMode) {
-        const pct = marked.percentage;
-        if (pct >= 80) setRecommendedDifficulty('hard');
-        else if (pct >= 55) setRecommendedDifficulty('medium');
-        else setRecommendedDifficulty('easy');
-      }
+      const response = await tutorAPI.ask(textToSend, subject);
+      
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: response.explanation,
+        sender: 'ai',
+        timestamp: Date.now(),
+        suggestions: response.related_questions
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
     } catch (err) {
-      const msg = axios.isAxiosError(err) ? (err.response?.data?.detail || err.message) : 'Failed to mark practice.';
-      setError(msg);
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm sorry, I encountered an error. Please try again or check your connection.",
+        sender: 'ai',
+        timestamp: Date.now(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
   };
-
-  const getMarked = (index: number) => result?.results.find((r) => r.index === index);
 
   return (
-    <div className="generator-section">
+    <div className="generator-section" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div className="generator-hero">
-        <h2>Study With AI</h2>
-        <p>Vividly explore core topics with your personalized AI study buddy. Answer questions and get instant, step-by-step guidance.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ fontSize: '2.5rem' }}>🎓</div>
+          <div>
+            <h2>Study With AI</h2>
+            <p>Your interactive SHS tutor for instant, simplified explanations.</p>
+          </div>
+        </div>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      <div className="form-group" style={{ maxWidth: '300px' }}>
+        <label>Subject Context:</label>
+        <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+          <option value="General">General SHS Topics</option>
+          {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
 
-      <div className="form-grid generator-panel">
-        <div className="form-group">
-          <label>Student ID</label>
+      <div className="chat-container">
+        <div className="messages-list">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`message-bubble ${msg.sender}`}>
+              <div style={{ whiteSpace: 'pre-wrap' }}>
+                {msg.text}
+              </div>
+              {msg.suggestions && msg.suggestions.length > 0 && (
+                <div className="follow-up-suggestions">
+                    <p style={{ width: '100%', fontSize: '0.8rem', opacity: 0.7, margin: '8px 0 4px' }}>Follow-up questions:</p>
+                  {msg.suggestions.map((s, i) => (
+                    <button 
+                      key={i} 
+                      className="suggestion-chip"
+                      onClick={() => handleSend(s)}
+                      disabled={loading}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {loading && (
+            <div className="message-bubble ai">
+              <div className="thinking-indicator">
+                <div className="thinking-dot"></div>
+                <div className="thinking-dot"></div>
+                <div className="thinking-dot"></div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form 
+          className="chat-input-area" 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+        >
           <input
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            placeholder="e.g. student_001"
+            className="chat-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask me anything (e.g., 'Explain mitosis' or 'WASSCE tips for Core Maths')..."
+            disabled={loading}
           />
-        </div>
-        <div className="form-group">
-          <label>Year</label>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-            {years.map((y) => <option key={y}>{y}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Subject</label>
-          <select value={subject} onChange={(e) => setSubject(e.target.value)}>
-            {filteredSubjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Question Type</label>
-          <select value={questionType} onChange={(e) => setQuestionType(e.target.value)}>
-            <option value="multiple_choice">Multiple Choice</option>
-            <option value="short_answer">Short Answer</option>
-            <option value="essay">Essay</option>
-            <option value="true_false">True/False</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Difficulty</label>
-          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Study Mode</label>
-          <select
-            value={adaptiveMode ? 'adaptive' : 'manual'}
-            onChange={(e) => setAdaptiveMode(e.target.value === 'adaptive')}
+          <button 
+            type="submit" 
+            className="btn-primary" 
+            style={{ padding: '0 25px' }}
+            disabled={loading || !input.trim()}
           >
-            <option value="adaptive">Adaptive (Recommended)</option>
-            <option value="manual">Manual</option>
-          </select>
-          {adaptiveMode && (
-            <small style={{ color: '#555' }}>Recommended difficulty: {recommendedDifficulty}</small>
-          )}
-        </div>
-      </div>
-
-      <div className="practice-actions">
-        <button className="btn-primary" onClick={startSession} disabled={loading || !subject}>
-          {loading ? 'Preparing...' : 'Start Study Session'}
-        </button>
-        {session && (
-          <button className="btn-secondary" onClick={submitAndMark} disabled={loading}>
-            {loading ? 'Marking...' : 'Mark My Session'}
+            Send
           </button>
-        )}
-        {result && (
-          <span className="practice-score">
-            Score: {result.score_obtained}/{result.total_questions} ({result.percentage}%)
-          </span>
-        )}
+        </form>
       </div>
-      {loading && prepProgress > 0 && (
-        <div className="prep-progress">
-          <div className="prep-progress__bar" style={{ width: `${prepProgress}%` }} />
-        </div>
-      )}
-      {resourceStatusText && <div className="info">{resourceStatusText}</div>}
-
-      {session && currentQuestion && (
-        <div className="question-card">
-          <h4>Practice Question {currentIndex + 1} of {session.questions.length}</h4>
-          <p><strong>{currentQuestion.question_text}</strong></p>
-
-          {currentQuestion.options && (
-            <div className="options">
-              {currentQuestion.options.map((opt, i) => (
-                <p className="option" key={i}>{String.fromCharCode(65 + i)}. {opt}</p>
-              ))}
-            </div>
-          )}
-
-          <div className="practice-input">
-            <label><strong>Your Answer</strong></label>
-            {currentQuestion.options ? (
-              <select
-                value={answers[currentIndex] || ''}
-                onChange={(e) => setAnswers((p) => ({ ...p, [currentIndex]: e.target.value }))}
-              >
-                <option value="">Select answer</option>
-                {currentQuestion.options.map((opt, i) => (
-                  <option key={i} value={opt}>{String.fromCharCode(65 + i)}. {opt}</option>
-                ))}
-              </select>
-            ) : (
-              <textarea
-                rows={4}
-                value={answers[currentIndex] || ''}
-                onChange={(e) => setAnswers((p) => ({ ...p, [currentIndex]: e.target.value }))}
-                placeholder="Type your answer here..."
-              />
-            )}
-          </div>
-
-          {getMarked(currentIndex) && (
-            <div className={`marking-feedback ${getMarked(currentIndex)?.is_correct ? 'correct' : 'incorrect'}`}>
-              <p><strong>AI Feedback:</strong> {getMarked(currentIndex)?.feedback}</p>
-              <p><strong>Expected:</strong> {getMarked(currentIndex)?.expected_answer}</p>
-            </div>
-          )}
-
-          <div className="practice-actions">
-            <button
-              className="btn-secondary"
-              onClick={() => setCurrentIndex((v) => Math.max(0, v - 1))}
-              disabled={currentIndex === 0}
-            >
-              Previous
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={() => setCurrentIndex((v) => Math.min((session.questions.length - 1), v + 1))}
-              disabled={currentIndex >= session.questions.length - 1}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

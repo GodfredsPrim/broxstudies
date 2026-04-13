@@ -271,6 +271,23 @@ export const analysisAPI = {
   },
 };
 
+
+export interface TutorResponse {
+  explanation: string;
+  related_questions?: string[];
+}
+
+export const tutorAPI = {
+  ask: async (question: string, subject?: string, context?: string): Promise<TutorResponse> => {
+    const response = await apiClient.post('/tutor/ask', {
+      question,
+      subject,
+      context,
+    });
+    return response.data;
+  },
+};
+
 export const resourcesAPI = {
   fetchCurriculumResources: async (years?: string[], subjects?: string[], resourceTypes?: string[], autoProcess?: boolean) => {
     const response = await apiClient.post('/resources/fetch-curriculum-resources', {

@@ -1,160 +1,303 @@
-import { useState } from 'react';
-import { analysisAPI, questionsAPI, StudentMasteryResponse, TeacherInsightsResponse } from '../services/api';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { questionsAPI, Question } from '../services/api';
+
+interface Subject {
+  id: string;
+  name: string;
+  year: string;
+}
 
 export function AnalysisDashboard() {
   const [subject, setSubject] = useState('mathematics');
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [studentId, setStudentId] = useState('student_demo');
-  const [mastery, setMastery] = useState<StudentMasteryResponse | null>(null);
-  const [teacherInsights, setTeacherInsights] = useState<TeacherInsightsResponse | null>(null);
+  const [selectedYear, setSelectedYear] = useState('Year 1');
   const [loading, setLoading] = useState(false);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [showAnswers, setShowAnswers] = useState(false);
+  const [studentAnswers, setStudentAnswers] = useState<Record<number, string>>({});
+  const [examResult, setExamResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [error, setError] = useState('');
+  const [mockTimeLimit, setMockTimeLimit] = useState(120); // Default 120 minutes for full paper
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timerActive, setTimerActive] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  const handleAnalyze = async () => {
+  const availableYears = Array.from(new Set(subjects.map((s) => s.year))).sort();
+  const filteredSubjects = subjects.filter((s) => s.year === selectedYear);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const data = await questionsAPI.getSubjects();
+        const subjectList = data.subjects || [];
+        setSubjects(Array.isArray(subjectList) ? subjectList : []);
+        if (Array.isArray(subjectList) && subjectList.length > 0) {
+          const firstYear = subjectList.find((s: Subject) => s.year === 'Year 1')?.year || subjectList[0].year;
+          setSelectedYear(firstYear);
+          const firstForYear = subjectList.find((s: Subject) => s.year === firstYear);
+          if (firstForYear) {
+            setSubject(firstForYear.id);
+          }
+        }
+        setError('');
+      } catch (error) {
+        console.error('Error fetching subjects:', error);
+        setError('Could not load subjects.');
+      }
+    };
+    fetchSubjects();
+  }, []);
+
+  useEffect(() => {
+    if (!subjects.length) return;
+    const firstForYear = subjects.find((s) => s.year === selectedYear);
+    if (firstForYear) {
+      setSubject(firstForYear.id);
+    }
+  }, [selectedYear, subjects]);
+
+  const handleGenerate = async () => {
+    if (!subject) {
+      alert('Please select a subject');
+      return;
+    }
+
     setLoading(true);
+    setError('');
     try {
-      const result = await analysisAPI.analyzePatterns(subject);
-      setAnalysis(result);
+      // Standard type is hardcoded here for "Likely WASSCE Questions"
+      const result = await questionsAPI.generateQuestions(
+        subject,
+        selectedYear,
+        'standard',
+        46, // 40 MCQ + 6 Theory
+        'medium'
+      );
+      setQuestions(result.questions);
+      setShowAnswers(false);
+      setStudentAnswers({});
+      setExamResult(null);
     } catch (error) {
-      console.error('Error analyzing patterns:', error);
-      alert('Failed to analyze patterns');
+      console.error('Error generating questions:', error);
+      const backendMessage = axios.isAxiosError(error)
+        ? (error.response?.data?.detail || error.message)
+        : 'Failed to generate paper.';
+      setError(backendMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLoadMastery = async () => {
+  const startSimulation = () => {
+    setIsSimulating(true);
+    setStudentAnswers({});
+    setExamResult(null);
+    setShowAnswers(false);
+    setTimeLeft(mockTimeLimit * 60);
+    setTimerActive(true);
+    
     try {
-      const data = await questionsAPI.getStudentMastery(studentId.trim() || 'student_demo');
-      setMastery(data);
-    } catch (error) {
-      console.error('Error loading mastery:', error);
-      alert('Failed to load student mastery');
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn('Fullscreen request denied:', err);
+      });
+    } catch (e) {
+      console.warn('Fullscreen API error:', e);
     }
   };
 
-  const handleLoadTeacher = async () => {
-    try {
-      const data = await questionsAPI.getTeacherInsights(subject);
-      setTeacherInsights(data);
-    } catch (error) {
-      console.error('Error loading teacher insights:', error);
-      alert('Failed to load teacher insights');
+  const stopSimulation = () => {
+    setTimerActive(false);
+    setTimeLeft(null);
+    setIsSimulating(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.warn(err));
     }
   };
 
-  // Removed reliability polling
+  const submitExamGrading = async () => {
+    setIsSubmitting(true);
+    try {
+      const items = questions.map((q, i) => ({
+        question_text: q.question_text,
+        question_type: q.question_type,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        options: q.options,
+        student_answer: studentAnswers[i] || '',
+      }));
+      
+      const res = await questionsAPI.markPractice(items, 'simulation_user', subject);
+      setExamResult(res);
+      setShowAnswers(true);
+    } catch (err) {
+      console.error('Error marking practice:', err);
+      alert('Error submitting exam for grading.');
+    } finally {
+      setIsSubmitting(false);
+      stopSimulation();
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (isSimulating && !document.fullscreenElement && !examResult) {
+        alert('Restricted mode violation: Fullscreen exited. Auto-submitting exam now.');
+        submitExamGrading();
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [isSimulating, studentAnswers, examResult]);
+
+  useEffect(() => {
+    let interval: any;
+    if (timerActive && timeLeft !== null && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev !== null && prev <= 1) {
+            clearInterval(interval);
+            submitExamGrading();
+            return 0;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, timeLeft]);
+
+  const mcqQuestions = questions.filter(q => q.question_type === 'multiple_choice');
+  const theoryQuestions = questions.filter(q => q.question_type === 'essay' || q.question_type === 'short_answer');
+
+  const renderQuestionCard = (q: Question, globalIndex: number, labelPrefix: string) => (
+    <div key={`q-${globalIndex}`} className="question-card" style={{ padding: '20px', border: '1px solid #eaeaea', borderRadius: '8px', marginBottom: '15px', background: '#fff' }}>
+      <h4 style={{ color: '#0b7a4b', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '12px' }}>{labelPrefix}</h4>
+      <p style={{ whiteSpace: 'pre-wrap', fontSize: '1.1rem' }}><strong>{q.question_text}</strong></p>
+
+      <div className="interactive-answer">
+        {q.options && q.options.length > 0 ? (
+          <div className="options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px' }}>
+            {q.options.map((opt, i) => {
+              const letter = String.fromCharCode(65 + i);
+              return (
+                <label key={i} className="option" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px', background: studentAnswers[globalIndex] === letter ? '#e6f7ff' : '#f9f9f9', borderRadius: '6px', border: studentAnswers[globalIndex] === letter ? '1px solid #1890ff' : '1px solid transparent' }}>
+                  <input 
+                    type="radio" 
+                    name={`hall-question-${globalIndex}`} 
+                    value={letter}
+                    checked={studentAnswers[globalIndex] === letter}
+                    onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
+                  />
+                  <span>{letter}. {opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <textarea
+            placeholder="Type your detailed answer here... (Show all workings for sub-parts like (a)(i), (b))"
+            rows={8}
+            style={{ width: '100%', marginTop: '15px', padding: '12px', border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'inherit', fontSize: '1rem' }}
+            value={studentAnswers[globalIndex] || ''}
+            onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
+          />
+        )}
+      </div>
+
+      {showAnswers && (
+        <div className="answer-section" style={{ marginTop: '20px', padding: '15px', background: '#f0fdf4', borderRadius: '6px', borderLeft: '4px solid #10b981' }}>
+          {examResult && examResult.results[globalIndex] && (
+            <div style={{ marginBottom: '10px', padding: '8px', background: examResult.results[globalIndex].is_correct ? '#d1fae5' : '#fee2e2', borderRadius: '4px' }}>
+              <strong>Score:</strong> {examResult.results[globalIndex].score * 100}% | <strong>Feedback:</strong> {examResult.results[globalIndex].feedback}
+            </div>
+          )}
+          <p><strong>Expected Answer/Rubric:</strong> {q.correct_answer || 'See explanation'}</p>
+          <p><strong>Explanation:</strong> {q.explanation}</p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="analysis-section">
-      <div className="generator-hero">
-        <h2>Likely WASSCE Questions: Patterns</h2>
-        <p>Explore hidden patterns and frequent topics in past WAEC exams visually to stay ahead of the curve.</p>
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="analysisSubject">Subject:</label>
-        <select
-          id="analysisSubject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-        >
-          <option value="mathematics">Mathematics</option>
-          <option value="english">English</option>
-          <option value="science">Science</option>
-          <option value="social_studies">Social Studies</option>
-          <option value="ict">ICT</option>
-          <option value="electives">Electives</option>
-        </select>
-      </div>
-
-      <button
-        onClick={handleAnalyze}
-        disabled={loading}
-        className="btn-secondary"
-      >
-        {loading ? 'Analyzing...' : 'Analyze Patterns'}
-      </button>
-
-      <div className="form-grid" style={{ marginTop: '1rem' }}>
-        <div className="form-group">
-          <label htmlFor="studentId">Student ID:</label>
-          <input
-            id="studentId"
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            placeholder="student_demo"
-          />
+    <div className={`analysis-section ${isSimulating ? 'simulating' : ''}`} style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      {!isSimulating && (
+        <div className="generator-hero">
+          <h2>Likely WASSCE Questions: Full Paper Hall</h2>
+          <p>Generate and solve complete 40-MCQ + 6-Theory WASSCE examination papers under strict simulation.</p>
         </div>
-        <div className="form-group" style={{ display: 'flex', alignItems: 'end' }}>
-          <button onClick={handleLoadMastery} className="btn-primary">Load Student Mastery</button>
+      )}
+
+      {error && <div className="error-message">{error}</div>}
+
+      {isSimulating ? (
+        <div className="sim-exit-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#101923', color: '#fff', padding: '15px 25px', borderRadius: '8px', position: 'sticky', top: 0, zIndex: 1000, marginBottom: '20px' }}>
+          <span><strong>📋 Subject:</strong> {subjects.find(s => s.id === subject)?.name}</span>
+          <span><strong>Progress:</strong> {Object.keys(studentAnswers).length} / {questions.length}</span>
+          {timeLeft !== null && (
+            <span style={{ fontWeight: 'bold', color: timeLeft < 300 ? '#ff4d4f' : '#fff' }}>
+              ⏱️ Time Left: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </span>
+          )}
+          <button onClick={submitExamGrading} disabled={isSubmitting} className="btn-primary" style={{ background: '#52c41a', border: 'none' }}>
+            {isSubmitting ? 'Grading...' : '✅ Submit Paper'}
+          </button>
         </div>
-        <div className="form-group" style={{ display: 'flex', alignItems: 'end' }}>
-          <button onClick={handleLoadTeacher} className="btn-primary">Load Teacher Insights</button>
-        </div>
-      </div>
-
-      {analysis && (
-        <div className="analysis-results">
-          <h3>Analysis Results for {analysis.subject}</h3>
-
-          <div className="result-card">
-            <h4>Questions Analyzed</h4>
-            <p className="result-value">{analysis.total_past_questions_analyzed}</p>
-          </div>
-
-          <div className="result-card">
-            <h4>Common Topics</h4>
-            <ul>
-              {analysis.common_topics.map((topic: string, i: number) => (
-                <li key={i}>{topic}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="result-card">
-            <h4>Difficulty Distribution</h4>
-            <div className="stats">
-              <p>Easy: {analysis.difficulty_distribution.easy || 0}%</p>
-              <p>Medium: {analysis.difficulty_distribution.medium || 0}%</p>
-              <p>Hard: {analysis.difficulty_distribution.hard || 0}%</p>
+      ) : (
+        <>
+          <div className="form-grid generator-panel" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #dbe4ef', marginBottom: '20px' }}>
+            <div className="form-group">
+              <label>Select Year:</label>
+              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Select Subject:</label>
+              <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+                {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Time Limit (mins):</label>
+              <input type="number" value={mockTimeLimit} onChange={(e) => setMockTimeLimit(parseInt(e.target.value) || 1)} />
             </div>
           </div>
 
-          <div className="result-card">
-            <h4>Question Patterns</h4>
-            <pre>{JSON.stringify(analysis.question_patterns, null, 2)}</pre>
+          <div style={{ display: 'flex', gap: '15px', marginBottom: '30px' }}>
+            <button onClick={handleGenerate} disabled={loading} className="btn-primary" style={{ flex: 1, padding: '15px' }}>
+              {loading ? '📄 Constructing Full Paper...' : '📑 Generate Full WASSCE Paper'}
+            </button>
+            {questions.length > 0 && (
+              <button onClick={startSimulation} className="btn-secondary" style={{ flex: 1, background: '#101923' }}>
+                🔒 Start Exam (Restricted)
+              </button>
+            )}
           </div>
+        </>
+      )}
+
+      {examResult && !isSimulating && (
+        <div className="exam-results-card" style={{ background: 'linear-gradient(135deg, #0b7a4b, #10a261)', color: 'white', padding: '30px', borderRadius: '15px', marginBottom: '30px', textAlign: 'center', boxShadow: '0 10px 25px rgba(11, 122, 75, 0.3)' }}>
+          <h2 style={{ color: '#fff' }}>Simulation Official Result</h2>
+          <h1 style={{ fontSize: '4rem', margin: '10px 0' }}>{examResult.percentage}%</h1>
+          <p style={{ fontSize: '1.2rem' }}>Answered {examResult.total_questions} questions | Score: {examResult.score_obtained}</p>
+          <p style={{ marginTop: '15px', opacity: 0.9 }}>Review your answers below to learn from mistakes.</p>
         </div>
       )}
 
-      {mastery && (
-        <div className="analysis-results">
-          <h3>Student Mastery</h3>
-          <div className="result-card">
-            <h4>Streak</h4>
-            <p className="result-value">{mastery.streak}</p>
-          </div>
-          <div className="result-card">
-            <h4>Subject Performance</h4>
-            <pre>{JSON.stringify(mastery.subjects, null, 2)}</pre>
-          </div>
-        </div>
-      )}
-
-      {teacherInsights && (
-        <div className="analysis-results">
-          <h3>Teacher Insights</h3>
-          <div className="result-card">
-            <p><strong>Subject:</strong> {teacherInsights.subject}</p>
-            <p><strong>Students With Attempts:</strong> {teacherInsights.students_with_attempts}</p>
-            <p><strong>Average Latest Score:</strong> {teacherInsights.average_latest_score}%</p>
-            <p><strong>At Risk Students:</strong> {teacherInsights.at_risk_students}</p>
-            <p><strong>Intervention:</strong> {teacherInsights.recommended_intervention}</p>
-          </div>
-        </div>
-      )}
-
-      {/* System Reliability section removed */}
+      <div className="questions-list">
+        {questions.length > 0 && (
+          <>
+            <h3 style={{ marginTop: '2rem', background: '#f0f4f8', padding: '10px 15px', borderRadius: '8px' }}>SECTION A: OBJECTIVE (40 QUESTIONS)</h3>
+            {mcqQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1}`))}
+            
+            <h3 style={{ marginTop: '3rem', background: '#f0f4f8', padding: '10px 15px', borderRadius: '8px' }}>SECTION B: THEORY (6 QUESTIONS)</h3>
+            {theoryQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1} (Theory)`))}
+          </>
+        )}
+      </div>
     </div>
   );
 }
