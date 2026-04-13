@@ -10,56 +10,22 @@ interface Message {
 }
 
 const TutorExplanation = ({ text }: { text: string }) => {
-  const sections = text.split(/\*\*([^*]+)\*\*/g);
+  // Since we only want the Main Concept now, we just render the raw text 
+  // but strip any residual markdown symbols if the LLM includes them.
+  const cleanText = text.replace(/\*\*|##|---|[*_-]/g, '').trim();
   
-  // The split above will give us:
-  // [pre-content, HEADER1, content1, HEADER2, content2, ...]
-  
-  const renderedSections = [];
-  let header = "";
-  
-  for (let i = 0; i < sections.length; i++) {
-    const part = sections[i].trim();
-    if (!part) continue;
-
-    if (i % 2 === 1) {
-      // It's a header
-      header = part;
-    } else {
-      // It's content
-      if (header) {
-        // Clean up bullets within the content
-        const lines = part.split('\n').map(line => {
-             const cleanLine = line.trim().replace(/^[-*]\s*/, '');
-             if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-                 return <li key={line} className="tutor-li">{cleanLine}</li>;
-             }
-             return cleanLine ? <p key={line} className="tutor-p">{cleanLine}</p> : null;
-        });
-
-        renderedSections.push(
-          <div key={header} className="tutor-section">
-            <div className="tutor-section-header">
-               {header === 'MAIN CONCEPT' && '🎯 '}
-               {header === 'EXPLANATION' && '💡 '}
-               {header === 'FAST FACT/TIP' && '✨ '}
-               {header === 'SUMMARY' && '📝 '}
-               {header}
-            </div>
-            <div className="tutor-section-body">
-              {lines}
-            </div>
-          </div>
-        );
-        header = "";
-      } else {
-        // Just general text before any headers
-        renderedSections.push(<p key={i} className="tutor-p">{part}</p>);
-      }
-    }
-  }
-
-  return <div className="tutor-explanation-card">{renderedSections}</div>;
+  return (
+    <div className="tutor-explanation-card">
+      <div className="tutor-section" style={{ borderLeft: '4px solid var(--ghana-green)' }}>
+        <div className="tutor-section-header">
+           🎯 Verified Textbook Insight
+        </div>
+        <div className="tutor-section-body">
+          <p className="tutor-p" style={{ fontSize: '1.1rem', fontWeight: 500 }}>{cleanText}</p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export function StudyCoach() {

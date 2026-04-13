@@ -3,8 +3,10 @@ import asyncio
 from typing import Optional, List
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from pathlib import Path
+import re
 from app.config import settings
-from app.models import TutorResponse
+from app.models import TutorResponse, Subject, SUBJECT_ALIASES
 
 logger = logging.getLogger(__name__)
 
@@ -29,37 +31,48 @@ class TutorService:
         )
         return self.llm
 
-    async def get_explanation(self, question: str, subject: Optional[str] = None, context: Optional[str] = None) -> TutorResponse:
-        """Get a quick, high-quality explanation for a student question."""
+    async def get_explanation(self, question: str, subject: str, context: Optional[str] = None) -> TutorResponse:
+        """Get a specific textbook definition/concept for a student question."""
         try:
             llm = self._get_llm()
             
-            system_prompt = """
-You are a highly intelligent and supportive AI tutor for Ghanaian Senior High School (SHS) students. 
-Your goal is to provide perfectly organized, clear, and easy-to-read explanations.
+            # Resolve subject and load textbook context
+            year_key = "year_1"
+            subject_id = subject.lower().strip()
+            if ":" in subject_id:
+                year_key, subject_id = subject_id.split(":", 1)
+            
+            # Normalize subject_id
+            subject_id = re.sub(r"[^a-z0-9_]+", "_", subject_id).strip("_")
+            subject_id = SUBJECT_ALIASES.get(subject_id, subject_id)
+            
+            textbook_dir = settings.SITE_RESOURCE_DIR / "textbooks" / year_key / subject_id
+            textbook_context = self._extract_excerpts_from_directory(textbook_dir, max_docs=3)
+            
+            if not textbook_context:
+                textbook_context = "No direct textbook excerpts found for this specific subject. Please use general SHS academic standards."
 
-ORGANIZATION RULES:
-1. Structure: ALWAYS use the following sections in your response:
-   - **MAIN CONCEPT**: A clear 1-sentence definition of the topic.
-   - **EXPLANATION**: A step-by-step or bulleted breakdown. Focus on "Why" and "How".
-   - **FAST FACT/TIP**: A small, interesting piece of information or a WASSCE trick for this topic.
-   - **SUMMARY**: 1-2 sentences summarizing the most important part.
+            system_prompt = f"""
+You are a highly focused Ghana SHS Textbook Retrieval Assistant. 
+Your ONLY task is to provide the 'MAIN CONCEPT' for the student's question based strictly on the provided textbook context.
 
-2. Formatting:
-   - Use **Bold** for emphasis on key terms.
-   - Use bullet points for lists.
-   - Separate sections with a clear line of dashes if needed, but primarily use the headers above.
-   - Avoid long walls of text. Keep paragraphs short (max 3 sentences).
+STRICT RULES:
+1. OUTPUT: ONLY provide the 'MAIN CONCEPT'. No introduction, no additional explanation, no 'Fast Facts'.
+2. SOURCE: You MUST base your answer on the provided Textbook Excerpts. If the answer is not there, use standard Ghana WASSCE curriculum definitions.
+3. FORMAT: 
+   - Start your response directly with the definition.
+   - Do NOT use markdown symbols like **bold**, ## headers, or -- dashes.
+   - Keep it to 1-2 clear, authoritative sentences.
+4. TONALITY: Academic, formal, and precise.
 
-3. Tonality: Encouraging, Ghanaian-friendly, and professional. Use local examples where applicable.
-
-4. Follow-ups: Suggest exactly 3 logical follow-up questions at the very end, after the marker '[FOLLOW_UPS]'.
+Textbook Excerpts:
+{textbook_context}
 """
             
             subject_context = f"Subject: {subject}\n" if subject else "Subject: General SHS Topics\n"
             student_context = f"Student Context: {context}\n" if context else ""
             
-            user_msg = f"{subject_context}{student_context}Question: {question}"
+            user_msg = f"Question: {question}"
             
             messages = [
                 SystemMessage(content=system_prompt),
@@ -86,7 +99,26 @@ ORGANIZATION RULES:
             
         except asyncio.TimeoutError:
             logger.error("Tutor request timed out.")
-            return TutorResponse(explanation="I'm sorry, I took too long to think of an explanation. Please try again!")
+            return TutorResponse(explanation="Timeout: Unable to retrieve textbook insight right now.")
         except Exception as e:
             logger.error(f"Error in TutorService: {str(e)}")
-            return TutorResponse(explanation=f"I encountered an error while trying to help: {str(e)}")
+            return TutorResponse(explanation=f"Textbook Error: {str(e)}")
+
+    def _extract_excerpts_from_directory(self, root: Path, max_docs: int = 2, max_chars: int = 900) -> str:
+        """Extract small excerpts from subject files for RAG."""
+        if not root.exists():
+            return ""
+        
+        excerpts = []
+        files = list(root.glob("*.txt"))[:max_docs]
+        if not files:
+            files = list(root.glob("*.pdf"))[:max_docs] # Logic for raw files would go here, assuming .txt for now
+            
+        for f in files:
+            try:
+                with open(f, "r", encoding="utf-8") as file:
+                    content = file.read(max_chars)
+                    excerpts.append(f"Source: {f.name}\nContent: {content}...")
+            except:
+                continue
+        return "\n\n".join(excerpts)

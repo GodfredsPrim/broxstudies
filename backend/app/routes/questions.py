@@ -454,7 +454,7 @@ async def create_live_quiz(request: LiveQuizCreateRequest):
             "created_at": time.time(),
             "time_limit": request.time_limit,
             "host": player,
-            "players": {player: {"submitted": False, "score": 0.0, "percentage": 0.0}},
+            "players": {player.lower(): {"name": player, "submitted": False, "score": 0.0, "percentage": 0.0}},
             "questions": [q.model_dump() for q in questions],
             "answers": {},  # player -> marking response
         }
@@ -471,8 +471,204 @@ async def join_live_quiz(request: LiveQuizJoinRequest):
         session = quiz_sessions.get(code)
         if not session:
             raise HTTPException(status_code=404, detail="Quiz code not found")
-        if player not in session["players"]:
-            session["players"][player] = {"submitted": False, "score": 0.0, "percentage": 0.0}
+        player_key = player.lower()
+        if player_key not in session["players"]:
+            session["players"][player_key] = {"name": player, "submitted": False, "score": 0.0, "percentage": 0.0}
+    return {"status": "joined", "code": code, "player_name": player}
+
+
+@router.get("/quiz/{code}/state")
+async def get_live_quiz_state(code: str):
+    quiz_code = code.strip().upper()
+    async with quiz_lock:
+        session = quiz_sessions.get(quiz_code)
+        if not session:
+            raise HTTPException(status_code=404, detail="Quiz code not found")
+        public_questions = []
+        for q in session["questions"]:
+            public_questions.append(
+                {
+                    "question_text": q.get("question_text"),
+                    "question_type": q.get("question_type"),
+                    "options": q.get("options"),
+                }
+            )
+                )
+
+    subjects_list.sort(key=lambda x: (x["year"], x["name"]))
+    return {"subjects": subjects_list}
+
+
+@router.get("/question-types")
+async def get_question_types():
+    """Get available question types."""
+    return {
+        "types": [
+            "multiple_choice",
+            "short_answer",
+            "essay",
+            "true_false",
+            "standard",
+        ]
+    }
+
+
+@router.get("/resource-status")
+async def get_resource_status(year: str, subject: str):
+    """Get local cache status for a selected year+subject."""
+    import re
+    from app.services.curriculum_fetcher import CurriculumResourceFetcher
+
+    year_key = year.lower().strip().replace(" ", "_")
+    if year_key in {"1", "year1"}:
+        year_key = "year_1"
+    elif year_key in {"2", "year2"}:
+        year_key = "year_2"
+    if year_key not in {"year_1", "year_2"}:
+        raise HTTPException(status_code=400, detail="Invalid year")
+
+    subject_token = subject.lower().strip()
+    if ":" in subject_token:
+        token_year, token_subject = subject_token.split(":", 1)
+        if token_year in {"year_1", "year_2"}:
+            year_key = token_year
+        subject_token = token_subject
+
+    subject_slug = re.sub(r"[^a-z0-9_]+", "_", subject_token).strip("_")
+    fetcher = CurriculumResourceFetcher()
+    return {
+        "year": year_key,
+        "subject_slug": subject_slug,
+        "status": fetcher.get_subject_resource_status(year_key, subject_slug),
+    }
+
+
+@router.post("/mark-practice", response_model=PracticeMarkResponse)
+async def mark_practice(request: PracticeMarkRequest):
+    """Mark student practice answers with objective + AI grading."""
+    try:
+        result = await generator.mark_practice_answers(request.items)
+        if request.student_id:
+            subject_key = request.subject or "general"
+            world_class.update_student_mastery(request.student_id, subject_key, float(result.get("percentage", 0.0)))
+        world_class.record_telemetry_event(
+            "practice_marking",
+            {
+                "student_id": request.student_id or "anonymous",
+                "subject": request.subject or "general",
+                "percentage": result.get("percentage", 0.0),
+            },
+        )
+        return PracticeMarkResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/curriculum/coverage")
+async def get_curriculum_coverage(subject: str):
+    """Get aggregate curriculum coverage from student activity signals."""
+    return world_class.get_teacher_insights(subject)
+
+
+@router.get("/students/{student_id}/mastery")
+async def get_student_mastery(student_id: str):
+    """Get adaptive mastery profile for a student."""
+    return world_class.get_student_profile(student_id)
+
+
+@router.get("/teacher/insights")
+async def get_teacher_insights(subject: str):
+    """Teacher-oriented class insight view."""
+    return world_class.get_teacher_insights(subject)
+
+
+@router.get("/system/reliability")
+async def get_reliability():
+    """Operational reliability snapshot."""
+    return world_class.get_reliability_snapshot()
+
+
+@router.post("/quiz/create", response_model=LiveQuizCreateResponse)
+async def create_live_quiz(request: LiveQuizCreateRequest):
+    """Create a live quiz room with generated questions and a shareable code."""
+    from app.models import Subject, SUBJECT_ALIASES
+    import re
+    from app.services.curriculum_fetcher import CurriculumResourceFetcher
+
+    player = request.player_name.strip()
+    if not player:
+        raise HTTPException(status_code=400, detail="Player name is required")
+
+    subject_token = str(request.subject).lower().strip()
+    year_key = None
+    subject_slug = subject_token
+    if ":" in subject_token:
+        year_key, subject_slug = subject_token.split(":", 1)
+    if request.year:
+        y = request.year.lower().strip().replace(" ", "_")
+        if y in {"year_1", "year_2"}:
+            year_key = y
+        elif y in {"1", "year1"}:
+            year_key = "year_1"
+        elif y in {"2", "year2"}:
+            year_key = "year_2"
+    if not year_key:
+        year_key = "year_1"
+    subject_id = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
+
+    fetcher = CurriculumResourceFetcher()
+    await fetcher.ensure_subject_resources(
+        year_key=year_key,
+        subject_slug=subject_id,
+        resource_types=["past_questions", "textbooks", "teacher_resources"],
+    )
+    source_status = generator.get_source_status(year_key=year_key, subject_slug=subject_id)
+    if source_status.get("source_used") == "none_found":
+        raise HTTPException(status_code=404, detail="No source material found for selected subject")
+
+    try:
+        subject_enum = Subject(subject_id)
+    except ValueError:
+        subject_enum = Subject(SUBJECT_ALIASES.get(subject_id, Subject.ELECTIVES.value))
+
+    questions = await generator.generate_questions(
+        subject=subject_enum,
+        question_type=request.question_type,
+        num_questions=request.num_questions,
+        difficulty_level=request.difficulty_level,
+        topics=None,
+        year_key=year_key,
+        subject_slug=subject_id,
+        subject_label=_resolve_subject_label(year_key, subject_id),
+    )
+
+    code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    async with quiz_lock:
+        quiz_sessions[code] = {
+            "code": code,
+            "created_at": time.time(),
+            "time_limit": request.time_limit,
+            "host": player,
+            "players": {player.lower(): {"name": player, "submitted": False, "score": 0.0, "percentage": 0.0}},
+            "questions": [q.model_dump() for q in questions],
+            "answers": {},  # player -> marking response
+        }
+    return LiveQuizCreateResponse(code=code, host_player=player, total_questions=len(questions))
+
+
+@router.post("/quiz/join")
+async def join_live_quiz(request: LiveQuizJoinRequest):
+    code = request.code.strip().upper()
+    player = request.player_name.strip()
+    if not code or not player:
+        raise HTTPException(status_code=400, detail="Code and player name are required")
+    async with quiz_lock:
+        session = quiz_sessions.get(code)
+        if not session:
+            raise HTTPException(status_code=404, detail="Quiz code not found")
+        player_key = player.lower()
+        if player_key not in session["players"]:
+            session["players"][player_key] = {"name": player, "submitted": False, "score": 0.0, "percentage": 0.0}
     return {"status": "joined", "code": code, "player_name": player}
 
 
@@ -511,11 +707,12 @@ async def get_live_quiz_state(code: str):
 async def submit_live_quiz(code: str, request: LiveQuizSubmitRequest):
     quiz_code = code.strip().upper()
     player = request.player_name.strip()
+    player_key = player.lower()
     async with quiz_lock:
         session = quiz_sessions.get(quiz_code)
         if not session:
             raise HTTPException(status_code=404, detail="Quiz code not found")
-        if player not in session["players"]:
+        if player_key not in session["players"]:
             raise HTTPException(status_code=404, detail="Player not in quiz room")
         questions = session["questions"]
 
@@ -537,8 +734,9 @@ async def submit_live_quiz(code: str, request: LiveQuizSubmitRequest):
         session = quiz_sessions.get(quiz_code)
         if not session:
             raise HTTPException(status_code=404, detail="Quiz code not found")
-        session["answers"][player] = result
-        session["players"][player] = {
+        session["answers"][player_key] = result
+        session["players"][player_key] = {
+            "name": session["players"][player_key]["name"],
             "submitted": True,
             "score": result["score_obtained"],
             "percentage": result["percentage"],

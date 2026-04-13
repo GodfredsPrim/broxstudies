@@ -55,6 +55,21 @@ export function LiveQuiz() {
       try {
         const latest = await questionsAPI.getLiveQuizState(roomCode);
         setState(latest);
+        
+        // If we don't have a local result but the leaderboard says we submitted,
+        // we should reflect that in the UI.
+        const me = latest.leaderboard.find(p => p.player.toLowerCase() === playerName.toLowerCase());
+        if (me?.submitted && !result) {
+            // We can't easily reconstruct the full PracticeMarkResponse here 
+            // without a dedicated endpoint, but we can at least disable the button
+            // and show the percentage from the leaderboard.
+            setResult({
+                percentage: me.percentage,
+                score_obtained: me.score,
+                total_questions: latest.questions.length,
+                results: [] 
+            });
+        }
       } catch {
         // keep quiet during polling
       }
@@ -138,6 +153,7 @@ export function LiveQuiz() {
       const arr = Array.from({ length: maxIndex }, (_, i) => answers[i] || '');
       const submitted = await questionsAPI.submitLiveQuiz(roomCode, playerName.trim(), arr);
       setResult(submitted.result);
+      // Immediately poll for the latest state to update leaderboard
       const latest = await questionsAPI.getLiveQuizState(roomCode);
       setState(latest);
     } catch (err) {
@@ -305,14 +321,14 @@ export function LiveQuiz() {
                 <div className="leaderboard-advanced">
                   {state?.leaderboard.map((row) => (
                     <div key={row.player} className="leaderboard-row" style={{ 
-                      boxShadow: row.player === playerName ? '0 0 10px rgba(59, 130, 246, 0.3)' : 'none',
-                      border: row.player === playerName ? '1px solid var(--battle-primary)' : 'none'
+                      boxShadow: row.player.toLowerCase() === playerName.toLowerCase() ? '0 0 10px rgba(59, 130, 246, 0.3)' : 'none',
+                      border: row.player.toLowerCase() === playerName.toLowerCase() ? '1px solid var(--battle-primary)' : 'none'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {row.submitted ? '✅' : '⚔️'}
                         <strong>{row.player}</strong>
                       </div>
-                      <div style={{ fontWeight: 800, color: 'var(--battle-primary)' }}>{row.percentage}%</div>
+                      <div style={{ fontWeight: 800, color: 'var(--battle-primary)' }}>{row.submitted ? `${row.percentage}%` : '---'}</div>
                     </div>
                   ))}
                 </div>
