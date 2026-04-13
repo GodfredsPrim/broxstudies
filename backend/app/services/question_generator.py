@@ -37,10 +37,10 @@ class QuestionGenerator:
             try:
                 # Parallel generation to handle the large standard request faster
                 mcq_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 20, difficulty_level, topics, year_key, subject_slug, subject_label)
+                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 40, difficulty_level, topics, year_key, subject_slug, subject_label)
                 )
                 theory_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.ESSAY, 5, difficulty_level, topics, year_key, subject_slug, subject_label)
+                    self._generate_single_batch(subject, QuestionType.ESSAY, 6, difficulty_level, topics, year_key, subject_slug, subject_label)
                 )
                 mcq_questions, theory_questions = await asyncio.gather(mcq_task, theory_task)
                 return mcq_questions + theory_questions
@@ -136,22 +136,32 @@ class QuestionGenerator:
 
         display_subject = subject_label or subject_slug.replace("_", " ").title() or subject.value
 
-        # We handle standard type specially outside this class, or by passing standard sections directly below.
+        # WAEC specific prompt augmentations for Essays
+        essay_augmentation = ""
+        if question_type == QuestionType.ESSAY:
+            essay_augmentation = """
+*** CRITICAL WAEC ESSAY STRUCTURE REQUIRED ***
+You MUST structure each essay question EXACTLY like a real WASSCE examination paper.
+Every single essay question MUST contain deeply nested sub-questions. Do not write a simple one-sentence essay question.
+Format example:
+"1. (a) (i) Define the term... (ii) State two functions of...
+    (b) Using the principle of... calculate..."
+Make sure the sub-questions are logically related but test different cognitive levels (recall vs application).
+"""
 
-        # ---------- Normal (non-standard) prompt ----------
         return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for Ghana SHS {display_subject} ({year_key.replace('_', ' ').title()}).
 
 Requirements:
 1. Follow the pattern and style of typical Ghana SHS exam questions.
 2. Be appropriate for secondary school students.
-3. Have a clear, single correct answer.
-4. Include a brief explanation.
+3. Have a clear, single correct answer or highly robust explanation marking guide.
+4. Include a detailed explanation marking guide to allow accurate automated grading.
 5. Cover these topics when relevant: {topic_text}.
 6. PRIORITY: use past-question excerpts first for style/structure, and use textbook excerpts for topical coverage.
 7. If past-question excerpts are available, do NOT use textbook excerpts at all; derive questions from past-question patterns only.
 8. If past-question excerpts are unavailable for this subject, generate from textbook excerpts only.
 9. Use teacher resource notes to improve tips/tricks and exam strategy where available.
-
+{essay_augmentation}
 Past Question Excerpts:
 {past_block}
 
@@ -164,16 +174,16 @@ Teacher Resource Excerpts:
 Return valid JSON only as an array of exactly {num_questions} objects with this structure:
 [
   {{
-    "question": "The question text here",
+    "question": "The question text here (including any structured (a)(i) formats)",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_answer": "Option A",
-    "explanation": "Brief explanation of why this is correct",
+    "correct_answer": "Option A (or leave empty for essays)",
+    "explanation": "Detailed marking rubric or explanation to be used for grading",
     "difficulty": "{difficulty}",
     "topic": "Topic name"
   }}
 ]
 
-Only include "options" for multiple choice questions. Do not include markdown or extra commentary."""
+Only include "options" for multiple choice questions (leave omit for essay). Do not include markdown or extra commentary."""
 
     def _load_resource_context(self, year_key: str, subject_slug: str) -> tuple[str, str, str]:
         """Load context from site resources and fallback past questions."""

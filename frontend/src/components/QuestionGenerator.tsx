@@ -24,6 +24,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
   const [showAnswers, setShowAnswers] = useState(false);
   const [generationTime, setGenerationTime] = useState(0);
   const [generationMeta, setGenerationMeta] = useState<GeneratedQuestions | null>(null);
+  const [studentAnswers, setStudentAnswers] = useState<Record<number, string>>({});
+  const [examResult, setExamResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [error, setError] = useState('');
@@ -104,37 +107,134 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
     if (onSimulationToggle) {
       onSimulationToggle(true);
     }
+    setStudentAnswers({});
+    setExamResult(null);
+    setShowAnswers(false);
+    
+    // Request fullscreen immediately to lock context
+    try {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn('Fullscreen request denied or unsupported:', err);
+      });
+    } catch (e) {
+      console.warn('Fullscreen API error:', e);
+    }
+  };
+
+  const handleStudentAnswerChange = (index: number, val: string) => {
+    setStudentAnswers(prev => ({ ...prev, [index]: val }));
+  };
+
+  const submitExamGrading = async () => {
+    setIsSubmitting(true);
+    try {
+      // Map global index for grading
+      const items = questions.map((q, i) => ({
+        question_text: q.question_text,
+        question_type: q.question_type,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        options: q.options,
+        student_answer: studentAnswers[i] || '',
+      }));
+      
+      const res = await questionsAPI.markPractice(items, 'simulation_user', subject);
+      setExamResult(res);
+      setShowAnswers(true);
+    } catch (err) {
+      console.error('Error marking practice:', err);
+      alert('Error submitting exam for grading.');
+    } finally {
+      setIsSubmitting(false);
+      stopSimulation(); // Exit simulation mode to view results
+    }
   };
 
   const stopSimulation = () => {
     if (onSimulationToggle) {
       onSimulationToggle(false);
     }
+    
+    // Exit fullscreen if active
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.warn(err));
+    }
   };
+
+  // Anti-cheat fullscreen enforcement
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      // If we are simulating but suddenly lose fullscreen, auto-submit to penalize cheating
+      if (isSimulating && !document.fullscreenElement && !examResult) {
+        alert('Restricted mode violation: Fullscreen exited. Auto-submitting exam now.');
+        submitExamGrading();
+      }
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [isSimulating, studentAnswers, examResult]);
 
   // Split questions into sections for standard/full exam display
   const mcqQuestions = questions.filter(q => q.question_type === 'multiple_choice');
   const theoryQuestions = questions.filter(q => q.question_type === 'essay' || q.question_type === 'short_answer');
   const isStandardExam = questionType === 'standard' && questions.length > 0 && (mcqQuestions.length > 0 || theoryQuestions.length > 0);
 
-  const renderQuestionCard = (q: Question, index: number, sectionLabel: string) => (
-    <div key={`${sectionLabel}-${index}`} className="question-card">
-      <h4>{sectionLabel} – Question {index + 1}</h4>
-      <p><strong>{q.question_text}</strong></p>
+  const renderQuestionCard = (q: Question, globalIndex: number, labelPrefix: string) => (
+    <div key={`q-${globalIndex}`} className="question-card" style={{ padding: '20px', border: '1px solid #eaeaea', borderRadius: '8px', marginBottom: '15px' }}>
+      <h4>{labelPrefix}</h4>
+      <p style={{ whiteSpace: 'pre-wrap' }}><strong>{q.question_text}</strong></p>
 
-      {q.options && (
-        <div className="options">
-          {q.options.map((opt, i) => (
-            <p key={i} className="option">{String.fromCharCode(65 + i)}. {opt}</p>
-          ))}
+      {isSimulating ? (
+        <div className="interactive-answer">
+          {q.options && q.options.length > 0 ? (
+            <div className="options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px' }}>
+              {q.options.map((opt, i) => {
+                const letter = String.fromCharCode(65 + i);
+                return (
+                  <label key={i} className="option" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px', background: studentAnswers[globalIndex] === letter ? '#e6f7ff' : '#f9f9f9', borderRadius: '6px' }}>
+                    <input 
+                      type="radio" 
+                      name={`question-${globalIndex}`} 
+                      value={letter}
+                      checked={studentAnswers[globalIndex] === letter}
+                      onChange={(e) => handleStudentAnswerChange(globalIndex, e.target.value)}
+                    />
+                    <span>{letter}. {opt}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <textarea
+              placeholder="Type your detailed answer here..."
+              rows={6}
+              style={{ width: '100%', marginTop: '15px', padding: '12px', border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'inherit' }}
+              value={studentAnswers[globalIndex] || ''}
+              onChange={(e) => handleStudentAnswerChange(globalIndex, e.target.value)}
+            />
+          )}
         </div>
+      ) : (
+        q.options && (
+          <div className="options" style={{ marginTop: '15px' }}>
+            {q.options.map((opt, i) => (
+              <p key={i} className="option">{String.fromCharCode(65 + i)}. {opt}</p>
+            ))}
+          </div>
+        )
       )}
 
       {showAnswers && (
-        <div className="answer-section">
-          <p><strong>Answer:</strong> {q.correct_answer}</p>
+        <div className="answer-section" style={{ marginTop: '20px', padding: '15px', background: '#f0fdf4', borderRadius: '6px', borderLeft: '4px solid #10b981' }}>
+          {examResult && examResult.results[globalIndex] && (
+            <div style={{ marginBottom: '10px', padding: '8px', background: examResult.results[globalIndex].is_correct ? '#d1fae5' : '#fee2e2', borderRadius: '4px' }}>
+              <strong>Score:</strong> {examResult.results[globalIndex].score * 100}% | <strong>Feedback:</strong> {examResult.results[globalIndex].feedback}
+            </div>
+          )}
+          <p><strong>Expected Answer/Rubric:</strong> {q.correct_answer || 'See explanation'}</p>
           <p><strong>Explanation:</strong> {q.explanation}</p>
-          <p><small>Difficulty: {q.difficulty_level} | Confidence: {(q.pattern_confidence * 100).toFixed(0)}%</small></p>
+          <p><small style={{ color: '#666' }}>Difficulty: {q.difficulty_level} | Confidence: {(q.pattern_confidence * 100).toFixed(0)}%</small></p>
         </div>
       )}
     </div>
@@ -168,13 +268,22 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
 
       {/* Restricted mode: show only a top bar with subject + exit button */}
       {isSimulating ? (
-        <div className="sim-exit-bar">
+        <div className="sim-exit-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '15px', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginBottom: '20px' }}>
           <span><strong>📋 Subject:</strong> {filteredSubjects.find(s => s.id === subject)?.name || subject}</span>
-          <span><strong>Questions:</strong> {questions.length}</span>
-          <button onClick={stopSimulation} className="btn-secondary">✅ Submit &amp; Finish Exam</button>
+          <span><strong>Answered:</strong> {Object.keys(studentAnswers).length} / {questions.length}</span>
+          <button onClick={submitExamGrading} disabled={isSubmitting} className="btn-secondary" style={{ background: '#10b981', color: 'white', border: 'none' }}>
+            {isSubmitting ? 'Grading...' : '✅ Submit & Finish Exam'}
+          </button>
         </div>
       ) : (
         <>
+          {examResult && (
+            <div className="exam-results-card" style={{ background: 'linear-gradient(to right, #1e3c72, #2a5298)', color: 'white', padding: '25px', borderRadius: '12px', marginBottom: '25px', textAlign: 'center' }}>
+              <h2>Simulation Complete</h2>
+              <h1 style={{ fontSize: '3rem', margin: '15px 0' }}>{examResult.percentage.toFixed(1)}%</h1>
+              <p>You scored {examResult.score_obtained} out of {examResult.total_questions}</p>
+            </div>
+          )}
           <div className="form-grid generator-panel">
             <div className="form-group">
               <label htmlFor="year">Year:</label>
@@ -322,7 +431,10 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
                 }}>
                   SECTION A — Objective (Multiple Choice)
                 </h3>
-                {mcqQuestions.map((q, i) => renderQuestionCard(q, i, 'A'))}
+                {mcqQuestions.map((q, i) => {
+                  const globalIdx = questions.indexOf(q);
+                  return renderQuestionCard(q, globalIdx, `SECTION A – Question ${i + 1}`);
+                })}
               </>
             )}
             {theoryQuestions.length > 0 && (
@@ -334,33 +446,15 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating }: Question
                 }}>
                   SECTION B — Theory / Structured
                 </h3>
-                {theoryQuestions.map((q, i) => renderQuestionCard(q, i, 'B'))}
+                {theoryQuestions.map((q, i) => {
+                  const globalIdx = questions.indexOf(q);
+                  return renderQuestionCard(q, globalIdx, `SECTION B – Question ${i + 1}`);
+                })}
               </>
             )}
           </>
         ) : (
-          questions.map((q, index) => (
-            <div key={index} className="question-card">
-              <h4>Question {index + 1}</h4>
-              <p><strong>{q.question_text}</strong></p>
-
-              {q.options && (
-                <div className="options">
-                  {q.options.map((opt, i) => (
-                    <p key={i} className="option">{String.fromCharCode(65 + i)}. {opt}</p>
-                  ))}
-                </div>
-              )}
-
-              {showAnswers && (
-                <div className="answer-section">
-                  <p><strong>Answer:</strong> {q.correct_answer}</p>
-                  <p><strong>Explanation:</strong> {q.explanation}</p>
-                  <p><small>Difficulty: {q.difficulty_level} | Confidence: {(q.pattern_confidence * 100).toFixed(0)}%</small></p>
-                </div>
-              )}
-            </div>
-          ))
+          questions.map((q, index) => renderQuestionCard(q, index, `Question ${index + 1}`))
         )}
       </div>
     </div>
