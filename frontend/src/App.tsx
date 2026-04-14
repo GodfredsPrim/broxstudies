@@ -113,9 +113,11 @@ function App() {
   })
   const [authLoading, setAuthLoading] = React.useState(false)
   const [googleReady, setGoogleReady] = React.useState(false)
-  const [accessCode, setAccessCode] = React.useState('')
-  const [codeError, setCodeError] = React.useState('')
   const [codeLoading, setCodeLoading] = React.useState(false)
+  const [adminAuthOpen, setAdminAuthOpen] = React.useState(false)
+  const [adminSecretIn, setAdminSecretIn] = React.useState('')
+  const [adminAuthError, setAdminAuthError] = React.useState('')
+  const [adminAuthLoading, setAdminAuthLoading] = React.useState(false)
 
   // Manual payment entry
   const [manualForm, setManualForm] = React.useState({ momoName: '', momoNumber: '', reference: '' })
@@ -236,8 +238,12 @@ function App() {
   // Secret Admin Route Detection
   React.useEffect(() => {
     const checkHash = () => {
-      if (window.location.hash === '#admin' && account?.is_admin) {
-        setActiveTab('admin');
+      if (window.location.hash === '#admin') {
+        if (account?.is_admin) {
+          setActiveTab('admin');
+        } else {
+          setAdminAuthOpen(true);
+        }
       }
     };
     checkHash();
@@ -310,6 +316,25 @@ function App() {
       setAuthError(err?.response?.data?.detail || 'Authentication failed. Please try again.')
     } finally {
       setAuthLoading(false)
+    }
+  }
+
+  const handleAdminAuthViaSecret = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!adminSecretIn.trim()) return
+
+    setAdminAuthLoading(true)
+    setAdminAuthError('')
+    try {
+      const result = await adminAPI.loginWithSecret(adminSecretIn.trim())
+      persistSession(result.access_token, result.user)
+      setAdminAuthOpen(false)
+      setAdminSecretIn('')
+      setActiveTab('admin')
+    } catch (err: any) {
+      setAdminAuthError(err?.response?.data?.detail || 'Invalid admin access code.')
+    } finally {
+      setAdminAuthLoading(false)
     }
   }
 
@@ -724,6 +749,46 @@ function App() {
                 <button className="authv2__close" onClick={() => setAuthOpen(false)} aria-label="Close">✕</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {/* ── Admin Access Gate Modal ─────────────────────────────────────── */}
+      {adminAuthOpen && (
+        <div className="auth-backdrop" style={{ zIndex: 2000 }} onClick={(e) => { if (e.target === e.currentTarget) setAdminAuthOpen(false) }}>
+          <div className="auth-modal-v2" style={{ maxWidth: '400px' }}>
+            <div className="authv2__header">
+              <div className="authv2__logo" style={{ marginBottom: '20px' }}>
+                <div className="authv2__logo-mark" style={{ background: '#0f172a' }}>🛡️</div>
+                <span>Admin Gate</span>
+              </div>
+              <h2 className="authv2__title">Administrative Access</h2>
+              <p className="authv2__subtitle">
+                Please enter the secure <strong>Admin Access Code</strong> to manage the BisaME system.
+              </p>
+            </div>
+
+            <form className="authv2__form" onSubmit={(e) => void handleAdminAuthViaSecret(e)}>
+              <div className="authv2__field">
+                <label className="authv2__label">Access Code</label>
+                <input
+                  className="authv2__input"
+                  type="password"
+                  placeholder="Enter secret code"
+                  value={adminSecretIn}
+                  onChange={(e) => setAdminSecretIn(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {adminAuthError && <div className="authv2__error">{adminAuthError}</div>}
+
+              <button type="submit" className="authv2__submit" style={{ background: '#0f172a' }} disabled={adminAuthLoading}>
+                {adminAuthLoading ? <span className="authv2__spinner" /> : 'Verification Access'}
+              </button>
+            </form>
+
+            <button className="authv2__close" onClick={() => setAdminAuthOpen(false)}>✕</button>
           </div>
         </div>
       )}

@@ -336,6 +336,22 @@ class AuthService:
         )
         return self._issue_token(admin, is_static_admin=True), admin
 
+    def login_admin_with_secret(self, secret: str) -> Tuple[str, AuthUser]:
+        if secret != settings.ADMIN_SECRET:
+            raise ValueError("Invalid admin access code.")
+
+        # Create virtual admin user
+        admin = AuthUser(
+            id=0,
+            full_name="BisaME Administrator",
+            email="admin@bisame.online",
+            provider="static",
+            subscription_status="active",
+            subscription_expires_at=None,
+            is_admin=True
+        )
+        return self._issue_token(admin, is_static_admin=True), admin
+
     def login_with_google(self, credential: str) -> Tuple[str, AuthUser]:
         if not settings.GOOGLE_CLIENT_ID:
             raise ValueError("Google sign-in is not configured on the server.")
@@ -455,10 +471,10 @@ class AuthService:
 
         months = duration_months or settings.SUBSCRIPTION_MONTHS
         now = datetime.now(timezone.utc).isoformat()
-        # Generate short, unambiguous 6-character codes
+        # Generate short, complex 6-character codes
         def _gen_simple_code():
-            # Exclude O, 0, I, 1, L to avoid confusion
-            chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+            # Mix of Numbers, Alphabets and Symbols
+            chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ!@#$%^&*?"
             return "".join(secrets.choice(chars) for _ in range(6))
 
         codes = [_gen_simple_code() for _ in range(quantity)]

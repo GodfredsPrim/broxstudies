@@ -33,6 +33,13 @@ async def admin_login(username: str, password: str):
         return AuthResponse(access_token=token, user=admin)
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc))
+@router.post("/login-secret", response_model=AuthResponse)
+async def admin_login_secret(secret: str):
+    try:
+        token, admin = auth_service.login_admin_with_secret(secret)
+        return AuthResponse(access_token=token, user=admin)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
 
 @router.get("/analytics", response_model=AdminAnalytics)
 async def get_analytics(admin: AuthUser = Depends(require_admin)):

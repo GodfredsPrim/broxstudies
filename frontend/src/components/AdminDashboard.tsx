@@ -57,6 +57,13 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     void loadData();
+
+    // Live update polling - every 40 seconds
+    const pollId = setInterval(() => {
+      void loadData();
+    }, 40000);
+
+    return () => clearInterval(pollId);
   }, []);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -136,33 +143,17 @@ export const AdminDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: '40px 20px' }}>
-        <div style={{ maxWidth: '450px', margin: '100px auto', background: 'white', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '20px', textAlign: 'center' }}>Admin Access</h2>
-          <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input
-              type="text"
-              placeholder="Admin Username"
-              value={adminLogin.username}
-              onChange={(e) => setAdminLogin({ ...adminLogin, username: e.target.value })}
-              style={{ padding: '15px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Secret Password"
-              value={adminLogin.password}
-              onChange={(e) => setAdminLogin({ ...adminLogin, password: e.target.value })}
-              style={{ padding: '15px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
-              required
-            />
-            <button
-              type="submit"
-              style={{ padding: '15px', borderRadius: '16px', background: '#0f172a', color: 'white', fontWeight: 700, border: 'none', cursor: 'pointer' }}
-            >
-              Access Administrative Dashboard
-            </button>
-          </form>
+      <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: '40px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ maxWidth: '450px', background: 'white', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '20px' }}>🔐</div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '10px' }}>Authentication Error</h2>
+          <p style={{ color: '#64748b', marginBottom: '25px' }}>{error}</p>
+          <button 
+            onClick={() => window.location.hash = ''}
+            style={{ padding: '12px 24px', borderRadius: '12px', background: '#0f172a', color: 'white', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+          >
+            Return to Study Home
+          </button>
         </div>
       </div>
     );

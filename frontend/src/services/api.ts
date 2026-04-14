@@ -511,6 +511,11 @@ export interface PaymentRequest {
 }
 
 export const adminAPI = {
+  loginWithSecret: async (secret: string): Promise<AuthResponse> => {
+    const response = await apiClient.post('/admin/login-secret', null, { params: { secret } });
+    return response.data;
+  },
+
   login: async (username: string, password: string): Promise<AuthResponse> => {
     const response = await apiClient.post('/admin/login', null, { params: { username, password } });
     return response.data;
