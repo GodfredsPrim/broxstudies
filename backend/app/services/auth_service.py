@@ -455,7 +455,13 @@ class AuthService:
 
         months = duration_months or settings.SUBSCRIPTION_MONTHS
         now = datetime.now(timezone.utc).isoformat()
-        codes = [secrets.token_urlsafe(12).upper() for _ in range(quantity)]
+        # Generate short, unambiguous 6-character codes
+        def _gen_simple_code():
+            # Exclude O, 0, I, 1, L to avoid confusion
+            chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+            return "".join(secrets.choice(chars) for _ in range(6))
+
+        codes = [_gen_simple_code() for _ in range(quantity)]
 
         with self._connect() as conn:
             for code in codes:

@@ -110,9 +110,6 @@ Response rules:
 - Then include a heading exactly named: Step-by-step
 - Under that heading, provide numbered steps in plain text.
 - Then include a heading exactly named: Final Answer
-- Then include a heading exactly named: Study Tips
-- Keep study tips to 2 or 3 short bullets.
-- If you extracted text from an image, include a heading exactly named: Extracted Question and rewrite the interpreted prompt.
 - Do not use markdown tables.
 
 Subject: {subject_label}
@@ -125,19 +122,13 @@ Helpful textbook context:
             prompt = f"""
 You are BisaME's Ghana SHS Study Coach helping with {request_kind}.
 
-Your job:
-1. Explain the student's topic clearly and simply.
-2. Use subject-appropriate examples.
-3. Keep the explanation grounded in Ghana SHS / WASSCE curriculum language.
-4. If there is an image, interpret it before answering.
-5. End with small study advice the learner can apply immediately.
+Your job is to provide a single, straightforward, and direct explanation of the student's topic. 
+Do not provide multiple sections or conversational filler. Keep it grounded in Ghana SHS / WASSCE curriculum language.
 
 Response rules:
-- Start with a heading exactly named: Main Idea
-- Then include a heading exactly named: Explanation
-- Then include a heading exactly named: Study Tips
-- Keep study tips to 2 or 3 short bullets.
-- If you extracted text from an image, include a heading exactly named: Extracted Question
+- Provide the answer in a single, high-quality block of text.
+- Do NOT use headers like "Main Idea" or "Explanation".
+- Do NOT include "Study Tips".
 - Do not use markdown tables.
 
 Subject: {subject_label}
@@ -165,9 +156,12 @@ Helpful textbook context:
         explanation = content.strip()
         main_blocks = []
 
+        # Try to find structured sections (primarily for math)
+        has_sections = False
         for title in ["Main Idea", "Explanation", "Step-by-step", "Final Answer"]:
             section = extract_section(title)
             if section:
+                has_sections = True
                 if title.lower() == "step-by-step":
                     raw_steps = [line.strip(" -\t") for line in section.splitlines() if line.strip()]
                     steps = [re.sub(r"^\d+[.)]\s*", "", line).strip() for line in raw_steps]
@@ -186,21 +180,15 @@ Helpful textbook context:
         if "unclear" in content.lower() or "blurry" in content.lower():
             confidence_note = "Some parts of the prompt/image may have been unclear, so the answer may be based on the visible portions."
 
-        if main_blocks:
+        if has_sections and main_blocks:
             explanation = "\n\n".join(main_blocks).strip()
-
-        if not study_tips:
-            study_tips = [
-                "Ask a follow-up if you want a shorter or more exam-style explanation.",
-                "Try the same topic with a past-question example for practice.",
-            ]
 
         return TutorResponse(
             explanation=explanation,
             related_questions=[],
             mode=mode,
             extracted_text=extracted_text,
-            study_tips=study_tips,
+            study_tips=study_tips or None,
             steps=steps or None,
             confidence_note=confidence_note,
         )
