@@ -559,6 +559,11 @@ export const adminAPI = {
     return response.data as CouponGenerateResponse;
   },
 
+  listAllCompetitions: async (): Promise<Competition[]> => {
+    const response = await apiClient.get('/admin/competitions/all');
+    return response.data;
+  },
+
   listCompetitions: async (): Promise<Competition[]> => {
     const response = await apiClient.get('/admin/competitions');
     return response.data;

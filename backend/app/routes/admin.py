@@ -150,9 +150,14 @@ async def reject_payment(request_id: int, admin: AuthUser = Depends(require_admi
         raise HTTPException(status_code=404, detail="Request not found.")
     return {"status": "success"}
 
+@router.get("/competitions/all", response_model=List[Competition])
+async def list_all_comps(admin: AuthUser = Depends(require_admin)):
+    comps = auth_service.list_competitions(active_only=False)
+    return [Competition(**c) for c in comps]
+
 @router.get("/competitions", response_model=List[Competition])
 async def list_comps():
-    comps = auth_service.list_competitions(active_only=False)
+    comps = auth_service.list_competitions(active_only=True)
     return [Competition(**c) for c in comps]
 
 @router.post("/competitions/{comp_id}/register")

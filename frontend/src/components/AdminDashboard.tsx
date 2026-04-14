@@ -39,7 +39,7 @@ export const AdminDashboard: React.FC = () => {
       setError('');
       const [stats, comps, codes, payments] = await Promise.all([
         adminAPI.getAnalytics(),
-        adminAPI.listCompetitions(),
+        adminAPI.listAllCompetitions(),
         adminAPI.getCouponInventory(),
         adminAPI.getPendingPayments(),
       ]);
