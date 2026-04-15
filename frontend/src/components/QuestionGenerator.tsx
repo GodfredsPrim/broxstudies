@@ -47,6 +47,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [timerActive, setTimerActive] = useState(false);
   const [examHistory, setExamHistory] = useState<ExamHistoryEntry[]>([]);
+  const [semester, setSemester] = useState('all_year');
 
   const availableYears = Array.from(new Set(subjects.map((s) => s.year))).sort();
   // Ensure Year 3 is included if it exists
@@ -114,7 +115,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
         selectedYear,
         questionType,
         numQuestions,
-        difficulty
+        difficulty,
+        [],
+        semester
       );
       setQuestions(result.questions);
       setGenerationTime(result.generation_time);
@@ -452,6 +455,15 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
             <div className="form-group">
               <label htmlFor="mockTime">Time (mins):</label>
               <input id="mockTime" type="number" min="1" value={mockTimeLimit} onChange={(e) => setMockTimeLimit(parseInt(e.target.value) || 1)} />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="semester">Semester Selection:</label>
+              <select id="semester" value={semester} onChange={(e) => setSemester(e.target.value)}>
+                <option value="all_year">Full Year (Recommended)</option>
+                <option value="semester_1">First Semester (Sem 1)</option>
+                <option value="semester_2">Second Semester (Sem 2)</option>
+              </select>
             </div>
           </div>
 

@@ -30,6 +30,7 @@ class QuestionGenerator:
         year_key: str = "year_1",
         subject_slug: str = "",
         subject_label: str | None = None,
+        semester: str = "all_year",
     ):
         """Generate questions based on patterns from past questions."""
         if question_type == QuestionType.STANDARD:
@@ -37,10 +38,10 @@ class QuestionGenerator:
             try:
                 # Parallel generation to handle the large standard request faster
                 mcq_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 40, difficulty_level, topics, year_key, subject_slug, subject_label)
+                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 40, difficulty_level, topics, year_key, subject_slug, subject_label, semester)
                 )
                 theory_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.ESSAY, 6, difficulty_level, topics, year_key, subject_slug, subject_label)
+                    self._generate_single_batch(subject, QuestionType.ESSAY, 6, difficulty_level, topics, year_key, subject_slug, subject_label, semester)
                 )
                 mcq_questions, theory_questions = await asyncio.gather(mcq_task, theory_task)
                 return mcq_questions + theory_questions
@@ -49,7 +50,7 @@ class QuestionGenerator:
                 raise Exception(f"Error generating standard exam: {str(e)}")
 
         return await self._generate_single_batch(
-            subject, question_type, num_questions, difficulty_level, topics, year_key, subject_slug, subject_label
+            subject, question_type, num_questions, difficulty_level, topics, year_key, subject_slug, subject_label, semester
         )
 
     async def _generate_single_batch(
@@ -62,6 +63,7 @@ class QuestionGenerator:
         year_key: str,
         subject_slug: str,
         subject_label: str | None,
+        semester: str = "all_year",
     ):
         try:
             logger.info(f"Generating {num_questions} {difficulty_level or 'medium'} level {question_type.value} questions for {subject.value}")
@@ -74,6 +76,7 @@ class QuestionGenerator:
                 year_key,
                 subject_slug,
                 subject_label,
+                semester,
             )
             response = await asyncio.wait_for(self._call_llm(prompt), timeout=120.0)
             questions = self._parse_response(response, subject, question_type, num_questions)
@@ -121,6 +124,7 @@ class QuestionGenerator:
         year_key: str,
         subject_slug: str,
         subject_label: str | None,
+        semester: str = "all_year",
     ) -> str:
         """Build the prompt for question generation."""
         difficulty = difficulty or random.choice(["easy", "medium", "hard"])
@@ -158,7 +162,13 @@ Make sure the sub-questions are logically related but test different cognitive l
 You MUST generate purely quantitative, computational problems. Do NOT generate generic book explanations, theory, definitions, or "What is" questions for this subject. All generated questions must require solving for a numerical or algebraic value, strictly following the format and style of the Past Question Excerpts.
 """
 
-        return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for Ghana SHS {display_subject} ({year_key.replace('_', ' ').title()}).
+        semester_context = ""
+        if semester == "semester_1":
+            semester_context = "\nFOCUS: First Semester (Sem 1) curriculum topics only."
+        elif semester == "semester_2":
+            semester_context = "\nFOCUS: Second Semester (Sem 2) curriculum topics and final exam preparation topics."
+
+        return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for Ghana SHS {display_subject} ({year_key.replace('_', ' ').title()}){semester_context}.
 
 Requirements:
 1. Follow the pattern and style of typical Ghana SHS exam questions.
@@ -217,20 +227,19 @@ Only include "options" for multiple choice questions (leave omit for essay). Do 
 
             past_context = self._extract_excerpts_from_directory(past_dir, max_docs=2)
             if not past_context:
-                past_context = self._extract_excerpts_from_legacy_past_questions(subject_slug, max_docs=2)
+                past_context = self._extract_excerpts_from_legacy_past_questions(subject_slug, max_docs=1)
             
             if past_context:
-                past_snippets.append(past_context)
+                past_snippets.append(f"--- {yk.replace('_', ' ').title()} Past Questions ---\n{past_context}")
 
-            # Policy: if past questions exist for the selected subject, ignore textbook context.
-            if not past_snippets:
-                textbook_context = self._extract_excerpts_from_directory(textbooks_dir, max_docs=2)
-                if textbook_context:
-                    textbook_snippets.append(textbook_context)
-            
-            teacher_context = self._extract_excerpts_from_directory(teacher_dir, max_docs=2)
+            # Mix textbook and teacher notes for better topical coverage
+            textbook_context = self._extract_excerpts_from_directory(textbooks_dir, max_docs=1)
+            if textbook_context:
+                textbook_snippets.append(f"--- {yk.replace('_', ' ').title()} Textbook ---\n{textbook_context}")
+
+            teacher_context = self._extract_excerpts_from_directory(teacher_dir, max_docs=1)
             if teacher_context:
-                teacher_snippets.append(teacher_context)
+                teacher_snippets.append(f"--- {yk.replace('_', ' ').title()} Teacher Notes ---\n{teacher_context}")
 
         return (
             "\n\n".join(past_snippets) if past_snippets else "",

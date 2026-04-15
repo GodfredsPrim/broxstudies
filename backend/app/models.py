@@ -135,6 +135,7 @@ class QuestionGenerationRequest(BaseModel):
     num_questions: int = 5
     difficulty_level: Optional[str] = None
     topics: Optional[List[str]] = None
+    semester: Optional[str] = None
 
     @field_validator("subject", mode="before")
     @classmethod
@@ -201,6 +202,7 @@ class LiveQuizCreateRequest(BaseModel):
     num_questions: int = 5
     difficulty_level: Optional[str] = "medium"
     time_limit: int = 5  # in minutes
+    semester: Optional[str] = None
 
 
 class LiveQuizCreateResponse(BaseModel):

@@ -87,7 +87,7 @@ export function StudyCoach({
   const [image, setImage] = useState<File | null>(null);
   const [historyItems, setHistoryItems] = useState<Array<{ id: number; content: string; created_at: string }>>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMainConceptOnly, setIsMainConceptOnly] = useState(false);
+  const [isMainConceptOnly, setIsMainConceptOnly] = useState(true);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);

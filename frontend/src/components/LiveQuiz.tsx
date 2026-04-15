@@ -23,6 +23,7 @@ export function LiveQuiz() {
   const [loading, setLoading] = useState(false);
   const [timeLimit, setTimeLimit] = useState(5);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [semester, setSemester] = useState('all_year');
 
   const years = useMemo(() => Array.from(new Set(subjects.map((s) => s.year))).sort(), [subjects]);
   const filteredSubjects = useMemo(() => subjects.filter((s) => s.year === selectedYear), [subjects, selectedYear]);
@@ -106,6 +107,7 @@ export function LiveQuiz() {
         num_questions: 5,
         difficulty_level: difficulty,
         time_limit: timeLimit,
+        semester,
       });
       setRoomCode(created.code);
       const latest = await questionsAPI.getLiveQuizState(created.code);
@@ -233,6 +235,14 @@ export function LiveQuiz() {
                 value={timeLimit} 
                 onChange={(e) => setTimeLimit(parseInt(e.target.value) || 1)} 
               />
+            </div>
+            <div className="form-group">
+              <label>Semester Selection</label>
+              <select value={semester} onChange={(e) => setSemester(e.target.value)}>
+                <option value="all_year">Full Year (Recommended)</option>
+                <option value="semester_1">First Semester (Sem 1)</option>
+                <option value="semester_2">Second Semester (Sem 2)</option>
+              </select>
             </div>
           </div>
 

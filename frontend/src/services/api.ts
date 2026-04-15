@@ -201,7 +201,8 @@ export const questionsAPI = {
     questionType: string,
     numQuestions: number,
     difficultyLevel?: string,
-    topics?: string[]
+    topics?: string[],
+    semester?: string
   ): Promise<GeneratedQuestions> => {
     const response = await apiClient.post('/questions/generate', {
       subject,
@@ -210,6 +211,7 @@ export const questionsAPI = {
       num_questions: numQuestions,
       difficulty_level: difficultyLevel,
       topics,
+      semester,
     });
     return response.data;
   },
@@ -242,6 +244,7 @@ export const questionsAPI = {
     num_questions: number;
     difficulty_level: string;
     time_limit: number;
+    semester?: string;
   }) => {
     const response = await apiClient.post('/questions/quiz/create', payload);
     return response.data as { code: string; host_player: string; total_questions: number };

@@ -147,6 +147,7 @@ async def generate_questions(request: QuestionGenerationRequest):
             year_key=year_key,
             subject_slug=subject_id,
             subject_label=_resolve_subject_label(year_key, subject_id),
+            semester=request.semester or "all_year",
         )
 
         return GeneratedQuestions(
@@ -304,6 +305,7 @@ async def create_live_quiz(request: LiveQuizCreateRequest):
         year_key=year_key,
         subject_slug=subject_id,
         subject_label=_resolve_subject_label(year_key, subject_id),
+        semester=request.semester or "all_year",
     )
 
     code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
