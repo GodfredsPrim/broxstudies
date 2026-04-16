@@ -50,8 +50,13 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
   const [semester, setSemester] = useState('all_year');
 
   const availableYears = Array.from(new Set(subjects.map((s) => s.year))).sort();
-  // Ensure Year 3 is included if it exists
-  const filteredSubjects = subjects.filter((s) => s.year === selectedYear);
+  if (!availableYears.includes('Year 3') && subjects.length > 0) {
+    availableYears.push('Year 3');
+  }
+
+  const filteredSubjects = selectedYear === 'Year 3' 
+    ? Array.from(new Map(subjects.map(s => [s.name, s])).values())
+    : subjects.filter((s) => s.year === selectedYear);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -178,7 +183,14 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
           score_obtained: res.score_obtained,
           total_questions: res.total_questions,
           percentage: res.percentage,
-          details_json: JSON.stringify(res.results)
+          details_json: JSON.stringify({
+            results: res.results,
+            questions: questions,
+            subject: subject,
+            selectedYear: selectedYear,
+            difficulty: difficulty,
+            questionType: questionType
+          })
         });
         // Refresh local history
         const hist = await questionsAPI.getExamHistory();
@@ -192,6 +204,38 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
       setTimerActive(false);
       setTimeLeft(null);
       stopSimulation(); 
+    }
+  };
+
+  const handleViewHistory = (entry: ExamHistoryEntry) => {
+    try {
+      if (!entry.details_json) return;
+      const data = JSON.parse(entry.details_json);
+      
+      // If it's the old format just containing results array
+      if (Array.isArray(data)) {
+        alert("This history item was saved in an older format and cannot be viewed instantly. Please generate a new practice.");
+        return;
+      }
+
+      setQuestions(data.questions || []);
+      setExamResult({
+        results: data.results,
+        score_obtained: entry.score_obtained,
+        total_questions: entry.total_questions,
+        percentage: entry.percentage
+      });
+      setSubject(data.subject || entry.subject);
+      setSelectedYear(data.selectedYear || 'Year 1');
+      setDifficulty(data.difficulty || 'medium');
+      setQuestionType(data.questionType || 'multiple_choice');
+      setShowAnswers(true);
+      setIsPrintAnswerSheet(false);
+      
+      // Scroll to top to see questions
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      console.error("Failed to parse history details", e);
     }
   };
 
@@ -327,10 +371,27 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
       ) : (
         <div style={{ display: 'grid', gap: '15px', marginTop: '15px' }}>
           {examHistory.map(entry => (
-            <div key={entry.id} className="history-item-card" style={{ padding: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div 
+              key={entry.id} 
+              className="history-item-card" 
+              onClick={() => handleViewHistory(entry)}
+              style={{ 
+                padding: '15px', 
+                background: '#fff', 
+                borderRadius: '8px', 
+                border: '1px solid #e2e8f0', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'transform 0.2s, box-shadow 0.2s'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
               <div>
                 <strong style={{ display: 'block', fontSize: '1.1rem' }}>{entry.subject.replace(/_/g, ' ').toUpperCase()}</strong>
-                <span style={{ color: '#64748b' }}>{new Date(entry.created_at).toLocaleString()}</span>
+                <span style={{ color: '#64748b' }}>{new Date(entry.created_at).toLocaleString()} • <span style={{ color: '#3b82f6' }}>View Results →</span></span>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: entry.percentage >= 50 ? '#10b981' : '#ef4444' }}>
@@ -354,7 +415,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
         <p>
           {isSimulating
             ? 'You are in exam mode. Navigation is locked. Complete the session and press "Submit & Finish" to exit.'
-            : 'Generate realistic practice questions using textbooks and past questions. Mixed Resource Mode available for Year 3.'
+            : 'Generate realistic practice questions using textbooks and past questions.'
           }
         </p>
       </div>
@@ -409,7 +470,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
               >
                 {availableYears.map((year) => (
                   <option key={year} value={year}>
-                    {year === 'Year 3' ? 'Year 3 (Mixed Resources)' : year}
+                    {year}
                   </option>
                 ))}
               </select>

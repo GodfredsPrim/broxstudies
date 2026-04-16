@@ -244,6 +244,7 @@ class TutorRequest(BaseModel):
     subject: Optional[str] = None
     context: Optional[str] = None
     is_main_concept_only: bool = False
+    history: Optional[List[dict]] = None
 
 
 class TutorImageRequest(BaseModel):
@@ -254,6 +255,7 @@ class TutorImageRequest(BaseModel):
     content_type: Optional[str] = None
     image_base64: str
     is_main_concept_only: bool = False
+    history: Optional[List[dict]] = None
 
 
 class TutorResponse(BaseModel):

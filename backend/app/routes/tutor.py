@@ -51,11 +51,22 @@ async def ask_tutor(
         if not request.question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
+        history = []
+        if request.history:
+            from app.models import ChatHistoryMessage
+            history = [
+                ChatHistoryMessage(id=0, role=m.get("role", "user"), content=m.get("content", ""), created_at="")
+                for m in request.history
+            ]
+        elif current_user:
+            history = auth_service.get_chat_history(current_user.id, limit=10)
+
         result = await tutor_service.get_explanation(
             request.question,
             subject=request.subject,
             context=request.context,
             is_main_concept_only=request.is_main_concept_only,
+            history=history
         )
 
         # Persist to chat history for authenticated users
@@ -95,6 +106,16 @@ async def interpret_study_image(
         if not request.image_base64.strip():
             raise HTTPException(status_code=400, detail="Image data is required.")
 
+        history = []
+        if request.history:
+            from app.models import ChatHistoryMessage
+            history = [
+                ChatHistoryMessage(id=0, role=m.get("role", "user"), content=m.get("content", ""), created_at="")
+                for m in request.history
+            ]
+        elif current_user:
+            history = auth_service.get_chat_history(current_user.id, limit=10)
+
         result = await tutor_service.get_image_explanation(
             question=request.question,
             image_base64=request.image_base64,
@@ -103,6 +124,7 @@ async def interpret_study_image(
             filename=request.filename,
             content_type=request.content_type,
             is_main_concept_only=request.is_main_concept_only,
+            history=history
         )
 
         # Persist to chat history

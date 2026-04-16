@@ -361,6 +361,7 @@ export interface TutorRequest {
   subject?: string;
   context?: string;
   is_main_concept_only?: boolean;
+  history?: Array<{ role: string; content: string }>;
 }
 
 export interface TutorImageRequest {
@@ -371,6 +372,7 @@ export interface TutorImageRequest {
   filename?: string;
   content_type?: string;
   is_main_concept_only?: boolean;
+  history?: Array<{ role: string; content: string }>;
 }
 
 export interface AuthUser {

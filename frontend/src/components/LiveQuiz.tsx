@@ -25,8 +25,18 @@ export function LiveQuiz() {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [semester, setSemester] = useState('all_year');
 
-  const years = useMemo(() => Array.from(new Set(subjects.map((s) => s.year))).sort(), [subjects]);
-  const filteredSubjects = useMemo(() => subjects.filter((s) => s.year === selectedYear), [subjects, selectedYear]);
+  const years = useMemo(() => {
+    const y = Array.from(new Set(subjects.map((s) => s.year))).sort();
+    if (y.length > 0 && !y.includes('Year 3')) y.push('Year 3');
+    return y;
+  }, [subjects]);
+
+  const filteredSubjects = useMemo(() => {
+    if (selectedYear === 'Year 3') {
+      return Array.from(new Map(subjects.map(s => [s.name, s])).values());
+    }
+    return subjects.filter((s) => s.year === selectedYear);
+  }, [subjects, selectedYear]);
 
   useEffect(() => {
     const loadSubjects = async () => {

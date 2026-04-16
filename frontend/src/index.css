@@ -2492,6 +2492,118 @@ button:disabled {
   50%       { opacity: 0.4; transform: scale(0.8); }
 }
 
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ai-response {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  animation: slide-up 0.3s ease-out backwards;
+}
+
+/* Premium Definition Card for Main Concepts */
+.ai-response--definition {
+  background: white;
+  border: 1px solid rgba(225, 163, 16, 0.25);
+  border-left: 5px solid var(--ghana-gold);
+  border-radius: 12px;
+  padding: 1.4rem;
+  box-shadow: 
+    0 10px 25px rgba(225, 163, 16, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-response--definition::before {
+  content: '💡';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 2.2rem;
+  opacity: 0.1;
+  transform: rotate(15deg);
+}
+
+.ai-response--definition .ai-response__main {
+  font-size: 1.12rem;
+  line-height: 1.65;
+  color: #1a2a3a;
+  font-weight: 500;
+  margin: 0;
+}
+
+.ai-response__main {
+  line-height: 1.6;
+  color: var(--ink-900);
+}
+
+.ai-response__block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-left: 0.2rem;
+}
+
+.ai-response__label {
+  display: inline-flex;
+  width: fit-content;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  padding: 0.25rem 0.6rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.ai-response__steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.ai-response__steps li {
+  color: #334155;
+  line-height: 1.5;
+  padding-left: 0.4rem;
+}
+
+.ai-response__tips {
+  margin: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.ai-response__tips li {
+  display: flex;
+  gap: 0.75rem;
+  color: #475569;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.ai-response__tips li::before {
+  content: '🎯';
+  flex-shrink: 0;
+}
+
+.ai-response__note {
+  font-size: 0.86rem;
+  color: #64748b;
+  font-style: italic;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #cbd5e1;
+}
+
 .history-empty {
   font-size: 0.82rem;
   color: var(--ink-500);

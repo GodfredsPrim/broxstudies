@@ -183,7 +183,16 @@ Requirements:
 
 *** CRITICAL RANDOMIZATION DIRECTIVE ***
 Seed Token: {random.randint(10000, 99999)}
-You MUST generate completely novel and varied questions. Do NOT repeat standardized textbook examples. Focus on completely random sub-topics, varied numerical values, and unique scenarios to ensure absolute efficiency and zero repetition across generations.
+Creative Strategy: {random.choice(["lateral thinking", "deep application", "conceptual variation", "uncommon scenarios"])}
+Instruction: If the provided topics list is "General", you MUST spontaneously select a specific, random sub-topic from the Provided Excerpts below to focus on. Ensure that multiple generations for the same subject result in completely different topical coverage.
+You MUST generate completely unique, novel and varied questions. ABSOLUTELY AVOID repeating standardized textbook examples or common exam tropes. 
+- Randomize numerical values and units.
+- Focus on diverse sub-topics from the curriculum.
+- Ensure zero repetition of phrasing or patterns across generations.
+- Use variety in question stems (e.g., 'Analyze...', 'Justify...', 'Determine...', 'Construct...').
+
+*** YEAR 3 WASSCE PREPARATION RULE ***
+If the requested year is Year 3, you MUST strictly and accurately follow the structure, tone, and specific patterns found in the Provided Past Question Excerpts. Do NOT generate synthetic theory questions if past patterns for that topic are available. All Year 3 questions must feel like actual examination content.
 {essay_augmentation}
 {math_augmentation}
 Past Question Excerpts:
@@ -207,7 +216,7 @@ Return valid JSON only as an array of exactly {num_questions} objects with this 
   }}
 ]
 
-Only include "options" for multiple choice questions (leave omit for essay). Do not include markdown or extra commentary."""
+Only include "options" for multiple choice questions (omit for essay). Each question must be distinct and follow a strictly randomized selection of topics from the sources provided. Do not include markdown or extra commentary. Produce valid JSON only."""
 
     def _load_resource_context(self, year_key: str, subject_slug: str) -> tuple[str, str, str]:
         """Load context from site resources and fallback past questions."""
@@ -281,7 +290,9 @@ Only include "options" for multiple choice questions (leave omit for essay). Do 
             return ""
 
         snippets = []
-        pdf_files = sorted(root.rglob("*.pdf"))[:max_docs]
+        pdf_files = list(root.rglob("*.pdf"))
+        random.shuffle(pdf_files)
+        pdf_files = pdf_files[:max_docs]
         for pdf_path in pdf_files:
             text = self._read_pdf_excerpt(pdf_path, max_chars=max_chars)
             if text:

@@ -2,7 +2,7 @@ import logging
 import asyncio
 from typing import Optional, List
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pathlib import Path
 import re
 from app.config import settings
@@ -97,12 +97,14 @@ class TutorService:
 
         if is_main_concept_only:
             prompt = f"""
-You are BisaME's Ghana SHS Study Coach. The student wants only the core concept.
+You are BisaME's Ghana SHS Study Coach. The student wants ONLY the direct definition or core concept.
 
-Your job:
-1. Provide a single, extremely concise explanation (max 3 sentences) of the main concept in the student's question.
-2. Do NOT provide examples, steps, suggestions, tips, or conversational filler.
-3. Use Ghana SHS / WASSCE-friendly language.
+CRITICAL RULES:
+1. Provide a single, EXTREMELY direct and factual explanation (max 2-3 sentences).
+2. Do NOT include ANY conversational filler (NO "Here is", NO "Certainly", NO "Sure").
+3. Do NOT provide examples, steps, suggestions, or tips.
+4. Do NOT use headers or bold labels.
+5. Return ONLY the factual explanation text.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
@@ -216,7 +218,8 @@ Helpful textbook context:
         question: str, 
         subject: str, 
         context: Optional[str] = None,
-        is_main_concept_only: bool = False
+        is_main_concept_only: bool = False,
+        history: Optional[List] = None
     ) -> TutorResponse:
         """Get a subject-aware explanation for a student question."""
         try:
@@ -238,15 +241,25 @@ Helpful textbook context:
             )
             user_msg = f"Question: {question}"
 
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_msg)
-            ]
+            messages = [SystemMessage(content=system_prompt)]
+            
+            # Inject history if available
+            if history:
+                for msg in history:
+                    if msg.role == "user":
+                        messages.append(HumanMessage(content=msg.content))
+                    elif msg.role == "ai":
+                        messages.append(AIMessage(content=msg.content))
+            
+            messages.append(HumanMessage(content=user_msg))
 
             response = await asyncio.wait_for(llm.ainvoke(messages), timeout=60.0)
             content = response.content if isinstance(response.content, str) else str(response.content)
             parsed = self._parse_response(content, mode)
-            parsed.related_questions = self._build_related_questions(question, subject_label, mode)
+            
+            if mode != "core_concept":
+                parsed.related_questions = self._build_related_questions(question, subject_label, mode)
+            
             return parsed
         except asyncio.TimeoutError:
             logger.error("Tutor request timed out.")
@@ -265,6 +278,7 @@ Helpful textbook context:
         filename: Optional[str] = None,
         content_type: Optional[str] = None,
         is_main_concept_only: bool = False,
+        history: Optional[List] = None,
     ) -> TutorResponse:
         """Interpret a study image and explain it with OCR-like reasoning."""
         try:
@@ -291,20 +305,29 @@ Helpful textbook context:
                 f"Filename: {filename or 'uploaded-image'}\n"
                 "Please read the image, extract the important question text, and then answer helpfully."
             )
-            messages = [
-                SystemMessage(content=system_prompt),
+            messages = [SystemMessage(content=system_prompt)]
+            
+            if history:
+                for msg in history:
+                    if msg.role == "user":
+                        messages.append(HumanMessage(content=msg.content))
+                    elif msg.role == "ai":
+                        messages.append(AIMessage(content=msg.content))
+
+            messages.append(
                 HumanMessage(
                     content=[
                         {"type": "text", "text": user_prompt},
                         {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_base64}"}},
                     ]
-                ),
-            ]
+                )
+            )
 
             response = await asyncio.wait_for(llm.ainvoke(messages), timeout=90.0)
             content = response.content if isinstance(response.content, str) else str(response.content)
             parsed = self._parse_response(content, mode)
-            parsed.related_questions = self._build_related_questions(question or "this problem", subject_label, mode)
+            if mode != "core_concept":
+                parsed.related_questions = self._build_related_questions(question or "this problem", subject_label, mode)
             return parsed
         except asyncio.TimeoutError:
             logger.error("Tutor image request timed out.")

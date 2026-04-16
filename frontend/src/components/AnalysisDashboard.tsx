@@ -10,6 +10,7 @@ interface ExamHistoryEntry {
   total_questions: number;
   percentage: number;
   created_at: string;
+  details_json?: string;
 }
 
 interface Subject {
@@ -36,7 +37,13 @@ export function AnalysisDashboard() {
   const [examHistory, setExamHistory] = useState<ExamHistoryEntry[]>([]);
 
   const availableYears = Array.from(new Set(subjects.map((s) => s.year))).sort();
-  const filteredSubjects = subjects.filter((s) => s.year === selectedYear);
+  if (!availableYears.includes('Year 3') && subjects.length > 0) {
+    availableYears.push('Year 3');
+  }
+
+  const filteredSubjects = selectedYear === 'Year 3' 
+    ? Array.from(new Map(subjects.map(s => [s.name, s])).values())
+    : subjects.filter((s) => s.year === selectedYear);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -156,7 +163,12 @@ export function AnalysisDashboard() {
           score_obtained: res.score_obtained,
           total_questions: res.total_questions,
           percentage: res.percentage,
-          details_json: JSON.stringify(res.results)
+          details_json: JSON.stringify({
+            results: res.results,
+            questions: questions,
+            subject: subject,
+            selectedYear: selectedYear
+          })
         });
       } catch (historyErr) {
         console.error('Failed to save history', historyErr);
@@ -167,6 +179,32 @@ export function AnalysisDashboard() {
     } finally {
       setIsSubmitting(false);
       stopSimulation();
+    }
+  };
+
+  const handleViewHistory = (entry: ExamHistoryEntry) => {
+    try {
+      if (!entry.details_json) return;
+      const data = JSON.parse(entry.details_json);
+      
+      if (Array.isArray(data)) {
+        alert("This history item was saved in an older format and cannot be viewed instantly.");
+        return;
+      }
+
+      setQuestions(data.questions || []);
+      setExamResult({
+        results: data.results,
+        score_obtained: entry.score_obtained,
+        total_questions: entry.total_questions,
+        percentage: entry.percentage
+      });
+      setSubject(data.subject || entry.subject);
+      setSelectedYear(data.selectedYear || 'Year 1');
+      setShowAnswers(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      console.error("Failed to parse history details", e);
     }
   };
 
@@ -255,7 +293,11 @@ export function AnalysisDashboard() {
       {!isSimulating && (
         <div className="generator-hero">
           <h2>Likely WASSCE Questions: Full Paper Hall</h2>
-          <p>Generate and solve complete 40-MCQ + 6-Theory WASSCE examination papers under strict simulation.</p>
+          <p>
+            {selectedYear === 'Year 3' 
+              ? '✅ Strict Past-Question Mode: Constructing full papers purely from authentic WASSCE examination patterns.' 
+              : 'Generate and solve complete 40-MCQ + 6-Theory WASSCE examination papers under strict simulation.'}
+          </p>
         </div>
       )}
 
@@ -338,20 +380,37 @@ export function AnalysisDashboard() {
         <div style={{ marginTop: '40px', padding: '20px', background: '#f8fafc', borderRadius: '12px' }}>
           <h3>📜 Past Papers History</h3>
           <div style={{ display: 'grid', gap: '15px', marginTop: '15px' }}>
-            {examHistory.map(entry => (
-              <div key={entry.id} style={{ padding: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong style={{ display: 'block', fontSize: '1.1rem' }}>{entry.subject.replace(/_/g, ' ').toUpperCase()}</strong>
-                  <span style={{ color: '#64748b' }}>{new Date(entry.created_at).toLocaleString()}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: entry.percentage >= 50 ? '#10b981' : '#ef4444' }}>
-                    {entry.percentage}%
-                  </div>
-                  <span style={{ color: '#64748b' }}>{entry.score_obtained} / {entry.total_questions} pts</span>
-                </div>
+          {examHistory.map(entry => (
+            <div 
+              key={entry.id} 
+              className="history-item-card" 
+              onClick={() => handleViewHistory(entry)}
+              style={{ 
+                padding: '15px', 
+                background: '#fff', 
+                borderRadius: '8px', 
+                border: '1px solid #e2e8f0', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'transform 0.2s, box-shadow 0.2s'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <div>
+                <strong style={{ display: 'block', fontSize: '1.1rem' }}>{entry.subject.replace(/_/g, ' ').toUpperCase()}</strong>
+                <span style={{ color: '#64748b' }}>{new Date(entry.created_at).toLocaleString()} • <span style={{ color: '#3b82f6' }}>View Results →</span></span>
               </div>
-            ))}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: entry.percentage >= 50 ? '#10b981' : '#ef4444' }}>
+                  {entry.percentage}%
+                </div>
+                <span style={{ color: '#64748b' }}>{entry.score_obtained} / {entry.total_questions} pts</span>
+              </div>
+            </div>
+          ))}
           </div>
         </div>
       )}

@@ -36,18 +36,20 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 function AIMessage({ response }: { response: TutorResponse }) {
+  const isDefinition = response.mode === 'core_concept';
+
   return (
-    <div className="ai-response">
+    <div className={`ai-response ${isDefinition ? 'ai-response--definition' : ''}`}>
       <p className="ai-response__main">{response.explanation}</p>
 
-      {response.extracted_text && (
+      {!isDefinition && response.extracted_text && (
         <div className="ai-response__block">
           <span className="ai-response__label">Extracted question</span>
           <p>{response.extracted_text}</p>
         </div>
       )}
 
-      {response.steps && response.steps.length > 0 && (
+      {!isDefinition && response.steps && response.steps.length > 0 && (
         <div className="ai-response__block">
           <span className="ai-response__label">Step-by-step</span>
           <ol className="ai-response__steps">
@@ -56,7 +58,7 @@ function AIMessage({ response }: { response: TutorResponse }) {
         </div>
       )}
 
-      {response.study_tips && response.study_tips.length > 0 && (
+      {!isDefinition && response.study_tips && response.study_tips.length > 0 && (
         <div className="ai-response__block">
           <span className="ai-response__label">Study tips</span>
           <ul className="ai-response__tips">
@@ -88,6 +90,7 @@ export function StudyCoach({
   const [historyItems, setHistoryItems] = useState<Array<{ id: number; content: string; created_at: string }>>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMainConceptOnly, setIsMainConceptOnly] = useState(true);
+  const [allHistoryMessages, setAllHistoryMessages] = useState<any[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -104,8 +107,12 @@ export function StudyCoach({
   // Load history for authenticated users
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
-    tutorAPI.getHistory(40)
-      .then(d => setHistoryItems(d.messages.filter(m => m.role === 'user').slice(-20).reverse()))
+    tutorAPI.getHistory(60)
+      .then(d => {
+        const msgs = d.messages || [];
+        setAllHistoryMessages(msgs);
+        setHistoryItems(msgs.filter(m => m.role === 'user').slice(-30).reverse());
+      })
       .catch(() => {});
   }, [isAuthenticated, userId]);
 
@@ -140,6 +147,11 @@ export function StudyCoach({
     setInput('');
     setLoading(true);
 
+    const history = messages.slice(-6).map(m => ({
+      role: m.sender === 'user' ? 'user' : 'ai',
+      content: m.text
+    }));
+
     try {
       const res = image
         ? await tutorAPI.interpretImage({
@@ -148,12 +160,14 @@ export function StudyCoach({
             subject: subject,
             filename: image.name,
             content_type: image.type,
-            is_main_concept_only: isMainConceptOnly
+            is_main_concept_only: isMainConceptOnly,
+            history: history
           })
         : await tutorAPI.ask({
             question: text,
             subject: subject,
-            is_main_concept_only: isMainConceptOnly
+            is_main_concept_only: isMainConceptOnly,
+            history: history
           });
 
       setMessages(prev => [...prev, {
@@ -176,6 +190,31 @@ export function StudyCoach({
     }
   };
 
+  const handleHistoryClick = (clickedMsg: any) => {
+    // Find messages in the same conversation "thread"
+    // Heuristic: group by subject and proximity in time (e.g., within 30 mins)
+    const clickedTime = new Date(clickedMsg.created_at).getTime();
+    
+    // Simplest: load all history in chronological order that leads up to and follows this message
+    // but filtered by the same subject if available.
+    const thread = allHistoryMessages.filter(m => {
+        if (clickedMsg.subject && m.subject !== clickedMsg.subject) return false;
+        const mTime = new Date(m.created_at).getTime();
+        return Math.abs(clickedTime - mTime) < 1000 * 60 * 60 * 2; // 2 hour window
+    });
+
+    const mapped = thread.map(m => ({
+        id: m.id.toString(),
+        sender: m.role === 'user' ? 'user' : 'ai' as 'user' | 'ai',
+        text: m.content,
+        // We don't have the full response object in history but we can show the text
+        response: m.role === 'ai' ? { explanation: m.content } : undefined
+    }));
+
+    setMessages(mapped);
+    if (clickedMsg.subject) setSubject(clickedMsg.subject);
+  };
+
   return (
     <div className="gemini-shell">
 
@@ -191,7 +230,11 @@ export function StudyCoach({
             <p className="gemini-sidebar__empty">No history yet.</p>
           )}
           {historyItems.map(m => (
-            <button key={m.id} className="gemini-sidebar__item" onClick={() => { send(m.content); setSidebarOpen(false); }}>
+            <button 
+              key={m.id} 
+              className="gemini-sidebar__item" 
+              onClick={() => { handleHistoryClick(m); setSidebarOpen(false); }}
+            >
               {m.content.slice(0, 48)}{m.content.length > 48 ? '…' : ''}
             </button>
           ))}
