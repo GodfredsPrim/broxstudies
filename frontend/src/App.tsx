@@ -98,6 +98,9 @@ const TicketIcon = () => (
 )
 
 function App() {
+  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+    return (window.localStorage.getItem('bisame_theme') as 'light' | 'dark') || 'light';
+  });
   const [activeTab, setActiveTab] = React.useState<AppTab>('study')
   const [isExamSimulating, setIsExamSimulating] = React.useState(false)
   const [account, setAccount] = React.useState<AuthUser | null>(null)
@@ -136,6 +139,13 @@ function App() {
 
   const hasActiveSubscription = (user: AuthUser | null) =>
     Boolean(user?.is_admin || user?.subscription_status === 'active')
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    window.localStorage.setItem('bisame_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const canAccessTab = (tab: AppTab, user: AuthUser | null) => {
     if (tab === 'study') return true
@@ -499,6 +509,9 @@ function App() {
           )}
 
           <div className="topbar__account">
+            <button className="theme-toggle-btn" onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
             {account ? (
               <>
                 <div className="topbar__account-meta">

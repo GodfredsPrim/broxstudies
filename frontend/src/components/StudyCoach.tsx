@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { questionsAPI, tutorAPI, type TutorResponse } from '../services/api';
+import MathRenderer from './MathRenderer';
 
 interface Message {
   id: string;
@@ -40,7 +41,7 @@ function AIMessage({ response }: { response: TutorResponse }) {
 
   return (
     <div className={`ai-response ${isDefinition ? 'ai-response--definition' : ''}`}>
-      <p className="ai-response__main">{response.explanation}</p>
+      <div className="ai-response__main"><MathRenderer text={response.explanation} /></div>
 
       {!isDefinition && response.extracted_text && (
         <div className="ai-response__block">
@@ -53,7 +54,7 @@ function AIMessage({ response }: { response: TutorResponse }) {
         <div className="ai-response__block">
           <span className="ai-response__label">Step-by-step</span>
           <ol className="ai-response__steps">
-            {response.steps.map((s, i) => <li key={i}>{s}</li>)}
+            {response.steps.map((s, i) => <li key={i}><MathRenderer text={s} /></li>)}
           </ol>
         </div>
       )}

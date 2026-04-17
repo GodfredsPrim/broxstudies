@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { LiveQuizStateResponse, PracticeMarkResponse, questionsAPI } from '../services/api';
+import MathRenderer from './MathRenderer';
 
 interface Subject {
   id: string;
@@ -311,15 +312,18 @@ export function LiveQuiz() {
               {state?.questions.map((q, idx) => (
                 <div key={idx} style={{ marginBottom: '25px', padding: '35px', background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px' }}>
-                    <span style={{ fontWeight: 800, color: '#3b82f6', fontSize: '1rem' }}>QUESTION {idx + 1}</span>
+                    <div style={{ fontWeight: 800, color: '#3b82f6', fontSize: '1rem' }}>QUESTION {idx + 1}</div>
                   </div>
-                  <p style={{ fontSize: '1.25rem', marginBottom: '30px', lineHeight: 1.6, color: '#0f172a', fontWeight: 500 }}>{q.question_text}</p>
+                  <div style={{ fontSize: '1.25rem', marginBottom: '30px', lineHeight: 1.6, color: '#0f172a', fontWeight: 500 }}>
+                    <MathRenderer text={q.question_text} />
+                  </div>
                   
                   {q.options ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                       {q.options.map((opt, i) => {
                         const letter = String.fromCharCode(65 + i);
                         const isSelected = answers[idx] === opt;
+                        const cleanedOpt = opt.replace(/^(Option\s+[A-D][:.]\s*|[A-D][:.]\s*)/i, '').trim();
                         return (
                           <div 
                             key={i} 
@@ -348,7 +352,7 @@ export function LiveQuiz() {
                               borderRadius: '8px',
                               border: isSelected ? 'none' : '1px solid #e2e8f0'
                             }}>{letter}</span>
-                            <span style={{ fontSize: '1.1rem', color: '#1e293b' }}>{opt}</span>
+                            <span style={{ fontSize: '1.1rem', color: '#1e293b' }}><MathRenderer text={cleanedOpt} /></span>
                           </div>
                         );
                       })}

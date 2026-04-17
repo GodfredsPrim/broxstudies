@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { questionsAPI, Question, GeneratedQuestions } from '../services/api';
+import MathRenderer from './MathRenderer';
 
 interface Subject {
   id: string;
@@ -78,7 +79,8 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
         
         try {
           const hist = await questionsAPI.getExamHistory();
-          setExamHistory(hist.filter((h: any) => h.exam_type === 'practice_generator').reverse());
+          // Remove the filter to show all types of history items
+          setExamHistory(hist.reverse());
         } catch(e) {}
         
       } catch (error) {
@@ -194,7 +196,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
         });
         // Refresh local history
         const hist = await questionsAPI.getExamHistory();
-        setExamHistory(hist.filter((h: any) => h.exam_type === 'practice_generator').reverse());
+        setExamHistory(hist.reverse());
       } catch(e) {}
     } catch (err) {
       console.error('Error marking practice:', err);
@@ -305,7 +307,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
     return (
       <div key={`q-${globalIndex}`} className="question-card" style={{ padding: '20px', border: '1px solid #eaeaea', borderRadius: '8px', marginBottom: '15px' }}>
         <h4>{labelPrefix}</h4>
-        <p style={{ whiteSpace: 'pre-wrap' }}><strong>{q.question_text}</strong></p>
+        <div style={{ whiteSpace: 'pre-wrap', marginBottom: '1rem' }}>
+          <strong><MathRenderer text={q.question_text} /></strong>
+        </div>
 
         {isSimulating ? (
           <div className="interactive-answer">
@@ -313,6 +317,8 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
               <div className="options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px' }}>
                 {q.options.map((opt, i) => {
                   const letter = String.fromCharCode(65 + i);
+                  // Strip the "Option A: " or similar prefixes if they exist in the text
+                  const cleanedOpt = opt.replace(/^(Option\s+[A-D][:.]\s*|[A-D][:.]\s*)/i, '').trim();
                   return (
                     <label key={i} className="option" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px', background: studentAnswers[globalIndex] === letter ? '#e6f7ff' : '#f9f9f9', borderRadius: '6px' }}>
                       <input 
@@ -322,7 +328,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
                         checked={studentAnswers[globalIndex] === letter}
                         onChange={(e) => handleStudentAnswerChange(globalIndex, e.target.value)}
                       />
-                      <span>{letter}. {opt}</span>
+                      <span>{letter}: <MathRenderer text={cleanedOpt} /></span>
                     </label>
                   );
                 })}
@@ -340,9 +346,13 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
         ) : (
           q.options && (
             <div className="options" style={{ marginTop: '15px' }}>
-              {q.options.map((opt, i) => (
-                <p key={i} className="option">{String.fromCharCode(65 + i)}. {opt}</p>
-              ))}
+              {q.options.map((opt, i) => {
+                const letter = String.fromCharCode(65 + i);
+                const cleanedOpt = opt.replace(/^(Option\s+[A-D][:.]\s*|[A-D][:.]\s*)/i, '').trim();
+                return (
+                  <p key={i} className="option">{letter}: <MathRenderer text={cleanedOpt} /></p>
+                );
+              })}
             </div>
           )
         )}
@@ -354,8 +364,8 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
                 <strong>Score:</strong> {examResult.results[globalIndex].score * 100}% | <strong>Feedback:</strong> {examResult.results[globalIndex].feedback}
               </div>
             )}
-            <p><strong>Expected Answer/Rubric:</strong> {q.correct_answer || 'See explanation'}</p>
-            <p><strong>Explanation:</strong> {q.explanation}</p>
+            <p><strong>Expected Answer/Rubric:</strong> <MathRenderer text={q.correct_answer || 'See explanation'} /></p>
+            <p><strong>Explanation:</strong> <MathRenderer text={q.explanation} /></p>
             <p><small style={{ color: '#666' }}>Difficulty: {q.difficulty_level} | Confidence: {(q.pattern_confidence * 100).toFixed(0)}%</small></p>
           </div>
         )}
@@ -391,6 +401,9 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
             >
               <div>
                 <strong style={{ display: 'block', fontSize: '1.1rem' }}>{entry.subject.replace(/_/g, ' ').toUpperCase()}</strong>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--ghana-green)', marginBottom: '4px', display: 'block' }}>
+                  {entry.exam_type.replace(/_/g, ' ').toUpperCase()}
+                </span>
                 <span style={{ color: '#64748b' }}>{new Date(entry.created_at).toLocaleString()} • <span style={{ color: '#3b82f6' }}>View Results →</span></span>
               </div>
               <div style={{ textAlign: 'right' }}>

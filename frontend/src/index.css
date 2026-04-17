@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
+@import 'katex/dist/katex.min.css';
 
 * {
   margin: 0;
@@ -32,6 +33,21 @@
   --battle-accent: #f59e0b;
 }
 
+[data-theme='dark'] {
+  --ghana-navy: #f8fafc;
+  --ghana-black: #ffffff;
+  --glass: rgba(15, 23, 42, 0.85);
+  --ink-900: #f1f5f9;
+  --ink-700: #cbd5e1;
+  --ink-500: #94a3b8;
+  --surface: #0f172a;
+  --surface-soft: #1e293b;
+  --border: rgba(255, 255, 255, 0.12);
+  --shadow-soft: 0 12px 28px rgba(0, 0, 0, 0.5);
+  --shadow-3d: 0 16px 0 rgba(0, 0, 0, 0.4), 0 26px 42px rgba(0, 0, 0, 0.6);
+  --battle-bg: #020617;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -47,6 +63,15 @@ body {
     linear-gradient(180deg, #fdfefe 0%, #f2f7fb 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+[data-theme='dark'] body {
+  background:
+    radial-gradient(1300px 640px at -15% -20%, rgba(198, 31, 31, 0.1), transparent 55%),
+    radial-gradient(980px 560px at 112% 2%, rgba(225, 163, 16, 0.1), transparent 58%),
+    radial-gradient(820px 440px at 60% 120%, rgba(11, 122, 75, 0.1), transparent 58%),
+    linear-gradient(180deg, #020617 0%, #0f172a 100%);
 }
 
 body::before {
@@ -274,12 +299,32 @@ textarea:focus-visible {
 .upload-section,
 .generator-section,
 .analysis-section {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(249, 251, 255, 0.92));
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 1.15rem;
   box-shadow: var(--shadow-soft);
   animation: rise 0.25s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+[data-theme='dark'] .upload-section,
+[data-theme='dark'] .generator-section,
+[data-theme='dark'] .analysis-section,
+[data-theme='dark'] .question-card,
+[data-theme='dark'] .generator-panel,
+[data-theme='dark'] .glass-card,
+[data-theme='dark'] .history-item-card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.upload-section:hover,
+.generator-section:hover,
+.analysis-section:hover {
+  box-shadow: var(--shadow-shell);
 }
 
 @keyframes rise {
@@ -364,8 +409,22 @@ textarea:focus-visible {
 .practice-input select:focus,
 .practice-input textarea:focus {
   outline: none;
-  border-color: #2fba72;
+  border-color: var(--ghana-green);
   box-shadow: 0 0 0 3px rgba(11, 122, 75, 0.16);
+}
+
+[data-theme='dark'] .form-group input,
+[data-theme='dark'] .form-group select,
+[data-theme='dark'] .practice-input select,
+[data-theme='dark'] .practice-input textarea,
+[data-theme='dark'] .chat-textarea,
+[data-theme='dark'] .chat-input,
+[data-theme='dark'] select,
+[data-theme='dark'] input,
+[data-theme='dark'] textarea {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .btn-primary,
@@ -603,6 +662,40 @@ button:disabled {
   padding: 0.56rem;
 }
 
+.topbar__account {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.theme-toggle-btn {
+  background: rgba(16, 25, 35, 0.05);
+  border: 1px solid rgba(16, 25, 35, 0.1);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='dark'] .theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.theme-toggle-btn:hover {
+  transform: rotate(15deg) scale(1.1);
+  background: rgba(16, 25, 35, 0.1);
+}
+
+[data-theme='dark'] .theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .result-card pre {
   border: 1px solid #dbe8f5;
   border-radius: 10px;
@@ -785,17 +878,126 @@ button:disabled {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.battle-option {
-  cursor: pointer;
-  padding: 1rem;
-  margin-bottom: 1rem;
+/* Premium Animations & Interactions */
+.app-content {
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.question-card, .generator-section, .analysis-section, .upload-section {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.question-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 25px 50px -12px rgba(16, 25, 35, 0.12);
+  border-color: var(--ghana-gold);
+}
+
+[data-theme='dark'] .question-card:hover {
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.45);
+}
+
+/* Dark Mode Overrides for Study Coach (Gemini UI) */
+[data-theme='dark'] .gemini-shell {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-shell);
+}
+
+[data-theme='dark'] .gemini-main {
+  background: var(--surface);
+}
+
+[data-theme='dark'] .gemini-msg--ai {
+  background: transparent;
+}
+
+[data-theme='dark'] .ai-response {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .ai-response__main {
+  color: #fff;
+}
+
+[data-theme='dark'] .gemini-msg--user .gemini-msg__text {
+  background: var(--ghana-green);
+  color: #fff;
+}
+
+[data-theme='dark'] .gemini-input-bar {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .gemini-textarea {
+  color: #fff;
+  background: transparent;
+}
+
+[data-theme='dark'] .gemini-starter {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .gemini-starter:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--ghana-gold);
+  color: #fff;
+}
+
+[data-theme='dark'] .gemini-sidebar {
+  background: #020617;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .gemini-sidebar__item {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .gemini-sidebar__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+/* Glassmorphism for Auth Modals */
+.auth-modal-v2 {
+  background: var(--surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-shell);
+}
+
+[data-theme='dark'] .auth-backdrop {
+  background: rgba(2, 6, 23, 0.85);
+}
+
+/* Stunning Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 37, 61, 0.1);
+  border-radius: 999px;
+}
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ghana-gold);
 }
 
 .battle-option:hover {

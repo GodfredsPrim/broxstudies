@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { questionsAPI, Question } from '../services/api';
+import MathRenderer from './MathRenderer';
 
 interface ExamHistoryEntry {
   id: number;
@@ -242,13 +243,14 @@ export function AnalysisDashboard() {
   const renderQuestionCard = (q: Question, globalIndex: number, labelPrefix: string) => (
     <div key={`q-${globalIndex}`} className="question-card" style={{ padding: '20px', border: '1px solid #eaeaea', borderRadius: '8px', marginBottom: '15px', background: '#fff' }}>
       <h4 style={{ color: '#0b7a4b', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '12px' }}>{labelPrefix}</h4>
-      <p style={{ whiteSpace: 'pre-wrap', fontSize: '1.1rem' }}><strong>{q.question_text}</strong></p>
+      <div style={{ whiteSpace: 'pre-wrap', fontSize: '1.1rem', marginBottom: '1rem' }}><strong><MathRenderer text={q.question_text} /></strong></div>
 
       <div className="interactive-answer">
         {q.options && q.options.length > 0 ? (
           <div className="options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px' }}>
             {q.options.map((opt, i) => {
               const letter = String.fromCharCode(65 + i);
+              const cleanedOpt = opt.replace(/^(Option\s+[A-D][:.]\s*|[A-D][:.]\s*)/i, '').trim();
               return (
                 <label key={i} className="option" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px', background: studentAnswers[globalIndex] === letter ? '#e6f7ff' : '#f9f9f9', borderRadius: '6px', border: studentAnswers[globalIndex] === letter ? '1px solid #1890ff' : '1px solid transparent' }}>
                   <input 
@@ -258,7 +260,7 @@ export function AnalysisDashboard() {
                     checked={studentAnswers[globalIndex] === letter}
                     onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
                   />
-                  <span>{letter}. {opt}</span>
+                  <span>{letter}: <MathRenderer text={cleanedOpt} /></span>
                 </label>
               );
             })}
@@ -281,8 +283,8 @@ export function AnalysisDashboard() {
               <strong>Score:</strong> {examResult.results[globalIndex].score * 100}% | <strong>Feedback:</strong> {examResult.results[globalIndex].feedback}
             </div>
           )}
-          <p><strong>Expected Answer/Rubric:</strong> {q.correct_answer || 'See explanation'}</p>
-          <p><strong>Explanation:</strong> {q.explanation}</p>
+          <p><strong>Expected Answer/Rubric:</strong> <MathRenderer text={q.correct_answer || 'See explanation'} /></p>
+          <p><strong>Explanation:</strong> <MathRenderer text={q.explanation} /></p>
         </div>
       )}
     </div>
