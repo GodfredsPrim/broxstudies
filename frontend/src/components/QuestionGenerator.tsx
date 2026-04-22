@@ -45,7 +45,7 @@ export function QuestionGenerator({ onSimulationToggle, isSimulating, showHistor
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [error, setError] = useState('');
-  const [mockTimeLimit, setMockTimeLimit] = useState(30); 
+  const [mockTimeLimit] = useState(30);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [timerActive, setTimerActive] = useState(false);
   const [examHistory, setExamHistory] = useState<ExamHistoryEntry[]>([]);

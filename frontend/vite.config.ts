@@ -44,8 +44,17 @@ export default defineConfig({
     })
   ],
   build: {
-    minify: true,
-    chunkSizeWarningLimit: 1000,
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          katex: ['katex', 'react-katex'],
+          vendor: ['axios', 'lucide-react'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

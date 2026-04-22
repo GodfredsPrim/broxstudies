@@ -1,6 +1,5 @@
 import React from 'react'
-import { Brain, FileText, Zap, Megaphone, BarChart3, BookOpen, Trophy, Shield, Clock, Moon, Sun, Eye, EyeOff, Ticket, Menu, X } from 'lucide-react'
-import { cn } from "@/lib/utils"
+import { Brain, FileText, Zap, Megaphone, BarChart3, BookOpen, Trophy, Shield, Clock, Moon, Sun, Menu, X } from 'lucide-react'
 import './index.css'
 import { QuestionGenerator } from './components/QuestionGenerator'
 import StudyCoach from './components/StudyCoach'
@@ -11,11 +10,6 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { GlobalLeaderboard } from './components/Leaderboard'
 import { CompetitionPortal } from './components/CompetitionPortal'
 import { authAPI, adminAPI, questionsAPI, setAuthToken, type AuthConfigResponse, type AuthUser } from './services/api'
-import { Button } from './components/ui/button'
-import { Input } from './components/ui/input'
-import { Label } from './components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from './components/ui/sheet'
 
 type AppTab = 'study' | 'generator' | 'live_quiz' | 'competitions' | 'analysis' | 'resources' | 'leaderboard' | 'admin' | 'history'
 type AuthTarget = AppTab
@@ -136,13 +130,14 @@ function App() {
   const [adminAuthError, setAdminAuthError] = React.useState('')
   const [adminAuthLoading, setAdminAuthLoading] = React.useState(false)
 
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+
   // Manual payment entry
   const [manualForm, setManualForm] = React.useState({ momoName: '', momoNumber: '', reference: '' })
   const [manualLoading] = React.useState(false)
   const [manualSuccess] = React.useState(false)
 
-  // Subscription info banner
-  const [subDaysLeft, setSubDaysLeft] = React.useState<number | null>(null)
+  const [, setSubDaysLeft] = React.useState<number | null>(null)
 
   const hasActiveSubscription = (user: AuthUser | null) =>
     Boolean(user?.is_admin || user?.subscription_status === 'active')
@@ -458,8 +453,6 @@ function App() {
 
   const guestChatsRemaining = Math.max(0, GUEST_CHAT_LIMIT - guestChatsUsed)
 
-  const isSubscribed = account?.subscription_status === 'active'
-
   React.useEffect(() => {
     if (!canAccessTab(activeTab, account)) {
       setActiveTab('study')
@@ -473,7 +466,7 @@ function App() {
           <div className="topbar__inner">
             <div className="topbar__brand">
               <div className="brand-mark">B</div>
-              BroxStudies
+              <span>BroxStudies</span>
             </div>
 
             <nav className="topbar__nav">
@@ -508,7 +501,7 @@ function App() {
               )}
             </nav>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button className="topbar__nav-btn" onClick={toggleTheme}>
                 {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
@@ -517,17 +510,71 @@ function App() {
               ) : (
                 <button className="btn-premium btn-premium--primary" onClick={() => openAuthGate(CHAT_TARGET)}>Login</button>
               )}
+              <button className="topbar__hamburger" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
+                <Menu size={22} />
+              </button>
             </div>
           </div>
         </header>
       )}
+
+      {/* ── Mobile Navigation Drawer ─────────────────────────────────────── */}
+      <div className={`mobile-menu-overlay${mobileMenuOpen ? ' open' : ''}`}>
+        <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} />
+        <div className="mobile-menu-drawer">
+          <div className="mobile-menu-header">
+            <div className="topbar__brand" style={{ fontSize: '1.2rem' }}>
+              <div className="brand-mark" style={{ width: 32, height: 32, fontSize: '1rem' }}>B</div>
+              <span>BroxStudies</span>
+            </div>
+            <button className="topbar__hamburger" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">
+              <X size={22} />
+            </button>
+          </div>
+          {([
+            { tab: 'study' as AppTab, icon: <Brain size={18} />, label: 'Study', gate: false },
+            { tab: 'generator' as AppTab, icon: <FileText size={18} />, label: 'Practice', gate: true },
+            { tab: 'live_quiz' as AppTab, icon: <Zap size={18} />, label: 'Live Quiz', gate: true },
+            { tab: 'analysis' as AppTab, icon: <BarChart3 size={18} />, label: 'WASSCE', gate: true },
+            { tab: 'competitions' as AppTab, icon: <Megaphone size={18} />, label: 'Competitions', gate: true },
+            { tab: 'resources' as AppTab, icon: <BookOpen size={18} />, label: 'Library', gate: true },
+            { tab: 'leaderboard' as AppTab, icon: <Trophy size={18} />, label: 'Ranking', gate: true },
+            { tab: 'history' as AppTab, icon: <Clock size={18} />, label: 'History', gate: true },
+          ] as const).map(({ tab, icon, label, gate }) => (
+            <button
+              key={tab}
+              className={`mobile-nav-btn${activeTab === tab ? ' active' : ''}`}
+              onClick={() => { gate ? openAuthGate(tab) : setActiveTab(tab); setMobileMenuOpen(false); }}
+            >
+              {icon} {label}
+            </button>
+          ))}
+          {account?.is_admin && (
+            <button
+              className={`mobile-nav-btn${activeTab === 'admin' ? ' active' : ''}`}
+              onClick={() => { setActiveTab('admin'); setMobileMenuOpen(false); }}
+            >
+              <Shield size={18} /> Admin
+            </button>
+          )}
+          <div className="mobile-menu-actions">
+            <button className="topbar__nav-btn" onClick={toggleTheme} style={{ justifyContent: 'flex-start', gap: 10 }}>
+              {theme === 'light' ? <><Moon size={18} /> Dark mode</> : <><Sun size={18} /> Light mode</>}
+            </button>
+            {account ? (
+              <button className="btn-premium btn-premium--primary" onClick={() => { handleLogout(); setMobileMenuOpen(false); }}>Log out</button>
+            ) : (
+              <button className="btn-premium btn-premium--primary" onClick={() => { openAuthGate(CHAT_TARGET); setMobileMenuOpen(false); }}>Login / Sign up</button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <main className="app-content">
         {activeTab === 'study' && (
           <StudyCoach
             isAuthenticated={Boolean(account)}
             guestChatsRemaining={guestChatsRemaining}
-            guestChatLimit={GUEST_CHAT_LIMIT}
             onRequireAuth={() => openAuthGate(CHAT_TARGET)}
             onConsumeGuestChat={consumeGuestChat}
             userId={account?.id ?? null}
@@ -555,13 +602,13 @@ function App() {
                 <div className="authv2__header">
                   <div className="authv2__logo">
                     <div className="authv2__logo-mark">B</div>
-                    <span>BroxStudies</span>
+                    <span className="brand-text">BroxStudies</span>
                   </div>
                   <h2 className="authv2__title">
-                    {authMode === 'signup' ? 'Create your account' : 'Welcome back'}
+                    {authMode === 'signup' ? 'Begin Your Journey' : 'Welcome Back'}
                   </h2>
                   <p className="authv2__subtitle">
-                    {TAB_COPY[authTarget].icon}&nbsp;{TAB_COPY[authTarget].reason}
+                    {TAB_COPY[authTarget].reason}
                   </p>
                 </div>
 

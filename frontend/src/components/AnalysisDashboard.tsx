@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Shield, X, Clock, Brain, Zap, FileText, Printer, Trophy, History } from 'lucide-react';
+import { X, Clock, Zap, FileText, Printer, History } from 'lucide-react';
 import { questionsAPI, Question } from '../services/api';
 import MathRenderer from './MathRenderer';
 

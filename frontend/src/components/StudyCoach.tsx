@@ -38,8 +38,8 @@ async function fileToBase64(file: File): Promise<string> {
 
 export function StudyCoach({
   isAuthenticated,
-  guestChatsRemaining,
-  onRequireAuth,
+  guestChatsRemaining: _guestChatsRemaining,
+  onRequireAuth: _onRequireAuth,
   onConsumeGuestChat,
   userId,
 }: StudyCoachProps) {

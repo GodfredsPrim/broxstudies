@@ -1,21 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Shield, 
-  RefreshCw, 
-  Users, 
-  CreditCard, 
-  CheckCircle2, 
-  XCircle, 
-  Copy, 
-  Plus, 
-  Activity, 
-  Trash2, 
-  MessageSquare, 
+import {
+  Shield,
+  RefreshCw,
+  Users,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
+  Copy,
+  Activity,
+  MessageSquare,
   Trophy,
-  Search,
   LayoutDashboard,
   Settings,
-  Mail,
   Smartphone,
   Hash
 } from 'lucide-react';

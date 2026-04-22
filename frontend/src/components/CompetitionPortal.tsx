@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Clock, Zap, FileText, ChevronRight, Gift, Calendar, AlertCircle } from 'lucide-react';
+import { Trophy, Clock, Zap, FileText, ChevronRight, Gift, Calendar } from 'lucide-react';
 import { adminAPI, type Competition } from '../services/api';
 
 export const CompetitionPortal: React.FC = () => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Book, Globe, Search, BookOpen, ExternalLink, Library, User, Info, Check, Filter } from 'lucide-react';
+import { Book, Globe, Search, BookOpen, ExternalLink, Library, User, Filter } from 'lucide-react';
 import '../styles/ResourceFetcher.css';
 
 interface WikipediaResult {

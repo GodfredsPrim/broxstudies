@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { 
-  Zap, 
-  Users, 
-  Trophy, 
-  Clock, 
-  Search, 
-  LayoutDashboard, 
-  Copy, 
-  CheckCircle2, 
-  Play, 
-  LogOut, 
-  User, 
-  BookOpen, 
+import {
+  Zap,
+  Search,
+  Copy,
+  CheckCircle2,
+  Play,
+  LogOut,
+  User,
   BarChart3,
   Timer
 } from 'lucide-react';
@@ -201,12 +196,6 @@ export function LiveQuiz() {
     }
   };
 
-  const getRankBadge = (index: number) => {
-    if (index === 0) return '🥇';
-    if (index === 1) return '🥈';
-    if (index === 2) return '🥉';
-    return `${index + 1}.`;
-  };
 
   return (
     <div className={`generator-shell ${roomCode ? 'generator-shell--simulating' : ''}`}>
