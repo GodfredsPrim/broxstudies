@@ -59,6 +59,21 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("🚀 Starting BroxStudies Online - AI Question Generator")
     
+    # Ensure subjects catalog exists (for deployment where data/ isn't committed)
+    try:
+        from app.services.curriculum_fetcher import CurriculumResourceFetcher
+        catalog_path = settings.SITE_RESOURCE_DIR / "subjects_catalog.json"
+        if not catalog_path.exists():
+            logger.info("📖 Generating subjects catalog from curriculum resources...")
+            fetcher = CurriculumResourceFetcher()
+            await fetcher.fetch_years_subjects()
+            logger.info("✅ Subjects catalog generated successfully")
+            await fetcher.close_session()
+        else:
+            logger.info("📖 Subjects catalog found locally")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not generate subjects catalog (fallback will be used): {str(e)}")
+    
     # Eagerly initialize the PastQuestionExtractor cache
     # This ensures subsequent requests won't timeout waiting for extraction
     try:

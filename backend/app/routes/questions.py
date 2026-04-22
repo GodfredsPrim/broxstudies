@@ -293,24 +293,37 @@ async def get_subjects():
 
     if not subjects_list:
         # Fallback values if site catalog is empty or missing.
+        # This list includes a broader set of SHS electives so subjects like Robotics appear in the UI.
         known_subjects = {
             "year_1": [
                 "Additional Mathematics", "Agricultural Science", "Agriculture", "Applied Technology", "Arabic",
-                "Biology", "Business Management", "Accounting", "Chemistry", "Computing",
-                "Economics", "English Language", "Geography", "Ghanaian Language", "Government", "History",
-                "Literature-in-English", "Mathematics", "Music", "Physics", "Social Studies", "French",
+                "Art and Design Foundation", "Arts and Design Studio", "Aviation and Aerospace Engineering",
+                "Biology", "Biomedical Science", "Business Management", "Accounting", "Chemistry", "Computing",
+                "Core Physical Education and Health (PEH)", "Design and Communication Technology",
+                "Economics", "Elective Physical Education and Health (PEH)", "Engineering", "English Language",
+                "Food and Nutrition", "Clothing and Textiles", "Geography", "Government", "History",
+                "Information Communication Technology (ICT)", "Intervention English", "Intervention Mathematics",
+                "Literature-in-English", "Management in Living", "Manufacturing Engineering", "Mathematics",
+                "Music", "Performing Arts", "Physics", "Religious Studies (Islamic)", "Religious Studies (Christian)",
+                "Robotics", "General Science", "Religious and Moral Education", "Social Studies", "Spanish", "French",
             ],
             "year_2": [
-                "Additional Mathematics", "Agricultural Science", "Agriculture", "Biology", "Accounting", 
-                "Business Management", "Chemistry", "Economics", "English Language", "French", "Geography",
-                "Ghanaian Language", "Government", "History", "Literature-in-English", "Mathematics", 
-                "Physics", "Social Studies",
+                "Additional Mathematics", "Agricultural Science", "Agriculture", "Automotive and Metal Technology",
+                "Building Construction and Wood Technology", "Electrical and Electronic Technology", "Arabic",
+                "Art and Design Foundation", "Biology", "Biomedical Science", "Business Management", "Accounting",
+                "Chemistry", "Economics", "English Language", "French", "Geography", "Government", "History",
+                "Information Communication Technology (ICT)", "Literature-in-English", "Manufacturing Engineering",
+                "Mathematics", "Music", "Physics", "Social Studies", "Design and Communication Technology",
+                "Engineering", "Food and Nutrition", "Clothing and Textiles", "Aviation and Aerospace Engineering",
             ],
             "year_3": [
-                "Additional Mathematics", "Agricultural Science", "Agriculture", "Biology", "Accounting", 
-                "Business Management", "Chemistry", "Economics", "English Language", "French", "Geography",
-                "Ghanaian Language", "Government", "History", "Literature-in-English", "Mathematics", 
-                "Physics", "Social Studies",
+                "Additional Mathematics", "Agricultural Science", "Agriculture", "Automotive and Metal Technology",
+                "Building Construction and Wood Technology", "Electrical and Electronic Technology", "Arabic",
+                "Art and Design Foundation", "Biology", "Biomedical Science", "Business Management", "Accounting",
+                "Chemistry", "Economics", "English Language", "French", "Geography", "Government", "History",
+                "Information Communication Technology (ICT)", "Literature-in-English", "Manufacturing Engineering",
+                "Mathematics", "Music", "Physics", "Social Studies", "Design and Communication Technology",
+                "Engineering", "Food and Nutrition", "Clothing and Textiles", "Aviation and Aerospace Engineering",
             ],
         }
 
