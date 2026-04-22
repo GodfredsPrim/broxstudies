@@ -1,16 +1,13 @@
 from pathlib import Path
-
 from pydantic_settings import BaseSettings
 
-
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-
 
 class Settings(BaseSettings):
     # API Configuration
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = ""
-    OPENAI_MODEL: str = "gpt-4o-mini"  # Vision-capable default for Study with AI OCR and tutoring
+    OPENAI_MODEL: str = "gpt-4o-mini"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-chat"
     LLM_FALLBACK_ENABLED: bool = True
@@ -18,9 +15,56 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = ""
     LLM_MODEL: str = ""
 
-    # Database
-    DATABASE_URL: str = f"sqlite:///{(BACKEND_DIR / 'gh_shs.db').as_posix()}"
-    AUTH_DB_PATH: Path = BACKEND_DIR / "auth.db"
+    # Database & Persistence
+    PERSISTENCE_DIR: Path = BACKEND_DIR / "data" / "persistence"
+    DATABASE_URL: str = "" # Set this in Render env for Supabase
+    AUTH_DB_PATH: Path = PERSISTENCE_DIR / "auth.db"
+
+    @property
+    def is_postgres(self) -> bool:
+        return self.DATABASE_URL.startswith("postgres://") or self.DATABASE_URL.startswith("postgresql://")
+
+    @property
+    def db_url(self) -> str:
+        # If no DATABASE_URL is provided, fallback to local SQLite
+        if not self.DATABASE_URL:
+            return f"sqlite:///{(self.PERSISTENCE_DIR / 'auth.db').as_posix()}"
+        
+        # Fix: Render and Supabase often provide postgres:// which SQLAlchemy/psycopg2 
+        # sometimes needs as postgresql://. Also ensure special characters in passwords are encoded.
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+            
+        # Sanitize credentials for psycopg2 (handles passwords with symbols like %)
+        # and strip incompatible query parameters like pgbouncer
+        if url.startswith("postgresql://"):
+            from urllib.parse import urlparse, urlunparse, quote, unquote, parse_qs, urlencode
+            try:
+                parsed = urlparse(url)
+                
+                # 1. Sanitize credentials
+                new_netloc = parsed.netloc
+                if parsed.username or parsed.password:
+                    username = quote(unquote(parsed.username)) if parsed.username else ""
+                    password = quote(unquote(parsed.password)) if parsed.password else ""
+                    new_netloc = f"{username}:{password}@{parsed.hostname}"
+                    if parsed.port:
+                        new_netloc += f":{parsed.port}"
+                
+                # 2. Strip incompatible query parameters (pgbouncer)
+                query_params = parse_qs(parsed.query)
+                if 'pgbouncer' in query_params:
+                    del query_params['pgbouncer']
+                
+                new_query = urlencode(query_params, doseq=True)
+                
+                # 3. Reconstruct
+                url = urlunparse(parsed._replace(netloc=new_netloc, query=new_query))
+            except Exception:
+                pass
+                
+        return url
 
     # Authentication
     AUTH_SECRET_KEY: str = "change-this-auth-secret"
@@ -29,10 +73,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
 
     # Admin Credentials
-    ADMIN_USERNAME: str = "bisameadmin"
-    ADMIN_PASSWORD: str = "bisame-admin-2026"
+    ADMIN_USERNAME: str = "broxstudiesadmin"
+    ADMIN_PASSWORD: str = "bs-admin-2026"
     ADMIN_SECRET: str = "change-this-admin-secret"
-    SUBSCRIPTION_PRICE_GHS: str = "10"
+    SUBSCRIPTION_PRICE_GHS: str = "20"
     SUBSCRIPTION_MONTHS: int = 3
 
     # CORS
@@ -55,7 +99,7 @@ class Settings(BaseSettings):
 
     # Auto-loading
     AUTO_LOAD_ON_STARTUP: bool = True
-    LAZY_LOAD: bool = True  # Only load syllabi on startup, rest on-demand
+    LAZY_LOAD: bool = True
     SELECTIVE_LOAD: bool = True
     LOAD_SYLLABI_ONLY: bool = False
     MAX_INITIAL_SUBJECTS: int = 5
@@ -88,9 +132,10 @@ class Settings(BaseSettings):
         env_file = BACKEND_DIR / ".env"
         case_sensitive = True
 
-
 settings = Settings()
 
+# Ensure directories exist
 settings.PDF_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 settings.VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 settings.SITE_RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
+settings.PERSISTENCE_DIR.mkdir(parents=True, exist_ok=True)

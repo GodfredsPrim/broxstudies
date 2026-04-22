@@ -13,12 +13,15 @@ from PyPDF2 import PdfReader
 from app.config import settings
 from app.models import Question, QuestionType, Subject, PracticeMarkItem
 
+from app.services.wassce_intelligence import WassceIntelligenceService
+
 logger = logging.getLogger(__name__)
 
 
 class QuestionGenerator:
     def __init__(self):
         self.llms: dict[float, ChatOpenAI] = {}
+        self.intel = WassceIntelligenceService()
 
     async def generate_questions(
         self,
@@ -52,6 +55,110 @@ class QuestionGenerator:
         return await self._generate_single_batch(
             subject, question_type, num_questions, difficulty_level, topics, year_key, subject_slug, subject_label, semester
         )
+
+    async def generate_professional_mock(
+        self,
+        subject: Subject,
+        year_key: str,
+        subject_slug: str,
+        subject_label: str | None = None,
+    ):
+        """Generate a professionally structured mock exam matching official templates."""
+        logger.info(f"Generating Professional Mock for {subject_slug} ({year_key})")
+        
+        # 1. Analyze structure of existing past papers for this subject
+        structure = self.intel.analyze_paper_structure(subject_slug)
+        
+        # 2. Extract topics from textbooks for coverage
+        topics_y1 = self.intel.extract_topics_from_textbook("year_1", subject_slug)
+        topics_y2 = self.intel.extract_topics_from_textbook("year_2", subject_slug)
+        all_topics = topics_y1 + topics_y2
+
+        # 3. Year 3 Priority Logic: Past Questions First
+        use_books = False
+        if year_key == "year_3":
+            # Check if any past questions exist at all
+            status = self.intel.past_questions_dir / f"{subject_slug.replace('_', ' ').title()}.zip"
+            if not status.exists():
+                use_books = True
+                logger.info("No past questions found for Year 3; falling back to textbooks.")
+
+        # 4. Generate Paper 1 (Objectives)
+        num_mcq = structure.get("paper_1", 40)
+        mcq_questions = await self._generate_professional_paper(
+            subject, QuestionType.MULTIPLE_CHOICE, num_mcq, all_topics, year_key, subject_slug, subject_label, use_books, "Paper 1 (Objectives)"
+        )
+
+        # 5. Generate Paper 2 (Theory/Essay)
+        theory_structure = structure.get("paper_2", {"general": 6})
+        theory_questions = []
+        for section, count in theory_structure.items():
+            section_label = section.replace("_", " ").title()
+            questions = await self._generate_professional_paper(
+                subject, QuestionType.ESSAY, count, all_topics, year_key, subject_slug, subject_label, use_books, f"Paper 2 - {section_label}"
+            )
+            theory_questions.extend(questions)
+
+        # 6. Generate Paper 3 (Practicals/Alternatives if applicable)
+        paper_3_questions = []
+        if structure.get("paper_3"):
+            paper_3_questions = await self._generate_professional_paper(
+                subject, QuestionType.SHORT_ANSWER, 3, all_topics, year_key, subject_slug, subject_label, use_books, "Paper 3 (Practicals/Alternative)"
+            )
+
+        return {
+            "paper_1": mcq_questions,
+            "paper_2": theory_questions,
+            "paper_3": paper_3_questions
+        }
+
+    async def _generate_professional_paper(
+        self,
+        subject: Subject,
+        question_type: QuestionType,
+        num_questions: int,
+        topics: list[str],
+        year_key: str,
+        subject_slug: str,
+        subject_label: str | None,
+        use_books: bool,
+        context_label: str
+    ):
+        """Generate a specific paper section for the professional mock."""
+        logger.info(f"Generating {context_label} with {num_questions} questions")
+        
+        # Build strict prompt for professional alignment
+        source_instruction = "PRIORITY: Extract exact questions or patterns from WASSCE Past Question files."
+        if use_books:
+            source_instruction = "PRIORITY: No past questions found. Generate unique questions from Textbook topics and use AI to create high-accuracy professional answers/solutions."
+
+        topics_str = ", ".join(topics[:15]) # Sample topics
+
+        prompt = f"""Generate exactly {num_questions} {question_type.value} questions for {subject.value} {context_label}.
+        
+Requirements:
+1. {source_instruction}
+2. Structure: Follow the exact professional tone and difficulty of a WASSCE final exam.
+3. Content Scope: {topics_str}
+4. YEAR 3 RULE: Questions must cover the entire SHS 1 - SHS 3 curriculum.
+5. ANSWERS: For MCQs, provide the correct option. For Theory, provide a detailed marking guide or full step-by-step solution.
+6. SEQUENCING: Return the questions in a logical, sequential order typical of an exam (e.g. from fundamental to complex topics).
+7. MATH FORMATTING: You MUST use standard LaTeX delimiters for all mathematical symbols, equations, and formulas. Use $ .. $ for inline math and $$ .. $$ for large block equations. Never use plain text for math symbols (e.g. use $\pi$ instead of pi).
+
+Return valid JSON array of {num_questions} objects:
+[
+  {{
+    "question_text": "question text",
+    "options": ["A", "B", "C", "D"], (for mcq ONLY)
+    "correct_answer": "answer/option letter",
+    "explanation": "marking guide/step-by-step solution",
+    "difficulty_level": "medium",
+    "topic": "topic name"
+  }}
+]
+"""
+        response = await self._call_llm(prompt)
+        return self._parse_response(response, subject, question_type, num_questions)
 
     async def _generate_single_batch(
         self,
@@ -168,18 +275,19 @@ You MUST generate purely quantitative, computational problems. Do NOT generate g
         elif semester == "semester_2":
             semester_context = "\nFOCUS: Second Semester (Sem 2) curriculum topics and final exam preparation topics."
 
-        return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for Ghana SHS {display_subject} ({year_key.replace('_', ' ').title()}){semester_context}.
+        return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for BroxStudies {display_subject} ({year_key.replace('_', ' ').title()}){semester_context}.
 
 Requirements:
-1. Follow the pattern and style of typical Ghana SHS exam questions.
+1. Follow the pattern and style of typical BroxStudies exam questions.
 2. Be appropriate for secondary school students.
 3. Have a clear, single correct answer or highly robust explanation marking guide.
 4. Include a detailed explanation marking guide to allow accurate automated grading.
 5. Cover these topics when relevant: {topic_text}.
 6. PRIORITY: use past-question excerpts first for style/structure, and use textbook excerpts for topical coverage.
 7. If past-question excerpts are available, do NOT use textbook excerpts at all; derive questions from past-question patterns only.
-8. If past-question excerpts are unavailable for this subject, generate from textbook excerpts only.
+8. If no past-question or textbook excerpts are available below, you MUST generate high-quality questions from your internal knowledge of the official WAEC and Ghanaian curriculum for this specific subject and academic year.
 9. Use teacher resource notes to improve tips/tricks and exam strategy where available.
+10. MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for ALL mathematical symbols, equations, arithmetic, and formulas. NEVER use plain text for symbols like pi, theta, or fractions.
 
 *** CRITICAL RANDOMIZATION DIRECTIVE ***
 Seed Token: {random.randint(10000, 99999)}
@@ -507,7 +615,7 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
                     "index": idx,
                     "question": item.question_text,
                     "expected_answer": item.correct_answer,
-                    "marking_guide": item.explanation or "",
+                    "marking_guide": item.marking_scheme or item.explanation or "",
                     "student_answer": item.student_answer,
                 }
             )
@@ -584,6 +692,11 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
             if not isinstance(data, list) or not data:
                 raise ValueError("LLM response did not contain any questions")
 
+            # Terminal Verification Log
+            if data:
+                sample_q = data[0].get("question_text") or data[0].get("question") or ""
+                logger.info(f"📊 TERMINAL VERIFICATION - Math Content: {sample_q[:100]}...")
+
             questions = []
             for item in data[:num_questions]:
                 item_qtype = question_type
@@ -593,13 +706,13 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
                     Question(
                         subject=subject,
                         question_type=item_qtype,
-                        question_text=item.get("question", ""),
+                        question_text=item.get("question_text") or item.get("question") or "",
                         options=options,
                         correct_answer=item.get("correct_answer", ""),
                         explanation=item.get("explanation", ""),
-                        difficulty_level=item.get("difficulty", "medium"),
+                        difficulty_level=item.get("difficulty_level") or item.get("difficulty") or "medium",
                         year_generated=2026,
-                        pattern_confidence=0.85,
+                        pattern_confidence=0.92,
                     )
                 )
 

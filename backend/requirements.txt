@@ -15,4 +15,5 @@ beautifulsoup4>=4.12
 python-multipart>=0.0.9
 PyJWT>=2.8
 google-auth>=2.29
-
+reportlab>=4.1
+psycopg2-binary>=2.9

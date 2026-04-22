@@ -1,4 +1,6 @@
 import React from 'react'
+import { Brain, FileText, Zap, Megaphone, BarChart3, BookOpen, Trophy, Shield, Clock, Moon, Sun, Eye, EyeOff, Ticket, Menu, X } from 'lucide-react'
+import { cn } from "@/lib/utils"
 import './index.css'
 import { QuestionGenerator } from './components/QuestionGenerator'
 import StudyCoach from './components/StudyCoach'
@@ -9,6 +11,11 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { GlobalLeaderboard } from './components/Leaderboard'
 import { CompetitionPortal } from './components/CompetitionPortal'
 import { authAPI, adminAPI, questionsAPI, setAuthToken, type AuthConfigResponse, type AuthUser } from './services/api'
+import { Button } from './components/ui/button'
+import { Input } from './components/ui/input'
+import { Label } from './components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './components/ui/sheet'
 
 type AppTab = 'study' | 'generator' | 'live_quiz' | 'competitions' | 'analysis' | 'resources' | 'leaderboard' | 'admin' | 'history'
 type AuthTarget = AppTab
@@ -99,7 +106,7 @@ const TicketIcon = () => (
 
 function App() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
-    return (window.localStorage.getItem('bisame_theme') as 'light' | 'dark') || 'light';
+    return (window.localStorage.getItem('broxstudies_theme') as 'light' | 'dark') || 'light';
   });
   const [activeTab, setActiveTab] = React.useState<AppTab>('study')
   const [isExamSimulating, setIsExamSimulating] = React.useState(false)
@@ -142,7 +149,7 @@ function App() {
 
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    window.localStorage.setItem('bisame_theme', theme);
+    window.localStorage.setItem('broxstudies_theme', theme);
   }, [theme]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -168,12 +175,12 @@ function App() {
         console.error('Failed to load auth config', err)
       }
 
-      const guestUsage = window.localStorage.getItem('bisame_guest_chats_used')
+      const guestUsage = window.localStorage.getItem('broxstudies_guest_chats_used')
       if (guestUsage) {
         setGuestChatsUsed(Number(guestUsage) || 0)
       }
 
-      const storedToken = window.localStorage.getItem('bisame_access_token')
+      const storedToken = window.localStorage.getItem('broxstudies_access_token')
       if (!storedToken) {
         return
       }
@@ -200,7 +207,7 @@ function App() {
         }
       } catch (err) {
         console.error('Stored session is invalid', err)
-        window.localStorage.removeItem('bisame_access_token')
+        window.localStorage.removeItem('broxstudies_access_token')
         setAuthToken(null)
       }
     }
@@ -284,8 +291,8 @@ function App() {
   }
 
   const persistSession = (accessToken: string, user: AuthUser) => {
-    window.localStorage.setItem('bisame_access_token', accessToken)
-    window.localStorage.setItem('bisame_guest_chats_used', '0')
+    window.localStorage.setItem('broxstudies_access_token', accessToken)
+    window.localStorage.setItem('broxstudies_guest_chats_used', '0')
     setAuthToken(accessToken)
     setAccount(user)
     setGuestChatsUsed(0)
@@ -349,9 +356,12 @@ function App() {
       setAdminSecretIn('')
       setActiveTab('admin')
     } catch (err: any) {
-      setAdminAuthError(err?.response?.data?.detail || 'Invalid admin access code.')
+      console.error('Admin Auth Error:', err);
+      const detail = err?.response?.data?.detail || 
+                     (err.code === 'ECONNABORTED' ? 'Connection timed out. Please check your internet.' : 'Invalid admin access code or network error.');
+      setAdminAuthError(detail);
     } finally {
-      setAdminAuthLoading(false)
+      setAdminAuthLoading(false);
     }
   }
 
@@ -423,7 +433,7 @@ function App() {
   }
 
   const handleLogout = () => {
-    window.localStorage.removeItem('bisame_access_token')
+    window.localStorage.removeItem('broxstudies_access_token')
     setAuthToken(null)
     setAccount(null)
     setActiveTab('study')
@@ -442,7 +452,7 @@ function App() {
 
     const nextValue = guestChatsUsed + 1
     setGuestChatsUsed(nextValue)
-    window.localStorage.setItem('bisame_guest_chats_used', String(nextValue))
+    window.localStorage.setItem('broxstudies_guest_chats_used', String(nextValue))
     return true
   }
 
@@ -457,93 +467,62 @@ function App() {
   }, [activeTab, account])
 
   return (
-    <div className={`app app-shell ${isExamSimulating ? 'exam-mode' : ''}`}>
+    <div className="app-shell">
       {!isExamSimulating && (
         <header className="topbar">
-          <div className="topbar__brand">
-            <div className="brand-mark">B</div>
-            <div>
-              <strong>BisaME</strong>
-              <span>{activeTab === 'admin' ? 'Administrative control center' : 'Study companion for SHS learners'}</span>
+          <div className="topbar__inner">
+            <div className="topbar__brand">
+              <div className="brand-mark">B</div>
+              BroxStudies
             </div>
-          </div>
 
-          {!(account?.is_admin && activeTab === 'admin') ? (
             <nav className="topbar__nav">
               <button className={`topbar__nav-btn ${activeTab === 'study' ? 'active' : ''}`} onClick={() => setActiveTab('study')}>
-                <span className="nav-icon">🧠</span>Study with AI
+                <Brain size={16} /> Study
               </button>
               <button className={`topbar__nav-btn ${activeTab === 'generator' ? 'active' : ''}`} onClick={() => openAuthGate('generator')}>
-                <span className="nav-icon">📝</span>Generate Questions
+                <FileText size={16} /> Practice
               </button>
               <button className={`topbar__nav-btn ${activeTab === 'live_quiz' ? 'active' : ''}`} onClick={() => openAuthGate('live_quiz')}>
-                <span className="nav-icon">⚡</span>Challenge Quiz
-              </button>
-              <button className={`topbar__nav-btn ${activeTab === 'competitions' ? 'active' : ''}`} onClick={() => openAuthGate('competitions')}>
-                <span className="nav-icon">📢</span>Announcements
+                <Zap size={16} /> Live
               </button>
               <button className={`topbar__nav-btn ${activeTab === 'analysis' ? 'active' : ''}`} onClick={() => openAuthGate('analysis')}>
-                <span className="nav-icon">📊</span>Likely WASSCE Questions
+                <BarChart3 size={16} /> WASSCE
+              </button>
+              <button className={`topbar__nav-btn ${activeTab === 'competitions' ? 'active' : ''}`} onClick={() => openAuthGate('competitions')}>
+                <Megaphone size={16} /> Competitions
               </button>
               <button className={`topbar__nav-btn ${activeTab === 'resources' ? 'active' : ''}`} onClick={() => openAuthGate('resources')}>
-                <span className="nav-icon">📚</span>Library
+                <BookOpen size={16} /> Library
               </button>
               <button className={`topbar__nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => openAuthGate('leaderboard')}>
-                <span className="nav-icon">🏆</span>Leaderboard
+                <Trophy size={16} /> Ranking
               </button>
               <button className={`topbar__nav-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => openAuthGate('history')}>
-                <span className="nav-icon">🕒</span>History
+                <Clock size={16} /> History
               </button>
               {account?.is_admin && (
-                <button className="topbar__nav-btn" onClick={() => setActiveTab('admin')}>
-                  <span className="nav-icon">🛡️</span>Administration
+                <button className={`topbar__nav-btn ${activeTab === 'admin' ? 'active' : ''}`} onClick={() => setActiveTab('admin')}>
+                  <Shield size={16} /> Admin
                 </button>
               )}
             </nav>
-          ) : (
-            <nav className="topbar__nav">
-              <button className="topbar__nav-btn active" onClick={() => setActiveTab('admin')}>
-                <span className="nav-icon">🛡️</span>Administrative Dashboard
-              </button>
-            </nav>
-          )}
 
-          <div className="topbar__account">
-            <button className="theme-toggle-btn" onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-            {account ? (
-              <>
-                <div className="topbar__account-meta">
-                  <strong>{account.full_name.split(' ')[0]}</strong>
-                  {isSubscribed ? (
-                    <span className="sub-badge sub-badge--active">
-                      ✓ Active{subDaysLeft !== null ? ` · ${subDaysLeft}d left` : ''}
-                    </span>
-                  ) : (
-                    <span className="sub-badge sub-badge--inactive" onClick={() => { setAuthStep('verify_code'); setAuthOpen(true) }}>
-                      ⚠ No subscription
-                    </span>
-                  )}
-                </div>
-                <button className="topbar__auth-btn" onClick={handleLogout}>Log out</button>
-              </>
-            ) : (
-              <>
-                <div className="topbar__account-meta">
-                  <strong>{guestChatsRemaining} free chats left</strong>
-                  <span>Sign up to unlock all features</span>
-                </div>
-                <button className="topbar__auth-btn topbar__auth-btn--cta" onClick={() => openAuthGate(CHAT_TARGET)}>
-                  Sign up free
-                </button>
-              </>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <button className="topbar__nav-btn" onClick={toggleTheme}>
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+              {account ? (
+                <button className="btn-premium btn-premium--primary" onClick={handleLogout}>Log out</button>
+              ) : (
+                <button className="btn-premium btn-premium--primary" onClick={() => openAuthGate(CHAT_TARGET)}>Login</button>
+              )}
+            </div>
           </div>
         </header>
       )}
 
-      <main className="app-content app-content--clean">
+      <main className="app-content">
         {activeTab === 'study' && (
           <StudyCoach
             isAuthenticated={Boolean(account)}
@@ -576,7 +555,7 @@ function App() {
                 <div className="authv2__header">
                   <div className="authv2__logo">
                     <div className="authv2__logo-mark">B</div>
-                    <span>BisaME</span>
+                    <span>BroxStudies</span>
                   </div>
                   <h2 className="authv2__title">
                     {authMode === 'signup' ? 'Create your account' : 'Welcome back'}
@@ -718,7 +697,7 @@ function App() {
                         className="authv2__input authv2__input--code"
                         style={{ marginBottom: '10px' }}
                         type="text"
-                        placeholder="BISAME-XXXX"
+                        placeholder="BROX-XXXX"
                         value={accessCode}
                         onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
                       />
@@ -787,7 +766,7 @@ function App() {
               </div>
               <h2 className="authv2__title">Administrative Access</h2>
               <p className="authv2__subtitle">
-                Please enter the secure <strong>Admin Access Code</strong> to manage the BisaME system.
+                Please enter the secure <strong>Admin Access Code</strong> to manage the BroxStudies system.
               </p>
             </div>
 

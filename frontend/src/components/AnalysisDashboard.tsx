@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Shield, X, Clock, Brain, Zap, FileText, Printer, Trophy, History } from 'lucide-react';
 import { questionsAPI, Question } from '../services/api';
 import MathRenderer from './MathRenderer';
 
@@ -241,175 +242,209 @@ export function AnalysisDashboard() {
   const theoryQuestions = questions.filter(q => q.question_type === 'essay' || q.question_type === 'short_answer');
 
   const renderQuestionCard = (q: Question, globalIndex: number, labelPrefix: string) => (
-    <div key={`q-${globalIndex}`} className="question-card" style={{ padding: '20px', border: '1px solid #eaeaea', borderRadius: '8px', marginBottom: '15px', background: '#fff' }}>
-      <h4 style={{ color: '#0b7a4b', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '12px' }}>{labelPrefix}</h4>
-      <div style={{ whiteSpace: 'pre-wrap', fontSize: '1.1rem', marginBottom: '1rem' }}><strong><MathRenderer text={q.question_text} /></strong></div>
+    <div 
+      key={`q-${globalIndex}`} 
+      className="question-card glass-card"
+      style={{ animationDelay: `${globalIndex * 0.1}s` }}
+    >
+      <div className="question-card__header">
+        <span className="question-card__number">{labelPrefix}</span>
+        <span className="question-card__type">{q.question_type.replace('_', ' ')}</span>
+      </div>
+      
+      <div className="question-card__body">
+        <div className="question-card__text">
+          <MathRenderer text={q.question_text} />
+        </div>
 
-      <div className="interactive-answer">
-        {q.options && q.options.length > 0 ? (
-          <div className="options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px' }}>
-            {q.options.map((opt, i) => {
-              const letter = String.fromCharCode(65 + i);
-              const cleanedOpt = opt.replace(/^(Option\s+[A-D][:.]\s*|[A-D][:.]\s*)/i, '').trim();
-              return (
-                <label key={i} className="option" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px', background: studentAnswers[globalIndex] === letter ? '#e6f7ff' : '#f9f9f9', borderRadius: '6px', border: studentAnswers[globalIndex] === letter ? '1px solid #1890ff' : '1px solid transparent' }}>
-                  <input 
-                    type="radio" 
-                    name={`hall-question-${globalIndex}`} 
-                    value={letter}
-                    checked={studentAnswers[globalIndex] === letter}
-                    onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
-                  />
-                  <span>{letter}: <MathRenderer text={cleanedOpt} /></span>
-                </label>
-              );
-            })}
+        <div className="question-card__input-area">
+          {q.options && q.options.length > 0 ? (
+            <div className="options-grid">
+              {q.options.map((opt, i) => {
+                const letter = String.fromCharCode(65 + i);
+                const cleanedOpt = opt.replace(/^(Option\s+[A-D][:.]\s*|[A-D][:.]\s*)/i, '').trim();
+                const isSelected = studentAnswers[globalIndex] === letter;
+                return (
+                  <label key={i} className={`option-item ${isSelected ? 'option-item--selected' : ''}`}>
+                    <input 
+                      type="radio" 
+                      name={`hall-question-${globalIndex}`} 
+                      value={letter}
+                      checked={isSelected}
+                      onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
+                      className="hidden-radio"
+                    />
+                    <span className="option-letter">{letter}</span>
+                    <span className="option-text"><MathRenderer text={cleanedOpt} /></span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <textarea
+              placeholder="Type your detailed answer here... (Show all workings for sub-parts like (a)(i), (b))"
+              rows={8}
+              className="essay-input"
+              value={studentAnswers[globalIndex] || ''}
+              onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
+            />
+          )}
+        </div>
+
+        {showAnswers && (
+          <div className="question-card__feedback">
+            {examResult && examResult.results[globalIndex] && (
+              <div className={`feedback-score ${examResult.results[globalIndex].is_correct ? 'feedback-score--correct' : 'feedback-score--wrong'}`}>
+                <strong>Score: {examResult.results[globalIndex].score * 100}%</strong>
+                <p>{examResult.results[globalIndex].feedback}</p>
+              </div>
+            )}
+            <div className="feedback-content">
+              <div className="feedback-item">
+                <span className="feedback-label">Correct Answer</span>
+                <div className="feedback-value"><MathRenderer text={q.correct_answer || 'See explanation'} /></div>
+              </div>
+              <div className="feedback-item">
+                <span className="feedback-label">Explanation</span>
+                <div className="feedback-value"><MathRenderer text={q.explanation} /></div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <textarea
-            placeholder="Type your detailed answer here... (Show all workings for sub-parts like (a)(i), (b))"
-            rows={8}
-            style={{ width: '100%', marginTop: '15px', padding: '12px', border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'inherit', fontSize: '1rem' }}
-            value={studentAnswers[globalIndex] || ''}
-            onChange={(e) => setStudentAnswers(prev => ({ ...prev, [globalIndex]: e.target.value }))}
-          />
         )}
       </div>
-
-      {showAnswers && (
-        <div className="answer-section" style={{ marginTop: '20px', padding: '15px', background: '#f0fdf4', borderRadius: '6px', borderLeft: '4px solid #10b981' }}>
-          {examResult && examResult.results[globalIndex] && (
-            <div style={{ marginBottom: '10px', padding: '8px', background: examResult.results[globalIndex].is_correct ? '#d1fae5' : '#fee2e2', borderRadius: '4px' }}>
-              <strong>Score:</strong> {examResult.results[globalIndex].score * 100}% | <strong>Feedback:</strong> {examResult.results[globalIndex].feedback}
-            </div>
-          )}
-          <p><strong>Expected Answer/Rubric:</strong> <MathRenderer text={q.correct_answer || 'See explanation'} /></p>
-          <p><strong>Explanation:</strong> <MathRenderer text={q.explanation} /></p>
-        </div>
-      )}
     </div>
   );
 
   return (
-    <div className={`analysis-section ${isSimulating ? 'simulating' : ''}`} style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className={`generator-shell ${isSimulating ? 'generator-shell--simulating' : ''}`}>
       {!isSimulating && (
-        <div className="generator-hero">
-          <h2>Likely WASSCE Questions: Full Paper Hall</h2>
-          <p>
-            {selectedYear === 'Year 3' 
-              ? '✅ Strict Past-Question Mode: Constructing full papers purely from authentic WASSCE examination patterns.' 
-              : 'Generate and solve complete 40-MCQ + 6-Theory WASSCE examination papers under strict simulation.'}
-          </p>
+        <div className="generator-header">
+          <div className="generator-header__content">
+            <h2 className="generator-title">Likely WASSCE Hall</h2>
+            <p className="generator-subtitle">
+              {selectedYear === 'Year 3' 
+                ? 'Strict Past-Question Mode: Authentic WASSCE examination patterns.' 
+                : 'Solve complete 40-MCQ + 6-Theory papers under strict simulation.'}
+            </p>
+          </div>
+          <div className="generator-header__actions">
+             <button onClick={handleGenerate} disabled={loading} className="generator-btn generator-btn--primary">
+                {loading ? <span className="animate-pulse">Constructing...</span> : <><FileText size={18} /> Generate Paper</>}
+             </button>
+          </div>
         </div>
       )}
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="generator-error"><X className="w-5 h-5" /> {error}</div>}
 
       {isSimulating ? (
-        <div className="sim-exit-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#101923', color: '#fff', padding: '15px 25px', borderRadius: '8px', position: 'sticky', top: 0, zIndex: 1000, marginBottom: '20px' }}>
-          <span><strong>📋 Subject:</strong> {subjects.find(s => s.id === subject)?.name}</span>
-          <span><strong>Progress:</strong> {Object.keys(studentAnswers).length} / {questions.length}</span>
-          {timeLeft !== null && (
-            <span style={{ fontWeight: 'bold', color: timeLeft < 300 ? '#ff4d4f' : '#fff' }}>
-              ⏱️ Time Left: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-            </span>
-          )}
-          <button onClick={submitExamGrading} disabled={isSubmitting} className="btn-primary" style={{ background: '#52c41a', border: 'none' }}>
-            {isSubmitting ? 'Grading...' : '✅ Submit Paper'}
-          </button>
+        <div className="sim-exit-bar glass-card">
+          <div className="flex items-center gap-6">
+            <span><strong>📋 Subject:</strong> {subjects.find(s => s.id === subject)?.name}</span>
+            <span><strong>Progress:</strong> {Object.keys(studentAnswers).length} / {questions.length}</span>
+          </div>
+          <div className="flex items-center gap-6">
+            {timeLeft !== null && (
+              <span className={`flex items-center gap-2 font-bold px-3 py-1 rounded-full border ${timeLeft < 300 ? 'text-red-500 bg-red-50 border-red-200 animate-pulse' : 'text-gray-300'}`}>
+                <Clock size={16} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </span>
+            )}
+            <button onClick={submitExamGrading} disabled={isSubmitting} className="generator-btn generator-btn--primary" style={{ padding: '0.5rem 1.25rem', borderRadius: '10px' }}>
+              {isSubmitting ? 'Grading...' : <><Zap size={16} /> Submit Paper</>}
+            </button>
+          </div>
         </div>
       ) : (
         <>
-          <div className="form-grid generator-panel" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #dbe4ef', marginBottom: '20px' }}>
-            <div className="form-group">
-              <label>Select Year:</label>
-              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+          <div className="generator-form glass-card">
+            <div className="generator-form-grid">
+              <div className="form-group">
+                <label>Select Year</label>
+                <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Select Subject</label>
+                <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+                  {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Time Limit (mins)</label>
+                <input type="number" value={mockTimeLimit} onChange={(e) => setMockTimeLimit(parseInt(e.target.value) || 1)} />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Select Subject:</label>
-              <select value={subject} onChange={(e) => setSubject(e.target.value)}>
-                {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Time Limit (mins):</label>
-              <input type="number" value={mockTimeLimit} onChange={(e) => setMockTimeLimit(parseInt(e.target.value) || 1)} />
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', gap: '15px', marginBottom: '30px' }}>
-            <button onClick={handleGenerate} disabled={loading} className="btn-primary" style={{ flex: 1, padding: '15px' }}>
-              {loading ? '📄 Constructing Full Paper...' : '📑 Generate Full WASSCE Paper'}
-            </button>
             {questions.length > 0 && (
-              <>
-                <button onClick={startSimulation} className="btn-secondary" style={{ flex: 1, background: '#101923' }}>
+              <div className="generator-form-actions" style={{ marginTop: '2rem' }}>
+                <button onClick={startSimulation} className="generator-btn generator-btn--secondary">
                   🔒 Start Exam (Restricted)
                 </button>
-                <button onClick={() => window.print()} className="btn-secondary" style={{ flex: 1, background: '#4b5563', color: 'white' }}>
-                  🖨️ Print Question Sheet
+                <button onClick={() => window.print()} className="generator-btn generator-btn--secondary">
+                  <Printer size={16} /> Print Paper
                 </button>
-              </>
+              </div>
             )}
           </div>
         </>
       )}
 
       {examResult && !isSimulating && (
-        <div className="exam-results-card" style={{ background: 'linear-gradient(135deg, #0b7a4b, #10a261)', color: 'white', padding: '30px', borderRadius: '15px', marginBottom: '30px', textAlign: 'center', boxShadow: '0 10px 25px rgba(11, 122, 75, 0.3)' }}>
-          <h2 style={{ color: '#fff' }}>Simulation Official Result</h2>
-          <h1 style={{ fontSize: '4rem', margin: '10px 0' }}>{examResult.percentage}%</h1>
-          <p style={{ fontSize: '1.2rem' }}>Answered {examResult.total_questions} questions | Score: {examResult.score_obtained}</p>
-          <p style={{ marginTop: '15px', opacity: 0.9 }}>Review your answers below to learn from mistakes.</p>
+        <div className="generator-result glass-card animate-scale-up">
+          <div className="result-aura" />
+          <div className="result-content">
+            <span className="result-label">Official Result</span>
+            <h1 className="result-percentage">{examResult.percentage}%</h1>
+            <p className="result-summary">Score: <strong>{examResult.score_obtained}</strong> / {examResult.total_questions}</p>
+            <p className="text-sm opacity-60">Review your answers below to master the concepts.</p>
+          </div>
         </div>
       )}
 
-      <div className="questions-list">
+      <div className="questions-list space-y-12">
         {questions.length > 0 && (
           <>
-            <h3 style={{ marginTop: '2rem', background: '#f0f4f8', padding: '10px 15px', borderRadius: '8px' }}>SECTION A: OBJECTIVE (40 QUESTIONS)</h3>
+            <div className="section-divider">
+              <span className="section-divider__label">Section A: Objective (40 Questions)</span>
+            </div>
             {mcqQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1}`))}
             
-            <h3 style={{ marginTop: '3rem', background: '#f0f4f8', padding: '10px 15px', borderRadius: '8px' }}>SECTION B: THEORY (6 QUESTIONS)</h3>
+            <div className="section-divider" style={{ marginTop: '5rem' }}>
+              <span className="section-divider__label">Section B: Theory (6 Questions)</span>
+            </div>
             {theoryQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1} (Theory)`))}
           </>
         )}
       </div>
 
       {!isSimulating && !!examHistory.length && (
-        <div style={{ marginTop: '40px', padding: '20px', background: '#f8fafc', borderRadius: '12px' }}>
-          <h3>📜 Past Papers History</h3>
-          <div style={{ display: 'grid', gap: '15px', marginTop: '15px' }}>
+        <div className="generator-history mt-20 p-8 glass-card">
+          <div className="flex items-center gap-3 mb-6">
+             <History className="text-ghana-green" />
+             <h3 className="text-xl font-bold">Past Papers History</h3>
+          </div>
+          <div className="grid gap-4">
           {examHistory.map(entry => (
             <div 
               key={entry.id} 
-              className="history-item-card" 
+              className="p-4 bg-white/50 border border-gray-100 rounded-xl flex justify-between items-center cursor-pointer hover:bg-white hover:shadow-xl hover:-translate-y-1 transition-all" 
               onClick={() => handleViewHistory(entry)}
-              style={{ 
-                padding: '15px', 
-                background: '#fff', 
-                borderRadius: '8px', 
-                border: '1px solid #e2e8f0', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'transform 0.2s, box-shadow 0.2s'
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'; }}
-              onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
             >
-              <div>
-                <strong style={{ display: 'block', fontSize: '1.1rem' }}>{entry.subject.replace(/_/g, ' ').toUpperCase()}</strong>
-                <span style={{ color: '#64748b' }}>{new Date(entry.created_at).toLocaleString()} • <span style={{ color: '#3b82f6' }}>View Results →</span></span>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-ghana-green/10 rounded-full flex items-center justify-center text-ghana-green">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <strong className="block text-lg">{entry.subject.replace(/_/g, ' ').toUpperCase()}</strong>
+                  <span className="text-sm text-muted-foreground">{new Date(entry.created_at).toLocaleString()}</span>
+                </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: entry.percentage >= 50 ? '#10b981' : '#ef4444' }}>
+              <div className="text-right">
+                <div className={`text-xl font-bold ${entry.percentage >= 50 ? 'text-ghana-green' : 'text-red-500'}`}>
                   {entry.percentage}%
                 </div>
-                <span style={{ color: '#64748b' }}>{entry.score_obtained} / {entry.total_questions} pts</span>
+                <span className="text-xs font-semibold opacity-60 uppercase">{entry.score_obtained} / {entry.total_questions} PTS</span>
               </div>
             </div>
           ))}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Trophy, Clock, Zap, FileText, ChevronRight, Gift, Calendar, AlertCircle } from 'lucide-react';
 import { adminAPI, type Competition } from '../services/api';
 
 export const CompetitionPortal: React.FC = () => {
@@ -42,92 +43,93 @@ export const CompetitionPortal: React.FC = () => {
   );
 
   return (
-    <div className="competition-portal" style={{ maxWidth: '1200px', margin: '40px auto', padding: '0 20px' }}>
-      <header style={{ textAlign: 'center', marginBottom: '60px' }}>
-        <h1 style={{ fontSize: '3.5rem', fontWeight: 900, background: 'linear-gradient(135deg, #3b82f6, #8b5cf6, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '15px', letterSpacing: '-1px' }}>Monthly Challenges</h1>
-        <p style={{ color: '#64748b', fontSize: '1.2rem', maxWidth: '600px', margin: '0 auto' }}>Stay updated with the latest rewards, announcements, and competition details.</p>
+    <div className="generator-shell">
+      <header className="generator-header">
+        <div className="generator-header__content">
+          <h1 className="generator-title">Monthly Challenges</h1>
+          <p className="generator-subtitle">Stay updated with the latest rewards, announcements, and competition details.</p>
+        </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {competitions.length > 0 ? competitions.map((comp) => (
-          <div key={comp.id} className="glass-card" style={{ 
-            padding: '40px', 
-            borderRadius: '32px', 
-            border: '1px solid rgba(226, 232, 240, 0.8)',
-            background: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-          }}>
-            <div style={{ position: 'absolute', top: 0, right: 0, padding: '12px 24px', background: comp.pdf_url ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: comp.pdf_url ? '#059669' : '#d97706', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', borderBottomLeftRadius: '20px', zIndex: 2 }}>
-              {comp.pdf_url ? '🚀 Live' : '⏳ Pending'}
+          <div key={comp.id} className="group glass-card overflow-hidden flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border border-gray-100">
+            <div className="relative">
+              <div className="absolute top-4 right-4 z-10">
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                  comp.pdf_url ? 'bg-ghana-green text-white' : 'bg-amber-500 text-white'
+                }`}>
+                  {comp.pdf_url ? '🚀 Live' : '⏳ Pending'}
+                </span>
+              </div>
+              
+              {comp.image_url ? (
+                <div className="h-48 overflow-hidden">
+                  <img src={comp.image_url} alt={comp.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                </div>
+              ) : (
+                <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-gray-200">
+                   <Trophy size={64} strokeWidth={1} />
+                </div>
+              )}
             </div>
-            
-            {comp.image_url ? (
-              <div style={{ margin: '-40px -40px 20px -40px', height: '200px', overflow: 'hidden' }}>
-                <img src={comp.image_url} alt={comp.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-            ) : (
-                <div style={{ height: '20px' }}></div>
-            )}
 
-            <h3 style={{ fontSize: '1.8rem', color: '#0f172a', fontWeight: 800 }}>{comp.title}</h3>
-            <p style={{ color: '#64748b', fontSize: '1rem', lineHeight: 1.6 }}>{comp.description}</p>
-            
-            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
-              <div style={{ marginBottom: '15px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px' }}>🏆 Grand Prize</span>
-                <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#3b82f6' }}>{comp.prize}</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                   <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Event Window</span>
-                   <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#475569' }}>{new Date(comp.start_date).toLocaleDateString()} - {new Date(comp.end_date).toLocaleDateString()}</div>
+            <div className="p-6 flex-1 flex flex-col">
+              <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-ghana-green transition-colors">{comp.title}</h3>
+              <p className="text-gray-600 text-sm leading-relaxed mb-6 line-clamp-3">{comp.description}</p>
+              
+              <div className="mt-auto space-y-4">
+                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 group-hover:bg-white group-hover:border-ghana-green/20 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Gift size={14} className="text-ghana-green" />
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grand Prize</span>
+                  </div>
+                  <div className="text-2xl font-black text-ghana-green">{comp.prize}</div>
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-200/50 flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 font-bold">
+                      <Calendar size={14} />
+                      {new Date(comp.start_date).toLocaleDateString()}
+                    </div>
+                    <ChevronRight size={14} className="text-gray-300 group-hover:text-ghana-green group-hover:translate-x-1 transition-all" />
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  {comp.pdf_url ? (
+                    <>
+                      <a 
+                        href={comp.pdf_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex-1 py-3.5 rounded-xl bg-gray-100 text-gray-900 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+                      >
+                        <FileText size={14} /> Paper
+                      </a>
+                      <button 
+                        className="flex-[1.5] py-3.5 rounded-xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-ghana-green transition-all shadow-lg hover:shadow-ghana-green/20"
+                        onClick={() => handleRegister(comp.id)}
+                        disabled={registeringId === comp.id}
+                      >
+                        {registeringId === comp.id ? 'Loading...' : <><Zap size={14} /> Register</>}
+                      </button>
+                    </>
+                  ) : (
+                    <div className="w-full py-3.5 rounded-xl bg-gray-50 border border-dashed border-gray-300 text-gray-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                       <Clock size={14} /> Waiting for Paper Drop
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: 'auto' }}>
-              {comp.pdf_url ? (
-                <>
-                  <a 
-                    href={comp.pdf_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="btn-secondary" 
-                    style={{ flex: 1, textAlign: 'center', padding: '15px', borderRadius: '16px', background: '#f1f5f9', color: '#0f172a', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none' }}
-                  >
-                    📄 View Paper
-                  </a>
-                  <button 
-                    className="btn-primary" 
-                    style={{ flex: 1, padding: '15px', borderRadius: '16px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', border: 'none', color: 'white', fontWeight: 700, fontSize: '0.9rem' }}
-                    onClick={() => handleRegister(comp.id)}
-                    disabled={registeringId === comp.id}
-                  >
-                    {registeringId === comp.id ? 'Loading...' : 'Register Now'}
-                  </button>
-                </>
-              ) : (
-                <button 
-                  className="btn-primary" 
-                  style={{ width: '100%', padding: '15px', borderRadius: '16px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px dashed #3b82f6', fontWeight: 700, fontSize: '0.9rem', cursor: 'default' }}
-                  disabled
-                >
-                  ⏳ Waiting for Paper Drop
-                </button>
-              )}
-            </div>
           </div>
         )) : (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '100px 20px' }}>
-            <div style={{ fontSize: '5rem', marginBottom: '30px' }}>🗓️</div>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b' }}>No current announcements</h2>
-            <p style={{ color: '#64748b', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto' }}>Check back soon for new rewards and updates!</p>
+          <div className="col-span-full py-32 text-center">
+            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-200">
+               <Calendar size={48} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">No current announcements</h2>
+            <p className="text-gray-500 max-w-sm mx-auto">Check back soon for new rewards and updates!</p>
           </div>
         )}
       </div>

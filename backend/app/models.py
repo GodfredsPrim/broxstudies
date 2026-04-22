@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from pydantic import BaseModel, field_validator
 
@@ -122,6 +122,7 @@ class Question(BaseModel):
     options: Optional[List[str]] = None
     correct_answer: str
     explanation: str
+    marking_scheme: str = ""  # Full marking scheme for grading
     difficulty_level: str  # easy, medium, hard
     year_generated: int
     pattern_confidence: float
@@ -161,6 +162,7 @@ class GeneratedQuestions(BaseModel):
     model_used: str
     source_used: Optional[str] = None
     source_details: Optional[dict] = None
+    organized_papers: Optional[Dict[str, List[Question]]] = None
 
 
 class PracticeMarkItem(BaseModel):
@@ -168,6 +170,7 @@ class PracticeMarkItem(BaseModel):
     question_type: QuestionType
     correct_answer: str
     explanation: Optional[str] = ""
+    marking_scheme: Optional[str] = ""  # Full marking scheme for grading
     options: Optional[List[str]] = None
     student_answer: str
 
@@ -281,6 +284,15 @@ class AuthLoginRequest(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     credential: str
+
+
+class AdminSecretLoginRequest(BaseModel):
+    secret: str
+
+
+class AdminStaticLoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 class AuthUser(BaseModel):

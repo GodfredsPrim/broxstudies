@@ -57,7 +57,18 @@ async def background_load_documents(app):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("🚀 Starting Ghana SHS AI Question Generator")
+    logger.info("🚀 Starting BroxStudies Online - AI Question Generator")
+    
+    # Eagerly initialize the PastQuestionExtractor cache
+    # This ensures subsequent requests won't timeout waiting for extraction
+    try:
+        logger.info("📋 Pre-loading past questions cache...")
+        from app.services.past_question_extractor import PastQuestionExtractor
+        extractor = PastQuestionExtractor()
+        available_subjects = extractor.get_available_subjects()
+        logger.info(f"✅ Past questions cache pre-loaded. Subjects available: {available_subjects}")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not pre-load past questions: {str(e)}")
     
     # Auto-load documents in background if enabled
     if settings.AUTO_LOAD_ON_STARTUP:
@@ -70,7 +81,7 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Shutting down application")
 
 app = FastAPI(
-    title="Ghana SHS AI Question Generator",
+    title="BroxStudies Online - AI Question Generator",
     description="Generate exam questions based on syllabi, past questions, and textbooks using AI and RAG",
     version="0.1.0",
     lifespan=lifespan
@@ -111,7 +122,7 @@ async def root():
     if FRONTEND_INDEX_FILE.exists():
         return FileResponse(FRONTEND_INDEX_FILE)
     return {
-        "message": "Ghana SHS AI Question Generator API",
+        "message": "BroxStudies Online - AI Question Generator API",
         "version": "0.1.0",
         "docs": "/docs"
     }

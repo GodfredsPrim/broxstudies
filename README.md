@@ -1,6 +1,6 @@
-# Ghana SHS AI Question Generator
+# BroxStudies - Modern AI Learning Platform
 
-An AI-powered web application that generates exam questions for Ghana Secondary School students using Retrieval-Augmented Generation (RAG), analyzing patterns in past questions to create realistic practice questions.
+An AI-powered web application that helps students learn, generate practice questions, and master their subjects using Retrieval-Augmented Generation (RAG). BroxStudies analyzes syllabi and past questions to provide a personalized study experience.
 
 ## Features
 

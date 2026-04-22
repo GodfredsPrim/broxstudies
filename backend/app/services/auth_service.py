@@ -3,9 +3,17 @@ import hmac
 import logging
 import secrets
 import sqlite3
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
 
 import jwt
 from google.auth.transport import requests as google_requests
@@ -19,22 +27,73 @@ logger = logging.getLogger(__name__)
 
 class AuthService:
     def __init__(self) -> None:
-        self.db_path = Path(settings.AUTH_DB_PATH)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.db_url = settings.db_url
+        self.is_postgres = settings.is_postgres
+        
+        if not self.is_postgres:
+            # If DATABASE_URL is a sqlite URL, use that path instead of the hardcoded AUTH_DB_PATH
+            if settings.DATABASE_URL.startswith("sqlite:///"):
+                # Extract path from sqlite:///./path/to/db
+                db_path_str = settings.DATABASE_URL.replace("sqlite:///", "")
+                # Ensure it's relative to BACKEND_DIR if it starts with ./
+                if db_path_str.startswith("./"):
+                    from app.config import BACKEND_DIR
+                    self.db_path = BACKEND_DIR / db_path_str[2:]
+                else:
+                    self.db_path = Path(db_path_str)
+            else:
+                self.db_path = Path(settings.AUTH_DB_PATH)
+                
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            logger.info(f"🗄️ SQLite Database configured at: {self.db_path.absolute()}")
+            
+            # Automated Backup on Startup (SQLite only)
+            if self.db_path.exists() and self.db_path.stat().st_size > 0:
+                try:
+                    import shutil
+                    backup_path = self.db_path.with_suffix(".db.bak")
+                    shutil.copy2(self.db_path, backup_path)
+                    logger.info(f"📂 Created safety backup at: {backup_path.name}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not create database backup: {str(e)}")
+        else:
+            logger.info("📡 PostgreSQL (Supabase) Database detected.")
+        
         self._ensure_tables()
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.db_path)
-        connection.row_factory = sqlite3.Row
-        return connection
+    def _connect(self) -> Any:
+        if self.is_postgres:
+            if not POSTGRES_AVAILABLE:
+                raise ImportError("psycopg2-binary is required for PostgreSQL support but not installed.")
+            conn = psycopg2.connect(self.db_url)
+            conn.autocommit = True # Make it behave more like sqlite for simple writes
+            return conn
+        else:
+            connection = sqlite3.connect(self.db_path)
+            connection.row_factory = sqlite3.Row
+            return connection
+
+    def _execute(self, conn: Any, query: str, params: tuple = ()) -> Any:
+        # Abstract the parameter marker difference (?, %s)
+        if self.is_postgres:
+            # Simple direct replace for this app's usage pattern
+            # Note: This is naive but works for the current auth_service SQL patterns
+            query = query.replace("?", "%s")
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor) if self.is_postgres else conn.cursor()
+        cursor.execute(query, params)
+        return cursor
 
     def _ensure_tables(self) -> None:
         with self._connect() as conn:
+            # Dialect-specific ID types
+            id_type = "SERIAL PRIMARY KEY" if self.is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+            
             # ── Users table ────────────────────────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     full_name TEXT NOT NULL,
                     email TEXT NOT NULL UNIQUE,
                     password_hash TEXT,
@@ -45,42 +104,24 @@ class AuthService:
                     last_login_at TEXT NOT NULL,
                     subscription_status TEXT NOT NULL DEFAULT 'inactive',
                     subscription_expires_at TEXT,
-                    is_admin INTEGER NOT NULL DEFAULT 0
+                    is_admin INTEGER NOT NULL DEFAULT 0,
+                    session_id TEXT
                 )
                 """
             )
 
-            # Migrate existing users table if subscription columns are missing
-            existing_cols = {
-                row[1]
-                for row in conn.execute("PRAGMA table_info(users)").fetchall()
-            }
-            if "subscription_status" not in existing_cols:
-                conn.execute(
-                    "ALTER TABLE users ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'inactive'"
-                )
-                # Whitelist pre-existing users: give them active status until far future
-                far_future = (
-                    datetime.now(timezone.utc) + timedelta(days=365 * 10)
-                ).isoformat()
-                conn.execute(
-                    "UPDATE users SET subscription_status = 'active', subscription_expires_at = ?",
-                    (far_future,),
-                )
-            if "subscription_expires_at" not in existing_cols:
-                conn.execute(
-                    "ALTER TABLE users ADD COLUMN subscription_expires_at TEXT"
-                )
-            if "is_admin" not in existing_cols:
-                conn.execute(
-                    "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"
-                )
+            # Migration: Ensure session_id exists (for older SQLite DBs)
+            if not self.is_postgres:
+                try:
+                    self._execute(conn, "ALTER TABLE users ADD COLUMN session_id TEXT")
+                except:
+                    pass
 
             # ── Access codes table ─────────────────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS access_codes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     code TEXT NOT NULL UNIQUE,
                     duration_months INTEGER NOT NULL,
                     created_at TEXT NOT NULL,
@@ -91,10 +132,10 @@ class AuthService:
             )
 
             # ── Chat history table ─────────────────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS chat_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     user_id INTEGER NOT NULL,
                     role TEXT NOT NULL,
                     content TEXT NOT NULL,
@@ -105,10 +146,10 @@ class AuthService:
             )
 
             # ── Exam history table ─────────────────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS exam_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     user_id INTEGER NOT NULL,
                     exam_type TEXT NOT NULL,
                     subject TEXT NOT NULL,
@@ -122,10 +163,10 @@ class AuthService:
             )
 
             # ── Manual Payment Requests table ──────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS payment_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     user_id INTEGER NOT NULL,
                     momo_name TEXT NOT NULL,
                     momo_number TEXT NOT NULL,
@@ -138,10 +179,10 @@ class AuthService:
             )
 
             # ── Competitions table ─────────────────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS competitions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     title TEXT NOT NULL,
                     description TEXT NOT NULL,
                     prize TEXT NOT NULL,
@@ -156,16 +197,11 @@ class AuthService:
                 """
             )
 
-            try:
-                conn.execute("ALTER TABLE competitions ADD COLUMN image_url TEXT")
-            except sqlite3.OperationalError:
-                pass # Already exists
-
             # ── Competition Results table ──────────────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS competition_results (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     competition_id INTEGER NOT NULL,
                     user_id INTEGER NOT NULL,
                     score REAL NOT NULL,
@@ -179,10 +215,10 @@ class AuthService:
             )
 
             # ── Competition Registrations table ───────────────────────────────
-            conn.execute(
-                """
+            self._execute(conn, 
+                f"""
                 CREATE TABLE IF NOT EXISTS competition_registrations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {id_type},
                     competition_id INTEGER NOT NULL,
                     user_id INTEGER NOT NULL,
                     registered_at TEXT NOT NULL,
@@ -193,7 +229,8 @@ class AuthService:
                 """
             )
 
-            conn.commit()
+            if not self.is_postgres:
+                conn.commit()
 
     # ── password helpers ───────────────────────────────────────────────────────
 
@@ -236,7 +273,7 @@ class AuthService:
             is_admin=bool(row["is_admin"]),
         )
 
-    def _issue_token(self, user: AuthUser, is_static_admin: bool = False) -> str:
+    def _issue_token(self, user: AuthUser, is_static_admin: bool = False, session_id: Optional[str] = None) -> str:
         now = datetime.now(timezone.utc)
         payload = {
             "sub": str(user.id),
@@ -244,7 +281,8 @@ class AuthService:
             "provider": user.provider,
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)).timestamp()),
-            "is_static_admin": is_static_admin
+            "is_static_admin": is_static_admin,
+            "sid": session_id or (getattr(user, "session_id") if hasattr(user, "session_id") else None)
         }
         return jwt.encode(payload, settings.AUTH_SECRET_KEY, algorithm="HS256")
 
@@ -260,25 +298,31 @@ class AuthService:
         now = datetime.now(timezone.utc).isoformat()
 
         with self._connect() as conn:
-            existing = conn.execute(
+            existing = self._execute(conn, 
                 "SELECT id FROM users WHERE email = ?",
                 (normalized_email,),
             ).fetchone()
             if existing:
                 raise ValueError("An account with this email already exists.")
 
-            cursor = conn.execute(
-                """
+            new_session_id = secrets.token_hex(16)
+            
+            query = """
                 INSERT INTO users
                     (full_name, email, password_hash, salt, provider, provider_subject,
-                     created_at, last_login_at, subscription_status, subscription_expires_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (full_name.strip(), normalized_email, password_hash, salt,
-                 "email", None, now, now, "inactive", None),
-            )
-            conn.commit()
-            user_id = cursor.lastrowid
+                     created_at, last_login_at, subscription_status, subscription_expires_at, session_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+            
+            cursor = self._execute(conn, query, (full_name.strip(), normalized_email, password_hash, salt,
+                                               "email", None, now, now, "inactive", None, new_session_id))
+            
+            if self.is_postgres:
+                user_id = cursor.fetchone()["id"]
+            else:
+                user_id = cursor.lastrowid
 
         user = AuthUser(
             id=user_id,
@@ -288,13 +332,17 @@ class AuthService:
             subscription_status="inactive",
             subscription_expires_at=None,
         )
-        return self._issue_token(user), user
+        return self._issue_token(user, session_id=new_session_id), user
 
     def login(self, email: str, password: str) -> Tuple[str, AuthUser]:
         normalized_email = email.strip().lower()
 
+        # Fallback: Check if credentials match the static admin
+        if normalized_email == settings.ADMIN_USERNAME.lower() and password == settings.ADMIN_PASSWORD:
+            return self.login_admin_static(settings.ADMIN_USERNAME, settings.ADMIN_PASSWORD)
+
         with self._connect() as conn:
-            row = conn.execute(
+            row = self._execute(conn, 
                 "SELECT * FROM users WHERE email = ?",
                 (normalized_email,),
             ).fetchone()
@@ -312,29 +360,15 @@ class AuthService:
                 raise ValueError("Incorrect email or password.")
 
             now = datetime.now(timezone.utc).isoformat()
-            conn.execute(
-                "UPDATE users SET last_login_at = ? WHERE id = ?", (now, row["id"])
+            new_session_id = secrets.token_hex(16)
+            self._execute(conn, 
+                "UPDATE users SET last_login_at = ?, session_id = ? WHERE id = ?", 
+                (now, new_session_id, row["id"])
             )
-            conn.commit()
 
         user = self._row_to_user(row)
-        return self._issue_token(user), user
+        return self._issue_token(user, session_id=new_session_id), user
 
-    def login_admin_static(self, username: str, password: str) -> Tuple[str, AuthUser]:
-        if username != settings.ADMIN_USERNAME or password != settings.ADMIN_PASSWORD:
-            raise ValueError("Incorrect admin username or password.")
-
-        # Create virtual admin user
-        admin = AuthUser(
-            id=0,
-            full_name="BisaME Administrator",
-            email="admin@bisame.online",
-            provider="static",
-            subscription_status="active",
-            subscription_expires_at=None,
-            is_admin=True
-        )
-        return self._issue_token(admin, is_static_admin=True), admin
 
     def login_admin_with_secret(self, secret: str) -> Tuple[str, AuthUser]:
         if secret != settings.ADMIN_SECRET:
@@ -343,8 +377,8 @@ class AuthService:
         # Create virtual admin user
         admin = AuthUser(
             id=0,
-            full_name="BisaME Administrator",
-            email="admin@bisame.online",
+            full_name="BroxStudies Online Administrator",
+            email="admin@broxstudies.online",
             provider="static",
             subscription_status="active",
             subscription_expires_at=None,
@@ -375,7 +409,7 @@ class AuthService:
         now = datetime.now(timezone.utc).isoformat()
 
         with self._connect() as conn:
-            row = conn.execute(
+            row = self._execute(conn, 
                 "SELECT * FROM users WHERE email = ?",
                 (email,),
             ).fetchone()
@@ -387,7 +421,7 @@ class AuthService:
                     )
 
                 if row["provider"] == "email":
-                    conn.execute(
+                    self._execute(conn, 
                         """
                         UPDATE users
                         SET provider = ?, provider_subject = ?, full_name = ?, last_login_at = ?
@@ -396,37 +430,38 @@ class AuthService:
                         ("google", subject, full_name, now, row["id"]),
                     )
                 else:
-                    conn.execute(
-                        "UPDATE users SET provider_subject = ?, full_name = ?, last_login_at = ? WHERE id = ?",
+                    self._execute(conn, "UPDATE users SET provider_subject = ?, full_name = ?, last_login_at = ? WHERE id = ?",
                         (subject, full_name, now, row["id"]),
                     )
-                conn.commit()
-                updated = conn.execute(
+                
+                updated = self._execute(conn, 
                     "SELECT * FROM users WHERE email = ?", (email,)
                 ).fetchone()
                 user = self._row_to_user(updated)
-                return self._issue_token(user), user
+                new_session_id = secrets.token_hex(16)
+                self._execute(conn, 
+                    "UPDATE users SET session_id = ? WHERE id = ?",
+                    (new_session_id, user.id)
+                )
+                return self._issue_token(user, session_id=new_session_id), user
 
-            cursor = conn.execute(
-                """
+            new_session_id = secrets.token_hex(16)
+            query = """
                 INSERT INTO users
                     (full_name, email, password_hash, salt, provider, provider_subject,
-                     created_at, last_login_at, subscription_status, subscription_expires_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (full_name, email, None, None, "google", subject,
-                 now, now, "inactive", None),
-            )
-            conn.commit()
-            user = AuthUser(
-                id=cursor.lastrowid,
-                full_name=full_name,
-                email=email,
-                provider="google",
-                subscription_status="inactive",
-                subscription_expires_at=None,
-            )
-            return self._issue_token(user), user
+                     created_at, last_login_at, subscription_status, subscription_expires_at, session_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+
+            cursor = self._execute(conn, query, (full_name, email, None, None, "google", subject,
+                                               now, now, "inactive", None, new_session_id))
+            
+            if self.is_postgres:
+                user_id = cursor.fetchone()["id"]
+            else:
+                user_id = cursor.lastrowid
 
     def get_user_from_token(self, token: str) -> AuthUser:
         try:
@@ -442,8 +477,8 @@ class AuthService:
         if is_static:
             return AuthUser(
                 id=0,
-                full_name="BisaME Administrator",
-                email="admin@bisame.online",
+                full_name="BroxStudies Online Administrator",
+                email="admin@broxstudies.online",
                 provider="static",
                 subscription_status="active",
                 subscription_expires_at=None,
@@ -454,11 +489,19 @@ class AuthService:
             raise ValueError("Invalid token payload.")
 
         with self._connect() as conn:
-            row = conn.execute(
+            row = self._execute(conn, 
                 "SELECT * FROM users WHERE id = ?", (int(user_id),)
             ).fetchone()
             if not row:
                 raise ValueError("Account no longer exists.")
+            
+            # SESSION LOCK: Verify session_id matches (except for admins)
+            if not bool(row["is_admin"]):
+                token_session_id = payload.get("sid")
+                current_session_id = row["session_id"]
+                if token_session_id != current_session_id:
+                    raise ValueError("Another device has logged into this account. Please log in again.")
+
             return self._row_to_user(row)
 
     # ── subscription / access-code methods ────────────────────────────────────
@@ -481,19 +524,30 @@ class AuthService:
 
         with self._connect() as conn:
             for code in codes:
-                conn.execute(
+                self._execute(conn, 
                     "INSERT INTO access_codes (code, duration_months, created_at) VALUES (?, ?, ?)",
                     (code, months, now),
                 )
-            conn.commit()
 
         return codes
 
     def get_unused_access_codes(self) -> List[dict]:
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM access_codes WHERE used_at IS NULL ORDER BY created_at DESC"
+            rows = self._execute(conn, 
+                "SELECT code, duration_months, created_at FROM access_codes WHERE used_at IS NULL ORDER BY created_at DESC"
             ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_pending_payments(self) -> List[dict]:
+        with self._connect() as conn:
+            # Join with users to get name and email
+            rows = self._execute(conn, """
+                SELECT p.*, u.full_name, u.email
+                FROM payment_requests p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.status = 'pending'
+                ORDER BY p.created_at DESC
+            """).fetchall()
             return [dict(r) for r in rows]
 
     def verify_access_code(self, user_id: int, code: str) -> AuthUser:
@@ -501,7 +555,7 @@ class AuthService:
         now = datetime.now(timezone.utc)
 
         with self._connect() as conn:
-            code_row = conn.execute(
+            code_row = self._execute(conn, 
                 "SELECT * FROM access_codes WHERE code = ?", (code_clean,)
             ).fetchone()
 
@@ -511,7 +565,7 @@ class AuthService:
                 raise ValueError("This access code has already been used.")
 
             # Calculate new expiry — extend from existing expiry if still active
-            user_row = conn.execute(
+            user_row = self._execute(conn, 
                 "SELECT * FROM users WHERE id = ?", (user_id,)
             ).fetchone()
             if not user_row:
@@ -536,12 +590,12 @@ class AuthService:
             new_expiry = (base_dt + timedelta(days=30 * months)).isoformat()
 
             # Mark code used
-            conn.execute(
+            self._execute(conn, 
                 "UPDATE access_codes SET used_at = ?, used_by_user_id = ? WHERE code = ?",
                 (now.isoformat(), user_id, code_clean),
             )
             # Activate subscription
-            conn.execute(
+            self._execute(conn, 
                 """
                 UPDATE users
                 SET subscription_status = 'active', subscription_expires_at = ?
@@ -549,69 +603,67 @@ class AuthService:
                 """,
                 (new_expiry, user_id),
             )
-            conn.commit()
 
-            updated = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            updated = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
             return self._row_to_user(updated)
 
     def get_subscription_status(self, user_id: int) -> AuthUser:
         with self._connect() as conn:
-            row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            row = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
             if not row:
                 raise ValueError("User not found.")
             return self._row_to_user(row)
 
-    def create_payment_request(self, user_id: int, momo_name: str, momo_number: str, reference: str) -> int:
+    def create_payment_request(self, user_id: int, momo_name: str, momo_number: str, reference: Optional[str] = None) -> int:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            cursor = conn.execute(
-                """
+            query = """
                 INSERT INTO payment_requests (user_id, momo_name, momo_number, reference, status, created_at)
                 VALUES (?, ?, ?, ?, 'pending', ?)
-                """,
-                (user_id, momo_name, momo_number, reference, now),
-            )
-            conn.commit()
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+            
+            cursor = self._execute(conn, query, (user_id, momo_name, momo_number, reference, now))
+            
+            if self.is_postgres:
+                return cursor.fetchone()["id"]
             return cursor.lastrowid
-
-    def get_pending_payment_requests(self) -> List[dict]:
+    def get_pending_payments(self) -> List[dict]:
         with self._connect() as conn:
-            rows = conn.execute(
-                """
+            rows = self._execute(conn, """
                 SELECT p.id, p.user_id, u.full_name, u.email, p.momo_name, p.momo_number, p.reference, p.status, p.created_at
                 FROM payment_requests p
                 JOIN users u ON p.user_id = u.id
                 WHERE p.status = 'pending'
                 ORDER BY p.created_at DESC
-                """
-            ).fetchall()
+            """).fetchall()
             return [dict(r) for r in rows]
 
     def process_payment_confirmation(self, request_id: int, action: str) -> bool:
-        """action: 'confirm' or 'reject'"""
+        """action can be 'confirm' or 'reject'"""
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            row = conn.execute("SELECT user_id FROM payment_requests WHERE id = ?", (request_id,)).fetchone()
+            row = self._execute(conn, "SELECT user_id FROM payment_requests WHERE id = ?", (request_id,)).fetchone()
             if not row:
                 return False
             
             user_id = row["user_id"]
             new_status = 'confirmed' if action == 'confirm' else 'rejected'
             
-            conn.execute(
+            self._execute(conn, 
                 "UPDATE payment_requests SET status = ?, processed_at = ? WHERE id = ?",
                 (new_status, now, request_id)
             )
             
             if action == 'confirm':
-                # Grant 3 months subscription
-                expiry = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
-                conn.execute(
+                # Grant 3 months premium
+                expires_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
+                self._execute(conn, 
                     "UPDATE users SET subscription_status = 'active', subscription_expires_at = ? WHERE id = ?",
-                    (expiry, user_id)
+                    (expires_at, user_id)
                 )
             
-            conn.commit()
             return True
 
     # ── chat history methods ───────────────────────────────────────────────────
@@ -621,15 +673,14 @@ class AuthService:
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            conn.execute(
+            self._execute(conn, 
                 "INSERT INTO chat_history (user_id, role, content, subject, created_at) VALUES (?, ?, ?, ?, ?)",
                 (user_id, role, content, subject, now),
             )
-            conn.commit()
 
     def get_chat_history(self, user_id: int, limit: int = 60) -> List[ChatHistoryMessage]:
         with self._connect() as conn:
-            rows = conn.execute(
+            rows = self._execute(conn, 
                 """
                 SELECT id, role, content, subject, created_at
                 FROM chat_history
@@ -659,7 +710,7 @@ class AuthService:
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            conn.execute(
+            self._execute(conn, 
                 """
                 INSERT INTO exam_history 
                 (user_id, exam_type, subject, score_obtained, total_questions, percentage, details_json, created_at) 
@@ -667,11 +718,10 @@ class AuthService:
                 """,
                 (user_id, exam_type, subject, score, total, percentage, details_json, now),
             )
-            conn.commit()
 
     def get_exam_history(self, user_id: int, limit: int = 50) -> list[dict]:
         with self._connect() as conn:
-            rows = conn.execute(
+            rows = self._execute(conn, 
                 """
                 SELECT id, exam_type, subject, score_obtained, total_questions, percentage, details_json, created_at
                 FROM exam_history
@@ -700,26 +750,34 @@ class AuthService:
 
     def get_admin_analytics(self) -> dict:
         with self._connect() as conn:
-            total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-            active_subs = conn.execute(
+            total_users = self._execute(conn, "SELECT COUNT(*) FROM users").fetchone()
+            total_users = list(total_users.values())[0] if self.is_postgres else total_users[0]
+            
+            active_subs = self._execute(conn, 
                 "SELECT COUNT(*) FROM users WHERE subscription_status = 'active'"
-            ).fetchone()[0]
+            ).fetchone()
+            active_subs = list(active_subs.values())[0] if self.is_postgres else active_subs[0]
             
             now = datetime.now(timezone.utc)
             soon = (now + timedelta(days=7)).isoformat()
-            expiring_soon = conn.execute(
+            expiring_soon = self._execute(conn, 
                 "SELECT COUNT(*) FROM users WHERE subscription_status = 'active' AND subscription_expires_at < ?",
                 (soon,),
-            ).fetchone()[0]
+            ).fetchone()
+            expiring_soon = list(expiring_soon.values())[0] if self.is_postgres else expiring_soon[0]
             
-            # Revenue: Each confirmed student pays 10 GHS
-            confirmed_payments = conn.execute("SELECT COUNT(*) FROM payment_requests WHERE status = 'confirmed'").fetchone()[0]
-            used_coupons = conn.execute("SELECT COUNT(*) FROM access_codes WHERE used_at IS NOT NULL").fetchone()[0]
+            # Revenue calculation using the configured price
+            confirmed_payments = self._execute(conn, "SELECT COUNT(*) FROM payment_requests WHERE status = 'confirmed'").fetchone()
+            confirmed_payments = list(confirmed_payments.values())[0] if self.is_postgres else confirmed_payments[0]
             
-            # Assume each unique subscription activation (either via code or manual payment) represents a 10 GHS payment
-            total_rev_ghs = (confirmed_payments + used_coupons) * 10
+            used_coupons = self._execute(conn, "SELECT COUNT(*) FROM access_codes WHERE used_at IS NOT NULL").fetchone()
+            used_coupons = list(used_coupons.values())[0] if self.is_postgres else used_coupons[0]
+            
+            # Use settings for price calculation instead of hardcoded 10
+            price = float(settings.SUBSCRIPTION_PRICE_GHS) if settings.SUBSCRIPTION_PRICE_GHS.isdigit() else 10.0
+            total_rev_ghs = (confirmed_payments + used_coupons) * price
 
-            recent_activity = conn.execute(
+            recent_activity = self._execute(conn, 
                 """
                 SELECT full_name, last_login_at as activity_at, 'Login' as type
                 FROM users
@@ -729,7 +787,8 @@ class AuthService:
             ).fetchall()
 
             # Fix total_codes_generated to count from access_codes instead of users
-            total_codes_gen = conn.execute("SELECT COUNT(*) FROM access_codes").fetchone()[0]
+            total_codes_gen = self._execute(conn, "SELECT COUNT(*) FROM access_codes").fetchone()
+            total_codes_gen = list(total_codes_gen.values())[0] if self.is_postgres else total_codes_gen[0]
 
             return {
                 "total_users": total_users,
@@ -741,57 +800,27 @@ class AuthService:
                 "recent_activity": [dict(r) for r in recent_activity]
             }
 
-    def get_unused_access_codes(self) -> List[dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT code, duration_months, created_at FROM access_codes WHERE used_at IS NULL ORDER BY created_at DESC"
-            ).fetchall()
-            return [dict(r) for r in rows]
 
     def update_competition_image(self, competition_id: int, image_url: str) -> bool:
         with self._connect() as conn:
-            cursor = conn.execute(
+            cursor = self._execute(conn, 
                 "UPDATE competitions SET image_url = ? WHERE id = ?",
                 (image_url, competition_id)
             )
-            conn.commit()
             return cursor.rowcount > 0
-
-    def create_payment_request(self, user_id: int, momo_name: str, momo_number: str, reference: str) -> int:
-        now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as conn:
-            cursor = conn.execute(
-                "INSERT INTO payment_requests (user_id, momo_name, momo_number, reference, created_at) VALUES (?, ?, ?, ?, ?)",
-                (user_id, momo_name, momo_number, reference, now)
-            )
-            conn.commit()
-            return cursor.lastrowid
-
-    def get_pending_payment_requests(self) -> List[dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT p.*, u.full_name, u.email 
-                FROM payment_requests p
-                JOIN users u ON p.user_id = u.id
-                WHERE p.status = 'pending'
-                ORDER BY p.created_at ASC
-                """
-            ).fetchall()
-            return [dict(r) for r in rows]
 
     def process_payment_confirmation(self, request_id: int, action: str) -> bool:
         """action can be 'confirm' or 'reject'"""
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            request = conn.execute("SELECT user_id FROM payment_requests WHERE id = ?", (request_id,)).fetchone()
+            request = self._execute(conn, "SELECT user_id FROM payment_requests WHERE id = ?", (request_id,)).fetchone()
             if not request:
                 return False
             
             user_id = request['user_id']
             status = 'confirmed' if action == 'confirm' else 'rejected'
             
-            conn.execute(
+            self._execute(conn, 
                 "UPDATE payment_requests SET status = ?, processed_at = ? WHERE id = ?",
                 (status, now, request_id)
             )
@@ -799,43 +828,35 @@ class AuthService:
             if action == 'confirm':
                 # Grant 3 months premium
                 expires_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
-                conn.execute(
+                self._execute(conn, 
                     "UPDATE users SET subscription_status = 'active', subscription_expires_at = ? WHERE id = ?",
                     (expires_at, user_id)
                 )
             
-            conn.commit()
             return True
 
     def create_competition(self, title: str, description: str, prize: str, start_date: str, end_date: str, quiz_json: Optional[str] = None, pdf_url: Optional[str] = None) -> int:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            cursor = conn.execute(
-                """
+            query = """
                 INSERT INTO competitions (title, description, prize, start_date, end_date, quiz_json, pdf_url, created_at, is_active)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-                """,
-                (title, description, prize, start_date, end_date, quiz_json, pdf_url, now),
-            )
-            conn.commit()
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+            cursor = self._execute(conn, query, (title, description, prize, start_date, end_date, quiz_json, pdf_url, now))
+            
+            if self.is_postgres:
+                return cursor.fetchone()["id"]
             return cursor.lastrowid
 
-    def update_competition_image(self, competition_id: int, image_url: str) -> bool:
-        with self._connect() as conn:
-            cursor = conn.execute(
-                "UPDATE competitions SET image_url = ? WHERE id = ?",
-                (image_url, competition_id)
-            )
-            conn.commit()
-            return cursor.rowcount > 0
 
     def update_competition_pdf(self, competition_id: int, pdf_url: str) -> bool:
         with self._connect() as conn:
-            cursor = conn.execute(
+            cursor = self._execute(conn, 
                 "UPDATE competitions SET pdf_url = ? WHERE id = ?",
                 (pdf_url, competition_id)
             )
-            conn.commit()
             return cursor.rowcount > 0
 
     def list_competitions(self, active_only: bool = True) -> list[dict]:
@@ -843,39 +864,38 @@ class AuthService:
             query = "SELECT * FROM competitions"
             if active_only:
                 query += " WHERE is_active = 1"
-            rows = conn.execute(query).fetchall()
+            rows = self._execute(conn, query).fetchall()
             return [dict(r) for r in rows]
 
     def register_for_competition(self, user_id: int, competition_id: int) -> bool:
         now = datetime.now(timezone.utc).isoformat()
         try:
             with self._connect() as conn:
-                conn.execute(
+                self._execute(conn, 
                     "INSERT INTO competition_registrations (competition_id, user_id, registered_at) VALUES (?, ?, ?)",
                     (competition_id, user_id, now),
                 )
-                conn.commit()
             return True
-        except sqlite3.IntegrityError:
+        except (sqlite3.IntegrityError, Exception):
+            # Postgres raises psycopg2.errors.UniqueViolation, but catching Exception is safer for this generic helper
             return False
 
     def submit_competition_score(self, user_id: int, competition_id: int, score: float, total: int, percentage: float) -> None:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            conn.execute(
+            self._execute(conn, 
                 """
                 INSERT INTO competition_results (competition_id, user_id, score, total_questions, percentage, submitted_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (competition_id, user_id, score, total, percentage, now),
             )
-            conn.commit()
 
     def get_global_leaderboard(self, limit: int = 20) -> list[dict]:
         with self._connect() as conn:
             # Aggregate score from exam_history as 'points'
             # points = sum(score_obtained)
-            rows = conn.execute(
+            rows = self._execute(conn, 
                 """
                 SELECT u.full_name as player_name, 
                        SUM(CASE 
@@ -884,7 +904,7 @@ class AuthService:
                        END) as total_points
                 FROM users u
                 JOIN exam_history e ON u.id = e.user_id
-                GROUP BY u.id
+                GROUP BY u.id, u.full_name
                 ORDER BY total_points DESC
                 LIMIT ?
                 """,
@@ -903,6 +923,5 @@ class AuthService:
 
     def set_user_admin(self, email: str, is_admin: bool = True) -> bool:
         with self._connect() as conn:
-            cursor = conn.execute("UPDATE users SET is_admin = ? WHERE email = ?", (1 if is_admin else 0, email))
-            conn.commit()
+            cursor = self._execute(conn, "UPDATE users SET is_admin = ? WHERE email = ?", (1 if is_admin else 0, email))
             return cursor.rowcount > 0

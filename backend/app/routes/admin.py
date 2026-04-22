@@ -7,7 +7,9 @@ from app.models import (
     Competition,
     CompetitionCreateRequest,
     LeaderboardEntry,
-    AuthResponse
+    AuthResponse,
+    AdminSecretLoginRequest,
+    AdminStaticLoginRequest
 )
 from app.routes.auth import get_current_user
 from app.services.auth_service import AuthService
@@ -26,17 +28,10 @@ def require_admin(current_user: AuthUser = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin privileges required.")
     return current_user
 
-@router.post("/login", response_model=AuthResponse)
-async def admin_login(username: str, password: str):
-    try:
-        token, admin = auth_service.login_admin_static(username, password)
-        return AuthResponse(access_token=token, user=admin)
-    except ValueError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
 @router.post("/login-secret", response_model=AuthResponse)
-async def admin_login_secret(secret: str):
+async def admin_login_secret(request: AdminSecretLoginRequest):
     try:
-        token, admin = auth_service.login_admin_with_secret(secret)
+        token, admin = auth_service.login_admin_with_secret(request.secret)
         return AuthResponse(access_token=token, user=admin)
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc))
@@ -134,7 +129,7 @@ async def generate_coupons(request: CouponGenerateRequest, admin: AuthUser = Dep
 
 @router.get("/payments/pending")
 async def get_pending_payments(admin: AuthUser = Depends(require_admin)):
-    return auth_service.get_pending_payment_requests()
+    return auth_service.get_pending_payments()
 
 @router.post("/payments/{request_id}/confirm")
 async def confirm_payment(request_id: int, admin: AuthUser = Depends(require_admin)):

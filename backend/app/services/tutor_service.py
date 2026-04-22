@@ -97,14 +97,16 @@ class TutorService:
 
         if is_main_concept_only:
             prompt = f"""
-You are BisaME's Ghana SHS Study Coach. The student wants ONLY the direct definition or core concept.
+You are BroxStudies's Ghana SHS Study Coach. The student wants a direct, high-impact definition or core concept.
 
 CRITICAL RULES:
-1. Provide a single, EXTREMELY direct and factual explanation (max 2-3 sentences).
-2. Do NOT include ANY conversational filler (NO "Here is", NO "Certainly", NO "Sure").
-3. Do NOT provide examples, steps, suggestions, or tips.
-4. Do NOT use headers or bold labels.
-5. Return ONLY the factual explanation text.
+1. Provide a concise, factual explanation that covers the essential "What and Why."
+2. PRIORITY: Logical completeness. Ensure the thought is fully finished. DO NOT cut off mid-sentence.
+3. Keep it brief (aim for 2-4 sentences) but prioritize being thorough over being strictly short.
+4. Do NOT include conversational filler (NO "Here is", NO "Certainly").
+5. Do NOT include steps or tips unless explicitly asked.
+6. Return the answer in clean, easy-to-read text.
+7. MATH FORMATTING: Use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks).
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
@@ -116,7 +118,7 @@ Helpful textbook context:
 
         if is_math_like:
             prompt = f"""
-You are BisaME's Ghana SHS Study Coach helping with {request_kind}.
+You are BroxStudies's Ghana SHS Study Coach helping with {request_kind}.
 
 Your job:
 1. If there is an image, first read the question accurately.
@@ -131,6 +133,7 @@ Response rules:
 - Under that heading, provide numbered steps in plain text.
 - Then include a heading exactly named: Final Answer
 - Do not use markdown tables.
+- MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for all mathematical symbols, equations, and formulas. NEVER use plain text for math.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
@@ -140,16 +143,18 @@ Helpful textbook context:
 """
         else:
             prompt = f"""
-You are BisaME's Ghana SHS Study Coach helping with {request_kind}.
+You are fun2learn online's Ghana SHS Study Coach helping with {request_kind}.
 
-Your job is to provide a single, straightforward, and direct explanation of the student's topic. 
-Do not provide multiple sections or conversational filler. Keep it grounded in Ghana SHS / WASSCE curriculum language.
+Your job is to provide a comprehensive, clear, and engaging explanation of the student's topic. 
+Adopt the tone of a high-end personal tutor who is thorough but stays on point.
 
 Response rules:
-- Provide the answer in a single, high-quality block of text.
-- Do NOT use headers like "Main Idea" or "Explanation".
-- Do NOT include "Study Tips".
+- Provide a high-quality explanation that covers definitions, key principles, and real-world significance.
+- Use Ghana SHS / WASSCE-friendly terminology.
+- Use paragraph breaks to separate distinct ideas for better readability.
+- Do NOT use generic conversational filler.
 - Do not use markdown tables.
+- MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for all symbols, formulas, and equations.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
@@ -222,6 +227,7 @@ Helpful textbook context:
         history: Optional[List] = None
     ) -> TutorResponse:
         """Get a subject-aware explanation for a student question."""
+        logger.info(f"🤖 Tutor Request Start - Subject: {subject}, Main Concept: {is_main_concept_only}")
         try:
             llm = self._get_llm()
             year_key, subject_id, subject_label = self._normalize_subject_details(subject)
@@ -255,11 +261,16 @@ Helpful textbook context:
 
             response = await asyncio.wait_for(llm.ainvoke(messages), timeout=60.0)
             content = response.content if isinstance(response.content, str) else str(response.content)
+            
+            # Terminal Verification Log
+            logger.info(f"📊 TERMINAL VERIFICATION (Tutor) - Content: {content[:100]}...")
+            
             parsed = self._parse_response(content, mode)
             
             if mode != "core_concept":
                 parsed.related_questions = self._build_related_questions(question, subject_label, mode)
             
+            logger.info("✅ Tutor Request Success")
             return parsed
         except asyncio.TimeoutError:
             logger.error("Tutor request timed out.")

@@ -1,8 +1,8 @@
-﻿import type { MockExamCreateResponse } from './api'
+import type { MockExamCreateResponse } from './api'
 
-const PRACTICE_QUEUE_KEY = 'bisame.practice.sync.queue'
-const EXAM_PACKS_KEY = 'bisame.mock.exam.packs'
-export const OFFLINE_SYNC_EVENT = 'bisame:offline-sync-updated'
+const PRACTICE_QUEUE_KEY = 'broxstudies.practice.sync.queue'
+const EXAM_PACKS_KEY = 'broxstudies.mock.exam.packs'
+export const OFFLINE_SYNC_EVENT = 'broxstudies:offline-sync-updated'
 
 export interface OfflinePracticePayload {
   studentId?: string

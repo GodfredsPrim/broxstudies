@@ -4,6 +4,7 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 120000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -212,6 +213,14 @@ export const questionsAPI = {
       difficulty_level: difficultyLevel,
       topics,
       semester,
+    });
+    return response.data;
+  },
+
+  generateProfessionalMock: async (subject: string, year: string): Promise<GeneratedQuestions> => {
+    const response = await apiClient.post('/questions/generate-professional', {
+      subject,
+      year,
     });
     return response.data;
   },
@@ -515,14 +524,10 @@ export const resourcesAPI = {
 
 export const adminAPI = {
   loginWithSecret: async (secret: string): Promise<AuthResponse> => {
-    const response = await apiClient.post('/admin/login-secret', null, { params: { secret } });
+    const response = await apiClient.post('/admin/login-secret', { secret });
     return response.data;
   },
 
-  login: async (username: string, password: string): Promise<AuthResponse> => {
-    const response = await apiClient.post('/admin/login', null, { params: { username, password } });
-    return response.data;
-  },
 
   getAnalytics: async (): Promise<AdminAnalytics> => {
     const response = await apiClient.get('/admin/analytics');
