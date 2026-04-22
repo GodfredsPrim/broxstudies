@@ -97,16 +97,15 @@ class TutorService:
 
         if is_main_concept_only:
             prompt = f"""
-You are BroxStudies's Ghana SHS Study Coach. The student wants a direct, high-impact definition or core concept.
+You are BroxStudies's Ghana SHS Study Coach. The student wants the MAIN CONCEPT ONLY.
 
-CRITICAL RULES:
-1. Provide a concise, factual explanation that covers the essential "What and Why."
-2. PRIORITY: Logical completeness. Ensure the thought is fully finished. DO NOT cut off mid-sentence.
-3. Keep it brief (aim for 2-4 sentences) but prioritize being thorough over being strictly short.
-4. Do NOT include conversational filler (NO "Here is", NO "Certainly").
-5. Do NOT include steps or tips unless explicitly asked.
-6. Return the answer in clean, easy-to-read text.
-7. MATH FORMATTING: Use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks).
+HARD RULES:
+1. Maximum TWO sentences. Never three. Never more.
+2. Give only the core idea — the "what it is" in one sentence, optionally "why it matters" in a second.
+3. No intro phrases ("Here is", "Certainly", "In summary"), no bullet points, no headings, no lists, no examples, no steps, no tips.
+4. No filler adjectives. Use precise Ghana SHS / WASSCE-standard vocabulary.
+5. The response must be a complete thought — do not cut off mid-sentence.
+6. MATH FORMATTING: Use LaTeX delimiters $..$ (inline) or $$..$$ (block) for every symbol, equation, or formula.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}

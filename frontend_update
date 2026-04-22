@@ -1,0 +1,272 @@
+My recommended order                                    
+                                                            
+  1. Mobile-first pass across all tabs (~1-2 hrs of edits).
+  Most SHS students open this on phones. I'd audit
+  AnalysisDashboard, StudyCoach, Leaderboard,
+  CompetitionPortal at 360px–414px widths, fix layout
+  breaks, touch-target sizes, and scroll behaviour. Highest
+  leverage.
+  2. Empty & error states (~30 min). Right now if generation
+   fails, the history is empty, or the quiz code doesn't
+  exist, you mostly get a spinner-that-stops or a silent
+  blank. Replace each with a friendly "nothing here yet"
+  illustration or "couldn't load — tap to retry" pattern.
+  3. Loading skeletons (~30 min). Swap the full-page
+  spinners for content-shaped shimmer placeholders on
+  subject-list load, exam history, leaderboard. Feels 3×
+  faster even at identical real latency.
+  4. Design-system consistency sweep (~45 min). A lot of
+  buttons use hand-rolled Tailwind classes with slight drift
+   (border-radius, shadow levels, hover states). Extract a
+  couple of shared button/card primitives and consolidate,
+  which also shrinks the bundle.
+  5. Dark mode completeness + theme toggle — your memory
+  says dark mode CSS was added for major surfaces but
+  there's no visible toggle UI. Either expose the toggle or
+  drop dark mode until you have one.
+  6. Performance: audit bundle size (manualChunks is already
+   set up per your memory), lazy-load non-critical routes,
+  add image lazy-loading.
+
+  Tradeoff
+
+  Doing all six would take ~4-5 hours of edits. The biggest
+  user-visible win per minute is (1) + (2) + (3) — those
+  three together transform the app from "functional" to
+  "polished" for about half the total effort. Items (4)–(6)
+  are quality-of-life engineering that users won't
+  consciously notice but will feel.
+
+  Recommendation: start with 1 → 2 → 3 as a bundle. Say the
+  word and I'll begin with mobile audit. Or if you have a
+  specific pain point I missed (e.g. the admin dashboard
+  looks rough, the quiz screen needs love), point me there
+  instead.
+
+
+  =====================================================================
+  DESIGN DIRECTION — Ghana-proud, modern, world-class, scalable
+  =====================================================================
+
+  GOAL
+
+  Make the app feel like it was built in Accra — not a generic
+  SaaS template translated to Ghana. Students should recognise
+  it as *theirs*. That means a design language rooted in Ghana's
+  visual identity, executed with the restraint and precision of
+  Linear / Stripe / Vercel. Bold enough to feel proud, quiet
+  enough to study in for three hours.
+
+
+  1. COLOR SYSTEM (Ghana-inspired, premium-adapted)
+
+  Do NOT use Ghana flag colors at full saturation — those read
+  "government website". Use deeper, desaturated interpretations
+  that feel premium and allow long reading sessions.
+
+  Core tokens (add to :root in index.css):
+
+    /* Ghana-identity primaries */
+    --gh-forest:    #0B6E4F;   /* deepened flag green, primary */
+    --gh-forest-600:#0F5A42;   /* hover / pressed */
+    --gh-forest-50: #E6F2ED;   /* tinted surface */
+
+    --gh-brass:     #C99B3A;   /* warm gold, accents only */
+    --gh-brass-600: #A67E28;
+    --gh-brass-50:  #FAF1DC;
+
+    --gh-ember:     #B8202C;   /* flag red, error/danger only */
+    --gh-ember-50:  #FBE7E9;
+
+    /* Surfaces — warm neutrals, not clinical white */
+    --gh-cream:     #FAF7F0;   /* app background (ivory, not white) */
+    --gh-paper:     #FFFFFF;   /* raised cards */
+    --gh-chalk:     #F1ECE1;   /* subtle dividers */
+
+    /* Text */
+    --gh-ink:       #1A1A1A;   /* primary text (warm black, not pure) */
+    --gh-ink-60:    #4A4A4A;   /* secondary */
+    --gh-ink-40:    #7A7A7A;   /* tertiary */
+
+    /* Dark mode mirror */
+    --gh-night:     #0E1713;   /* background (forest at 3% lightness) */
+    --gh-night-raised: #162520;
+    --gh-gold-glow: #E5B84B;   /* brass lifted for dark backgrounds */
+
+  Usage rules:
+  - Forest green: primary actions, brand mark, active state.
+  - Brass gold: earned / premium / "success with prestige"
+    (access-code unlock, passing grade ≥80%, leaderboard top 3).
+  - Ember red: errors only, never decoration. If it doesn't
+    require the user's attention, it doesn't get red.
+  - Cream as background instead of pure white — warmer, more
+    paper-like, easier on phone screens in sun glare.
+
+
+  2. TYPOGRAPHY (already 70% there)
+
+  Current stack:
+  - Outfit (headings, UI) ✅
+  - Patrick Hand (handwriting feel for questions) ✅
+  - KaTeX math fonts ✅
+
+  Add one more:
+  - Inter Tight 540-560 weight for long-form body text
+    (StudyCoach answers, tutor chat). Outfit at small sizes on
+    Android browsers renders slightly thin; Inter Tight is
+    crisper below 15px.
+
+  Scale (pick from, use consistently):
+    text-xs  11px  / caption
+    text-sm  13px  / secondary
+    text-base 15px / body
+    text-lg  17px  / emphasis
+    text-xl  20px  / subheading
+    text-2xl 24px  / section heading
+    text-3xl 32px  / page heading
+    text-5xl 48px  / hero only
+
+  Line-height: 1.55 body, 1.2 headings. Letter-spacing: 0 body,
+  -0.01em headings ≥ text-2xl.
+
+
+  3. VISUAL MOTIFS (subtle, not themed-school-project)
+
+  Use ONE Adinkra symbol as a repeating brand detail — not
+  decorated everywhere. Best fits:
+
+  - Sankofa (bird looking backward) — "learn from the past."
+    Perfect for the exam-history / past-questions tabs. Use as
+    20% opacity watermark on empty-history state, or as the
+    loading-spinner icon instead of a generic Loader2.
+
+  - Nyansapo (wisdom knot) — for the StudyCoach / tutor icon.
+
+  - Dwennimmen (ram's horns, strength & humility) — for
+    competition / leaderboard.
+
+  Execution: ship as inline SVG components (not images) so they
+  inherit currentColor and scale cleanly. Use them sparingly —
+  one per surface, at 10-20% opacity when decorative, full
+  opacity only as a brand anchor (nav logo).
+
+  Kente patterns as full backgrounds = do NOT. It reads kitsch.
+  If you want Kente, use it as a 4px-tall horizontal accent
+  stripe above headers or on the auth modal — a whisper, not
+  a shout.
+
+
+  4. WORLD-CLASS UX PRINCIPLES
+
+  a) Motion tells the story
+     - Every state change animates (150-250ms, ease-out).
+     - Generate Paper → modal scales in from the button.
+     - Correct answer → checkmark draws in with stroke
+       animation. Wrong answer → gentle shake.
+     - Use `transform` and `opacity` only; avoid layout thrash.
+
+  b) Haptic-feeling feedback (no actual haptics on web)
+     - Buttons: 60ms scale-to-98% on active state.
+     - Cards: 120ms lift (-2px translateY + shadow deepen) on
+       hover, return on leave.
+
+  c) Progressive disclosure
+     - Dashboard shows the 12 most-common WASSCE subjects by
+       default. A "Show all 59" button reveals the full list.
+     - Question cards show question + options; answer +
+       explanation hidden behind a "Reveal" toggle until
+       submitted.
+
+  d) Zero dead ends
+     - Every error has a retry action.
+     - Every empty state has a next action ("You haven't
+       generated a paper yet. [Generate your first] →").
+     - Every loading state has an estimate + a "Cancel".
+
+  e) Offline resilience
+     - Cache the subjects list, last generated paper, and
+       exam history in localStorage. Ghana networks drop; the
+       app should still read like it works.
+
+
+  5. SCALABILITY — design-system layer
+
+  The biggest blocker to scaling the UI is that buttons and
+  cards are hand-rolled per component, with 4-5 nearly-identical
+  styles floating around. Fix this before adding more screens.
+
+  Structure to build (small, 1-2 hours):
+
+    frontend/src/components/ui/
+      Button.tsx        variants: primary | secondary | ghost
+                                  | danger | success
+                        sizes:    sm | md | lg
+                        states:   loading, disabled, icon-only
+      Card.tsx          variants: elevated | outlined | inset
+      Badge.tsx         variants: forest | brass | ember
+                                  | neutral
+      Input.tsx         variants: default | error
+                        add-ons:  prefix, suffix, helper text
+      Section.tsx       page wrapper with consistent padding
+      EmptyState.tsx    icon slot + title + description +
+                        action slot
+      ErrorState.tsx    retry action, support link
+      Skeleton.tsx      shimmer placeholder, shape variants
+
+  Use class-variance-authority (cva) so variants don't drift.
+  Result: new screens get consistent look in half the code, and
+  redesigns become one-file changes instead of grep-sweeps.
+
+  Tokens file (design tokens as TS, not just CSS):
+
+    frontend/src/lib/tokens.ts
+      export const colors = { gh: { forest, brass, ... } }
+      export const spacing = { ... }
+      export const radii = { sm: 6, md: 10, lg: 16, xl: 24 }
+      export const shadows = { sm, md, lg, brandGlow }
+      export const motion = { fast: 150, base: 250, slow: 400 }
+
+  Then a Tailwind config layer that re-exports those tokens so
+  utility classes stay in sync with the design-system
+  primitives.
+
+
+  6. MOBILE-FIRST NON-NEGOTIABLES (Ghana context)
+
+  - Minimum touch target: 44×44px (Apple HIG) / 48×48dp (Google).
+  - Font size minimum: 15px body, 13px caption. Anything smaller
+    is unreadable on a 5" Android screen in daylight.
+  - Horizontal scrolling: forbidden. If content overflows, wrap
+    or truncate with a "more" affordance.
+  - Inputs must trigger correct mobile keyboard types
+    (`inputMode="numeric"` for access codes, `type="email"`
+    for auth, etc).
+  - Every tap region: ≥ 8px from adjacent tap regions.
+  - Page weight budget: 200KB JS gzipped on the first paint.
+    Lazy-load everything else.
+
+
+  7. EXECUTION ORDER (if doing the full design modernization)
+
+  Phase A (2 hrs) — Foundation
+    - Add color tokens + Inter Tight font to index.css
+    - Create ui/ primitives (Button, Card, EmptyState, Skeleton)
+    - Replace AnalysisDashboard buttons/cards with primitives
+      (proof-of-concept)
+
+  Phase B (2 hrs) — Mobile + states
+    - Mobile audit at 360/414px (the three main tabs)
+    - Wire EmptyState / ErrorState / Skeleton everywhere
+    - Fix touch targets and input modes
+
+  Phase C (1 hr) — Identity
+    - Pick Adinkra motif, convert to SVG component
+    - Apply as Sankofa history watermark, Nyansapo study icon
+    - Add Kente accent stripe to auth modal (optional)
+
+  Phase D (1 hr) — Motion + polish
+    - Add framer-motion for modal/page transitions
+    - Button haptic-feel, card lift
+    - Loading shimmer replaces spinners
+
+  Total: ~6 hours of focused editing.

@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import io
 import json
 import logging
@@ -7,7 +8,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
@@ -60,13 +61,23 @@ class LikelyWASSCEGenerator:
         self.textbook_root = settings.SITE_RESOURCE_DIR / "textbooks"
         self.past_root = settings.DATA_DIR / "past_questions"
         self._llm: Optional[ChatOpenAI] = None
+        self._exclude_hashes: Set[str] = set()
+
+    @staticmethod
+    def hash_question(question_text: str) -> str:
+        """Stable hash of a question's stem — used for 24h anti-repeat matching."""
+        normalized = re.sub(r"\s+", " ", (question_text or "").strip().lower())
+        normalized = re.sub(r"^\d+\s*[.)]\s*", "", normalized)
+        return hashlib.md5(normalized.encode("utf-8")).hexdigest()
 
     async def generate_exam(
         self,
         subject_slug: str,
         subject_label: str,
         year_key: str,
+        exclude_hashes: Optional[Set[str]] = None,
     ) -> Dict[str, Any]:
+        self._exclude_hashes = set(exclude_hashes or ())
         archive_path = self._find_subject_archive(subject_slug)
         if year_key == "year_3":
             return await self._generate_year_3_exam(subject_slug, subject_label, archive_path)
@@ -87,7 +98,27 @@ class LikelyWASSCEGenerator:
                 "generation_mode": "textbook_guided",
             }
 
-        blueprint, candidates = self._analyze_subject_archives(subject_slug, archive_path)
+        try:
+            blueprint, candidates = self._analyze_subject_archives(subject_slug, archive_path)
+        except ValueError:
+            logger.warning(
+                f"Blueprint extraction failed for {subject_slug} ({archive_path.name if archive_path else 'no archive'}); "
+                f"falling back to textbook-only exam."
+            )
+            organized = await self._build_textbook_only_exam(
+                subject_slug=subject_slug,
+                subject_label=subject_label,
+                year_key=year_key,
+                topics=topics,
+            )
+            return {
+                "organized_papers": organized,
+                "topics": topics,
+                "paper_structure": self._serialize_blueprint(self._build_default_blueprint(subject_slug)),
+                "year_mode": year_key,
+                "generation_mode": "textbook_guided_fallback",
+            }
+
         organized = await self._build_exam_for_topics(
             subject_slug=subject_slug,
             subject_label=subject_label,
@@ -128,7 +159,30 @@ class LikelyWASSCEGenerator:
                 "generation_mode": "textbook_guided",
             }
 
-        blueprint, candidates = self._analyze_subject_archives(subject_slug, archive_path)
+        try:
+            blueprint, candidates = self._analyze_subject_archives(subject_slug, archive_path)
+        except ValueError:
+            logger.warning(
+                f"Blueprint extraction failed for {subject_slug} ({archive_path.name if archive_path else 'no archive'}); "
+                f"falling back to textbook-only Year 3 exam."
+            )
+            organized = await self._build_textbook_only_exam(
+                subject_slug=subject_slug,
+                subject_label=subject_label,
+                year_key="year_3",
+                topics=combined_topics,
+            )
+            return {
+                "organized_papers": organized,
+                "topics": {
+                    "year_1": year_1_topics,
+                    "year_2": year_2_topics,
+                    "year_3_combined": combined_topics,
+                },
+                "paper_structure": self._serialize_blueprint(self._build_default_blueprint(subject_slug)),
+                "year_mode": "year_3",
+                "generation_mode": "textbook_guided_fallback",
+            }
 
         year_1_exam, year_2_exam = await asyncio.gather(
             self._build_exam_for_topics(
@@ -493,6 +547,16 @@ class LikelyWASSCEGenerator:
         return blueprint
 
     def _normalize_blueprint(self, blueprint: List[SectionBlueprint]) -> List[SectionBlueprint]:
+        """Preserve the actual counts extracted from the subject's past paper.
+
+        Each section's `expected_count` is whatever the real WASSCE paper showed
+        (e.g. 50 MCQs for English, 40 for Maths, 8 theory for History). We only
+        apply a minimum of 1 and a cap to catch PDF parse blowups.
+        """
+        MAX_MCQ = 80
+        MAX_THEORY = 20
+        MAX_PRACTICAL = 10
+
         grouped: Dict[str, List[SectionBlueprint]] = {"paper_1": [], "paper_2": [], "paper_3": []}
         for section in blueprint:
             grouped.setdefault(section.paper_key, []).append(section)
@@ -501,16 +565,9 @@ class LikelyWASSCEGenerator:
 
         paper_1_sections = grouped.get("paper_1", [])
         if paper_1_sections:
-            total_mcq = sum(max(section.expected_count, 0) for section in paper_1_sections) or self.TARGET_PAPER_1_COUNT
-            remaining = self.TARGET_PAPER_1_COUNT
-            for index, section in enumerate(paper_1_sections):
-                if index == len(paper_1_sections) - 1:
-                    count = remaining
-                else:
-                    proportional = round((section.expected_count / total_mcq) * self.TARGET_PAPER_1_COUNT)
-                    count = max(1, min(remaining, proportional))
-                remaining -= count
-                normalized.append(replace(section, expected_count=max(1, count)))
+            for section in paper_1_sections:
+                capped = max(1, min(section.expected_count, MAX_MCQ))
+                normalized.append(replace(section, expected_count=capped))
         else:
             normalized.append(
                 SectionBlueprint(
@@ -524,11 +581,9 @@ class LikelyWASSCEGenerator:
 
         paper_2_sections = grouped.get("paper_2", [])
         if paper_2_sections:
-            total_theory = sum(max(section.expected_count, 0) for section in paper_2_sections)
-            shortfall = max(0, self.MIN_PAPER_2_COUNT - total_theory)
-            for index, section in enumerate(paper_2_sections):
-                extra = shortfall if index == len(paper_2_sections) - 1 else 0
-                normalized.append(replace(section, expected_count=max(1, section.expected_count + extra)))
+            for section in paper_2_sections:
+                capped = max(1, min(section.expected_count, MAX_THEORY))
+                normalized.append(replace(section, expected_count=capped))
         else:
             normalized.append(
                 SectionBlueprint(
@@ -541,7 +596,8 @@ class LikelyWASSCEGenerator:
             )
 
         for section in grouped.get("paper_3", []):
-            normalized.append(replace(section, expected_count=max(section.expected_count, self.PRACTICAL_MIN_COUNT)))
+            capped = max(1, min(section.expected_count, MAX_PRACTICAL))
+            normalized.append(replace(section, expected_count=capped))
 
         return normalized
 
@@ -554,23 +610,29 @@ class LikelyWASSCEGenerator:
         filtered = [
             candidate for candidate in candidates
             if candidate.paper_key == section.paper_key and candidate.section_key == section.section_key
+            and self.hash_question(candidate.text) not in self._exclude_hashes
         ]
         for candidate in filtered:
             candidate.topic_score = self._topic_relevance_score(candidate.text, topics)
+
+        # Shuffle first so candidates with identical topic_score come out in a
+        # random order — prevents the same questions surfacing every request.
+        random.shuffle(filtered)
 
         ranked = sorted(
             filtered,
             key=lambda item: (
                 item.topic_score > 0,
                 item.topic_score,
-                -item.number,
+                random.random(),
             ),
             reverse=True,
         )
 
         selected = [item for item in ranked if item.topic_score > 0]
         if selected:
-            return sorted(selected, key=lambda item: item.number)
+            random.shuffle(selected)
+            return selected
         return []
 
     def _topic_relevance_score(self, text: str, topics: List[str]) -> float:
@@ -616,6 +678,8 @@ class LikelyWASSCEGenerator:
 
             for item in payload[: missing_count - len(generated)]:
                 normalized = self._normalize_generated_item(item, section.question_type)
+                if self.hash_question(normalized["question_text"]) in self._exclude_hashes:
+                    continue
                 generated.append(
                     Question(
                         subject=subject_enum,
@@ -735,7 +799,8 @@ Requirements:
 9. {option_rule}
 10. Paper 1 must contain exam-standard objective items, and theory or practical sections must include solid mark-worthy answers.
 11. Randomization seed: {seed_token}. Use {randomness_mode}. Avoid repeating archived stems verbatim.
-12. Return valid JSON only as an array.
+12. Wrap ALL mathematical expressions in $...$ (inline) or $$...$$ (display) using LaTeX syntax so they render properly — fractions as \\frac{{a}}{{b}}, powers as x^{{2}}, square roots as \\sqrt{{x}}, Greek letters as \\theta, \\pi, degree symbols as 30^{{\\circ}}. Never emit raw ASCII math like sqrt(x) or x^2 outside of $...$.
+13. Return valid JSON only as an array.
 
 JSON format:
 [
@@ -756,7 +821,7 @@ JSON format:
             kwargs: Dict[str, Any] = {
                 "model": settings.OPENAI_MODEL,
                 "api_key": settings.OPENAI_API_KEY,
-                "temperature": 0.55,
+                "temperature": 0.85,
                 "request_timeout": 120.0,
                 "max_retries": 3,
             }
@@ -929,8 +994,10 @@ JSON format:
             grouped[paper_key][bucket].append({"path": path_str, "year": year})
 
         for paper_key in grouped:
-            grouped[paper_key]["questions"].sort(key=lambda item: item["year"], reverse=True)
-            grouped[paper_key]["solutions"].sort(key=lambda item: item["year"], reverse=True)
+            # Randomize which past paper is picked as representative so repeated
+            # requests don't always use the most recent year.
+            random.shuffle(grouped[paper_key]["questions"])
+            random.shuffle(grouped[paper_key]["solutions"])
 
         return grouped
 
@@ -939,11 +1006,16 @@ JSON format:
         question_files: List[Dict[str, str]],
         preferred_year: Optional[str],
     ) -> List[Dict[str, str]]:
-        if not preferred_year:
-            return question_files
+        # Shuffle within year buckets so repeated requests for the same subject
+        # pick a different past paper each time, keeping generation non-deterministic.
+        shuffled = list(question_files)
+        random.shuffle(shuffled)
 
-        same_year = [item for item in question_files if item["year"] == preferred_year]
-        other_years = [item for item in question_files if item["year"] != preferred_year]
+        if not preferred_year:
+            return shuffled
+
+        same_year = [item for item in shuffled if item["year"] == preferred_year]
+        other_years = [item for item in shuffled if item["year"] != preferred_year]
         return same_year + other_years
 
     def _iter_subject_pdf_paths(self, archive_path: Path) -> List[str]:

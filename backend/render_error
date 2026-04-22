@@ -1,0 +1,37 @@
+2026-04-22T11:17:14.563358231Z ==> Cloning from https://github.com/GodfredsPrim/broxstudies
+2026-04-22T11:17:15.165494467Z ==> Checking out commit 77783d9be7889c20c7bbd430321cc0e67434b040 in branch main
+2026-04-22T11:17:16.584961593Z ==> Using Python version 3.14.3 (default)
+2026-04-22T11:17:16.584973663Z ==> Docs on specifying a Python version: https://render.com/docs/python-version
+2026-04-22T11:17:16.585103199Z ==> Installing Python version 3.14.3...
+2026-04-22T11:17:25.616589189Z ==> Using Poetry version 2.1.3 (default)
+2026-04-22T11:17:25.661190957Z ==> Docs on specifying a Poetry version: https://render.com/docs/poetry-version
+2026-04-22T11:17:25.72228634Z ==> Running build command 'npm install --prefix frontend && npm run build --prefix frontend && pip install -r backend/requirements.txt'...
+2026-04-22T11:17:25.848081151Z ==> Using Node.js version 24.14.1 (default)
+2026-04-22T11:17:25.872117469Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-04-22T11:17:34.30413022Z 
+2026-04-22T11:17:34.304156401Z added 415 packages, and audited 416 packages in 6s
+2026-04-22T11:17:34.304160961Z 
+2026-04-22T11:17:34.304248135Z 109 packages are looking for funding
+2026-04-22T11:17:34.304300857Z   run `npm fund` for details
+2026-04-22T11:17:34.307717483Z 
+2026-04-22T11:17:34.307729514Z 6 vulnerabilities (2 moderate, 4 high)
+2026-04-22T11:17:34.307733824Z 
+2026-04-22T11:17:34.307738684Z To address issues that do not require attention, run:
+2026-04-22T11:17:34.307742644Z   npm audit fix
+2026-04-22T11:17:34.307746424Z 
+2026-04-22T11:17:34.307750314Z To address all issues (including breaking changes), run:
+2026-04-22T11:17:34.307754764Z   npm audit fix --force
+2026-04-22T11:17:34.307758565Z 
+2026-04-22T11:17:34.307763005Z Run `npm audit` for details.
+2026-04-22T11:17:34.517173492Z 
+2026-04-22T11:17:34.517195893Z > broxstudies-frontend@0.1.0 build
+2026-04-22T11:17:34.517201603Z > tsc && vite build
+2026-04-22T11:17:34.517217594Z 
+2026-04-22T11:17:38.229453902Z src/components/ui/button.tsx(3,20): error TS2307: Cannot find module '@/lib/utils' or its corresponding type declarations.
+2026-04-22T11:17:38.229683312Z src/components/ui/card.tsx(2,20): error TS2307: Cannot find module '@/lib/utils' or its corresponding type declarations.
+2026-04-22T11:17:38.229693923Z src/components/ui/dialog.tsx(3,20): error TS2307: Cannot find module '@/lib/utils' or its corresponding type declarations.
+2026-04-22T11:17:38.229700523Z src/components/ui/input.tsx(2,20): error TS2307: Cannot find module '@/lib/utils' or its corresponding type declarations.
+2026-04-22T11:17:38.229756405Z src/components/ui/label.tsx(2,20): error TS2307: Cannot find module '@/lib/utils' or its corresponding type declarations.
+2026-04-22T11:17:38.229764346Z src/components/ui/sheet.tsx(3,20): error TS2307: Cannot find module '@/lib/utils' or its corresponding type declarations.
+2026-04-22T11:17:38.310856674Z ==> Build failed 😞
+2026-04-22T11:17:38.310876695Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

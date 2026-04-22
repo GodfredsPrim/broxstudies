@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/HP/AppData/Local/Temp/claude/C--Users-HP-Desktop-broxstudies/c5f44c4d-6192-4c03-8463-0f33543ad9c1/tasks/**)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm run *)",
+      "Bash(./venv/Scripts/uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload)",
+      "Bash(./venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(./venv/Scripts/python -c \"from app.main import app; print\\('Import OK'\\)\")",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(curl -s http://127.0.0.1:8000/api/auth/config)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s \"http://127.0.0.1:8000/api/auth/config\")",
+      "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8000/health\" -Method GET -TimeoutSec 10 | ConvertTo-Json; Write-Host \"---\"; Invoke-RestMethod -Uri \"http://127.0.0.1:8000/api/auth/config\" -Method GET -TimeoutSec 10 | ConvertTo-Json)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:8000/health\" -TimeoutSec 15; $r.Content } catch { \"Error: $_\" })",
+      "PowerShell(Stop-Process *)",
+      "Bash(git push *)",
+      "Bash(python *)"
+    ]
+  }
+}

@@ -215,7 +215,7 @@ class AuthService:
             )
 
             # ── Competition Registrations table ───────────────────────────────
-            self._execute(conn, 
+            self._execute(conn,
                 f"""
                 CREATE TABLE IF NOT EXISTS competition_registrations (
                     id {id_type},
@@ -228,6 +228,20 @@ class AuthService:
                 )
                 """
             )
+
+            # ── Recent generated questions (24h anti-repeat) ──────────────────
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS recent_generated_questions (
+                    id {id_type},
+                    user_id INTEGER NOT NULL,
+                    subject_slug TEXT NOT NULL,
+                    question_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_rgq_user_subj_time ON recent_generated_questions (user_id, subject_slug, created_at)")
 
             if not self.is_postgres:
                 conn.commit()
@@ -745,6 +759,37 @@ class AuthService:
             }
             for r in rows
         ]
+
+    # ── Anti-repeat: recently generated questions ─────────────────────────────
+
+    def get_recent_question_hashes(self, user_id: int, subject_slug: str, hours: int = 24) -> set[str]:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        with self._connect() as conn:
+            rows = self._execute(conn,
+                """
+                SELECT question_hash FROM recent_generated_questions
+                WHERE user_id = ? AND subject_slug = ? AND created_at > ?
+                """,
+                (user_id, subject_slug, cutoff),
+            ).fetchall()
+        return {r["question_hash"] for r in rows}
+
+    def record_generated_questions(self, user_id: int, subject_slug: str, question_hashes: list[str]) -> None:
+        if not question_hashes:
+            return
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            for h in question_hashes:
+                self._execute(conn,
+                    "INSERT INTO recent_generated_questions (user_id, subject_slug, question_hash, created_at) VALUES (?, ?, ?, ?)",
+                    (user_id, subject_slug, h, now),
+                )
+            # Opportunistic pruning: drop entries older than 48h for this user+subject
+            stale_cutoff = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+            self._execute(conn,
+                "DELETE FROM recent_generated_questions WHERE user_id = ? AND subject_slug = ? AND created_at < ?",
+                (user_id, subject_slug, stale_cutoff),
+            )
 
     # ── Admin & Competition methods ───────────────────────────────────────────
 

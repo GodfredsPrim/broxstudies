@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Clock, Zap, FileText, Printer, History } from 'lucide-react';
+import { X, Clock, Zap, FileText, Printer, History, Loader2 } from 'lucide-react';
 import { questionsAPI, Question } from '../services/api';
 import MathRenderer from './MathRenderer';
 
@@ -37,6 +37,36 @@ export function AnalysisDashboard() {
   const [timerActive, setTimerActive] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [examHistory, setExamHistory] = useState<ExamHistoryEntry[]>([]);
+  const [organizedPapers, setOrganizedPapers] = useState<Record<string, Question[]> | null>(null);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
+  const [loadingStageIndex, setLoadingStageIndex] = useState(0);
+
+  const loadingStages = [
+    'Scanning past-paper archive...',
+    'Fetching textbooks from curriculumresources.edu.gh...',
+    'Analysing the official WASSCE paper structure...',
+    'Generating objective questions from textbook topics...',
+    'Drafting theory questions and marking rubrics...',
+    'Validating each question against WASSCE standard...',
+    'Assembling your paper — almost done...',
+  ];
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingElapsed(0);
+      setLoadingStageIndex(0);
+      return;
+    }
+    const tick = setInterval(() => setLoadingElapsed((s) => s + 1), 1000);
+    const rotate = setInterval(
+      () => setLoadingStageIndex((i) => Math.min(i + 1, loadingStages.length - 1)),
+      8000,
+    );
+    return () => {
+      clearInterval(tick);
+      clearInterval(rotate);
+    };
+  }, [loading]);
 
   const availableYears = Array.from(new Set(subjects.map((s) => s.year))).sort();
   if (!availableYears.includes('Year 3') && subjects.length > 0) {
@@ -93,15 +123,9 @@ export function AnalysisDashboard() {
     setLoading(true);
     setError('');
     try {
-      // Standard type is hardcoded here for "Likely WASSCE Questions"
-      const result = await questionsAPI.generateQuestions(
-        subject,
-        selectedYear,
-        'standard',
-        46, // 40 MCQ + 6 Theory
-        'medium'
-      );
+      const result = await questionsAPI.generateProfessionalMock(subject, selectedYear);
       setQuestions(result.questions);
+      setOrganizedPapers(result.organized_papers || null);
       setShowAnswers(false);
       setStudentAnswers({});
       setExamResult(null);
@@ -315,8 +339,43 @@ export function AnalysisDashboard() {
     </div>
   );
 
+  const loadingMinutes = Math.floor(loadingElapsed / 60);
+  const loadingSeconds = loadingElapsed % 60;
+
   return (
     <div className={`generator-shell ${isSimulating ? 'generator-shell--simulating' : ''}`}>
+      {loading && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Generating paper"
+        >
+          <div className="glass-card max-w-md w-[92%] p-8 text-center space-y-5 rounded-2xl shadow-2xl">
+            <div className="flex justify-center">
+              <Loader2 className="w-12 h-12 animate-spin text-ghana-green" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold">Building your WASSCE paper</h3>
+              <p className="text-sm opacity-70 mt-1">
+                This usually takes 45&ndash;90 seconds. The first time you pick a subject it may take a bit longer while its textbooks download.
+              </p>
+            </div>
+            <div className="bg-ghana-green/5 border border-ghana-green/20 rounded-xl px-4 py-3">
+              <p className="text-sm font-semibold">{loadingStages[loadingStageIndex]}</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm opacity-70">
+              <Clock size={14} />
+              <span>
+                {loadingMinutes > 0 ? `${loadingMinutes}m ` : ''}
+                {loadingSeconds.toString().padStart(2, '0')}s elapsed
+              </span>
+            </div>
+            <p className="text-xs opacity-50">Please keep this tab open.</p>
+          </div>
+        </div>
+      )}
+
       {!isSimulating && (
         <div className="generator-header">
           <div className="generator-header__content">
@@ -403,19 +462,63 @@ export function AnalysisDashboard() {
       )}
 
       <div className="questions-list space-y-12">
-        {questions.length > 0 && (
-          <>
-            <div className="section-divider">
-              <span className="section-divider__label">Section A: Objective (40 Questions)</span>
-            </div>
-            {mcqQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1}`))}
-            
-            <div className="section-divider" style={{ marginTop: '5rem' }}>
-              <span className="section-divider__label">Section B: Theory (6 Questions)</span>
-            </div>
-            {theoryQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1} (Theory)`))}
-          </>
-        )}
+        {questions.length > 0 && (() => {
+          const paperLabels: Record<string, string> = {
+            paper_1: 'Paper 1: Objective Test',
+            paper_2: 'Paper 2: Theory',
+            paper_3: 'Paper 3: Practical / Alternative',
+          };
+          const paperKeys = organizedPapers
+            ? Object.keys(organizedPapers).filter((k) => (organizedPapers[k] || []).length > 0)
+            : [];
+
+          if (paperKeys.length > 0) {
+            let running = 0;
+            return (
+              <>
+                {paperKeys.map((key, sectionIdx) => {
+                  const paperQs = organizedPapers![key] || [];
+                  const heading = `${paperLabels[key] || key.replace('_', ' ').toUpperCase()} (${paperQs.length} Question${paperQs.length === 1 ? '' : 's'})`;
+                  const sectionStart = running;
+                  running += paperQs.length;
+                  return (
+                    <div key={key}>
+                      <div className="section-divider" style={sectionIdx > 0 ? { marginTop: '5rem' } : undefined}>
+                        <span className="section-divider__label">{heading}</span>
+                      </div>
+                      {paperQs.map((q, i) => {
+                        const labelIndex = sectionStart + i;
+                        const prefix = key === 'paper_1' ? `Question ${i + 1}` : `Question ${i + 1} (${paperLabels[key]?.split(':')[1]?.trim() || 'Theory'})`;
+                        return renderQuestionCard(q, labelIndex, prefix);
+                      })}
+                    </div>
+                  );
+                })}
+              </>
+            );
+          }
+
+          return (
+            <>
+              {mcqQuestions.length > 0 && (
+                <>
+                  <div className="section-divider">
+                    <span className="section-divider__label">Section A: Objective ({mcqQuestions.length} Question{mcqQuestions.length === 1 ? '' : 's'})</span>
+                  </div>
+                  {mcqQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1}`))}
+                </>
+              )}
+              {theoryQuestions.length > 0 && (
+                <>
+                  <div className="section-divider" style={{ marginTop: '5rem' }}>
+                    <span className="section-divider__label">Section B: Theory ({theoryQuestions.length} Question{theoryQuestions.length === 1 ? '' : 's'})</span>
+                  </div>
+                  {theoryQuestions.map((q, i) => renderQuestionCard(q, questions.indexOf(q), `Question ${i + 1} (Theory)`))}
+                </>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {!isSimulating && !!examHistory.length && (

@@ -39,12 +39,12 @@ class QuestionGenerator:
         if question_type == QuestionType.STANDARD:
             logger.info(f"Generating full standard exam (40 MCQ + 6 Theory) for {subject.value}")
             try:
-                # Parallel generation to handle the large standard request faster
+                # Skip validation for standard exam — saves 5 extra LLM calls and keeps within frontend timeout
                 mcq_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 40, difficulty_level, topics, year_key, subject_slug, subject_label, semester)
+                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 40, difficulty_level, topics, year_key, subject_slug, subject_label, semester, validate=False)
                 )
                 theory_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.ESSAY, 6, difficulty_level, topics, year_key, subject_slug, subject_label, semester)
+                    self._generate_single_batch(subject, QuestionType.ESSAY, 6, difficulty_level, topics, year_key, subject_slug, subject_label, semester, validate=False)
                 )
                 mcq_questions, theory_questions = await asyncio.gather(mcq_task, theory_task)
                 return mcq_questions + theory_questions
@@ -171,6 +171,7 @@ Return valid JSON array of {num_questions} objects:
         subject_slug: str,
         subject_label: str | None,
         semester: str = "all_year",
+        validate: bool = True,
     ):
         try:
             logger.info(f"Generating {num_questions} {difficulty_level or 'medium'} level {question_type.value} questions for {subject.value}")
@@ -187,7 +188,9 @@ Return valid JSON array of {num_questions} objects:
             )
             response = await asyncio.wait_for(self._call_llm(prompt), timeout=120.0)
             questions = self._parse_response(response, subject, question_type, num_questions)
-            return await self._validate_and_repair_questions(questions, subject, question_type)
+            if validate:
+                return await self._validate_and_repair_questions(questions, subject, question_type)
+            return questions
         except asyncio.TimeoutError:
             error_msg = "Question generation took too long (timeout after 120 seconds). Please try again."
             logger.error(error_msg)

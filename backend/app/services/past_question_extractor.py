@@ -73,14 +73,24 @@ class PastQuestionExtractor:
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # Reconstruct ExtractedQuestion objects from cache
                 for subject_slug, questions_data in data.get('subjects', {}).items():
-                    self.extracted_questions_cache[subject_slug] = [
-                        ExtractedQuestion(**q) for q in questions_data
-                    ]
-                self.chief_examiners_questions = [
-                    ExtractedQuestion(**q) for q in data.get('chief_examiners', [])
-                ]
+                    coerced = []
+                    for q in questions_data:
+                        # Coerce question_type string to QuestionType enum
+                        qt = q.get('question_type', 'multiple_choice')
+                        try:
+                            q['question_type'] = QuestionType(qt)
+                        except ValueError:
+                            q['question_type'] = QuestionType.MULTIPLE_CHOICE
+                        coerced.append(ExtractedQuestion(**q))
+                    self.extracted_questions_cache[subject_slug] = coerced
+                for q in data.get('chief_examiners', []):
+                    qt = q.get('question_type', 'essay')
+                    try:
+                        q['question_type'] = QuestionType(qt)
+                    except ValueError:
+                        q['question_type'] = QuestionType.ESSAY
+                    self.chief_examiners_questions.append(ExtractedQuestion(**q))
                 logger.info(f"Loaded {sum(len(q) for q in self.extracted_questions_cache.values())} cached questions")
                 return True
         except Exception as e:

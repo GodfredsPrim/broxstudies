@@ -51,11 +51,19 @@ export interface GeneratedQuestions {
   generation_time: number;
   model_used: string;
   source_used?: string;
+  organized_papers?: Record<string, Question[]>;
   source_details?: {
     has_site_past?: boolean;
     has_legacy_past?: boolean;
     has_site_textbook?: boolean;
     has_site_teacher?: boolean;
+    paper_structure?: Array<{
+      paper_key: string;
+      section_key: string;
+      title: string;
+      question_type: string;
+      expected_count: number;
+    }>;
     fetch_summary?: {
       downloaded?: number;
       existing?: number;
@@ -218,10 +226,11 @@ export const questionsAPI = {
   },
 
   generateProfessionalMock: async (subject: string, year: string): Promise<GeneratedQuestions> => {
-    const response = await apiClient.post('/questions/generate-professional', {
-      subject,
-      year,
-    });
+    const response = await apiClient.post(
+      '/questions/generate-professional',
+      { subject, year, question_type: 'standard' },
+      { timeout: 300000 },
+    );
     return response.data;
   },
 

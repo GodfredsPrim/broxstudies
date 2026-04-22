@@ -31,6 +31,8 @@ from app.services.likely_wassce_generator import LikelyWASSCEGenerator
 from app.services.question_generator import QuestionGenerator
 from app.services.world_class_engine import WorldClassEngine
 from app.services.pdf_generator import PDFGenerator
+from app.routes.auth import get_optional_user
+from app.models import AuthUser
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -138,13 +140,13 @@ async def generate_questions(request: QuestionGenerationRequest):
 
         if request.year:
             request_year = request.year.lower().strip().replace(" ", "_")
-            if request_year in {"year_1", "year_2"}:
+            if request_year in {"year_1", "year_2", "year_3"}:
                 year_key = request_year
             elif request_year in {"1", "year1"}:
                 year_key = "year_1"
             elif request_year in {"2", "year2"}:
                 year_key = "year_2"
-            elif request_year in {"3", "year3"}:
+            elif request_year in {"3", "year3", "year_3"}:
                 year_key = "year_3"
 
         if not year_key:
@@ -538,7 +540,10 @@ async def generate_questions_pdf(request: Dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-professional", response_model=GeneratedQuestions)
-async def generate_professional_mock(request: QuestionGenerationRequest):
+async def generate_professional_mock(
+    request: QuestionGenerationRequest,
+    current_user: Optional[AuthUser] = Depends(get_optional_user),
+):
     """Generate a likely WASSCE paper from textbook topics and past-paper structure."""
     try:
         start_time = time.time()
@@ -557,22 +562,58 @@ async def generate_professional_mock(request: QuestionGenerationRequest):
                 year_key = "year_1"
             elif request_year in {"2", "year2"}:
                 year_key = "year_2"
-            elif request_year in {"3", "year3"}:
+            elif request_year in {"3", "year3", "year_3"}:
                 year_key = "year_3"
 
         subject_slug = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
         subject_label = _resolve_subject_label(year_key if year_key != "year_3" else "year_1", subject_slug)
 
+        from app.services.curriculum_fetcher import CurriculumResourceFetcher
+        fetcher = CurriculumResourceFetcher()
+        try:
+            if year_key == "year_3":
+                await asyncio.gather(
+                    fetcher.ensure_subject_resources(year_key="year_1", subject_slug=subject_slug, resource_types=["textbooks"]),
+                    fetcher.ensure_subject_resources(year_key="year_2", subject_slug=subject_slug, resource_types=["textbooks"]),
+                )
+            else:
+                await fetcher.ensure_subject_resources(year_key=year_key, subject_slug=subject_slug, resource_types=["textbooks"])
+        except Exception as fetch_err:
+            logger.warning(f"Textbook fetch failed for {subject_slug} ({year_key}): {fetch_err}. Proceeding with whatever is cached.")
+
+        exclude_hashes: set[str] = set()
+        if current_user:
+            try:
+                exclude_hashes = history_auth_service.get_recent_question_hashes(
+                    user_id=current_user.id,
+                    subject_slug=subject_slug,
+                    hours=24,
+                )
+            except Exception as hash_err:
+                logger.warning(f"Could not fetch recent-question hashes for user {current_user.id}: {hash_err}")
+
         result = await likely_wassce_generator.generate_exam(
             subject_slug=subject_slug,
             subject_label=subject_label,
             year_key=year_key,
+            exclude_hashes=exclude_hashes,
         )
 
         organized_papers = result.get("organized_papers") or {}
         questions = []
         for paper_key in ["paper_1", "paper_2", "paper_3"]:
             questions.extend(organized_papers.get(paper_key, []))
+
+        if current_user and questions:
+            try:
+                new_hashes = [likely_wassce_generator.hash_question(q.question_text) for q in questions]
+                history_auth_service.record_generated_questions(
+                    user_id=current_user.id,
+                    subject_slug=subject_slug,
+                    question_hashes=new_hashes,
+                )
+            except Exception as record_err:
+                logger.warning(f"Could not record generated-question hashes for user {current_user.id}: {record_err}")
 
         return GeneratedQuestions(
             questions=questions,

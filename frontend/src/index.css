@@ -1,6 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Patrick+Hand&display=swap');
 @import "tailwindcss";
 @import "katex/dist/katex.css";
+
+/* Handwriting feel for generated exam questions */
+.math-container {
+  font-family: 'Patrick Hand', 'Outfit', sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.75;
+  letter-spacing: 0.015em;
+  color: #1a2332;
+}
+.math-container .katex {
+  /* KaTeX ships its own math font, but soften the colour so it blends
+     with the Patrick Hand body text instead of screaming serif black */
+  color: #1b2233;
+  font-size: 1.05em;
+}
+.math-container .katex-display {
+  margin: 0.6em 0;
+}
+.question-card__text {
+  font-family: 'Patrick Hand', 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  line-height: 1.75;
+}
 
 /* ==================== BROXSTUDIES PREMIUM DESIGN SYSTEM ==================== */
 :root {
