@@ -1,54 +1,50 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { cn } from '@/lib/cn'
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        ghana: "bg-gradient-to-r from-ghana-red via-ghana-gold to-ghana-green text-white hover:opacity-90",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+type Variant = 'primary' | 'ghost' | 'subtle' | 'danger'
+type Size = 'sm' | 'md' | 'lg'
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant
+  size?: Size
+  leading?: ReactNode
+  trailing?: ReactNode
+  loading?: boolean
+  fullWidth?: boolean
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+const variantCls: Record<Variant, string> = {
+  primary: 'v2-btn v2-btn-primary',
+  ghost: 'v2-btn v2-btn-ghost',
+  subtle: 'v2-btn v2-btn-subtle',
+  danger:
+    'v2-btn border-transparent bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 hover:text-rose-200',
+}
 
-export { Button, buttonVariants }
+const sizeCls: Record<Size, string> = {
+  sm: 'h-9 px-3.5 text-[13px]',
+  md: 'h-10 px-4 text-sm',
+  lg: 'h-12 px-6 text-[15px]',
+}
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className, variant = 'ghost', size = 'md', leading, trailing, loading, fullWidth, children, disabled, ...rest },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      className={cn(variantCls[variant], sizeCls[size], fullWidth && 'w-full', className)}
+      disabled={disabled || loading}
+      {...rest}
+    >
+      {loading ? (
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/20 border-t-current" />
+      ) : (
+        leading
+      )}
+      {children}
+      {!loading && trailing}
+    </button>
+  )
+})

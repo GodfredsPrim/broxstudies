@@ -240,14 +240,15 @@ Return valid JSON array of {num_questions} objects:
         difficulty = difficulty or random.choice(["easy", "medium", "hard"])
         topic_list = topics or ["General"]
         topic_text = ", ".join(topic_list)
-        past_context, textbook_context, teacher_context = self._load_resource_context(year_key, subject_slug)
+        past_context, textbook_context, teacher_context, chief_context = self._load_resource_context(year_key, subject_slug)
         past_block = past_context if past_context else "No matching past-question file found. Use textbook-only mode."
         textbook_block = textbook_context if textbook_context else (
             "Skipped: past-question excerpts are available for this subject."
             if past_context
             else "No matching textbook excerpts found."
         )
-        teacher_block = teacher_context if teacher_context else "No teacher resource excerpts found."
+        teacher_block = teacher_context if teacher_context else "No syllabus or teacher resource excerpts found."
+        chief_block = chief_context if chief_context else "No chief examiner's report available."
 
         display_subject = subject_label or subject_slug.replace("_", " ").title() or subject.value
 
@@ -281,15 +282,15 @@ You MUST generate purely quantitative, computational problems. Do NOT generate g
         return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for BroxStudies {display_subject} ({year_key.replace('_', ' ').title()}){semester_context}.
 
 Requirements:
-1. Follow the pattern and style of typical BroxStudies exam questions.
+1. Follow the pattern and style of typical WAEC/WASSCE exam questions for Ghanaian SHS.
 2. Be appropriate for secondary school students.
 3. Have a clear, single correct answer or highly robust explanation marking guide.
 4. Include a detailed explanation marking guide to allow accurate automated grading.
 5. Cover these topics when relevant: {topic_text}.
-6. PRIORITY: use past-question excerpts first for style/structure, and use textbook excerpts for topical coverage.
-7. If past-question excerpts are available, do NOT use textbook excerpts at all; derive questions from past-question patterns only.
-8. If no past-question or textbook excerpts are available below, you MUST generate high-quality questions from your internal knowledge of the official WAEC and Ghanaian curriculum for this specific subject and academic year.
-9. Use teacher resource notes to improve tips/tricks and exam strategy where available.
+6. SOURCE PRIORITY ORDER: (a) Past exam questions first — use their exact style, structure, and difficulty. (b) Chief examiner's report — emphasise commonly tested areas, common errors, and high-weightage topics. (c) Textbooks/Books — use for topical coverage when past questions are unavailable. (d) Syllabus — align question scope to curriculum objectives.
+7. If past-question excerpts are provided below, derive ALL questions from those patterns; do NOT mix in textbook content.
+8. If the chief examiner's report is provided, weight questions towards topics flagged as commonly tested or commonly misunderstood.
+9. If no excerpts are available below, generate high-quality questions from your internal WAEC/Ghanaian curriculum knowledge.
 10. MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for ALL mathematical symbols, equations, arithmetic, and formulas. NEVER use plain text for symbols like pi, theta, or fractions.
 
 *** CRITICAL RANDOMIZATION DIRECTIVE ***
@@ -309,10 +310,13 @@ If the requested year is Year 3, you MUST strictly and accurately follow the str
 Past Question Excerpts:
 {past_block}
 
+Chief Examiner's Report Excerpts:
+{chief_block}
+
 Textbook Excerpts:
 {textbook_block}
 
-Teacher Resource Excerpts:
+Syllabus & Teacher Resource Excerpts:
 {teacher_block}
 
 Return valid JSON only as an array of exactly {num_questions} objects with this structure:
@@ -329,30 +333,30 @@ Return valid JSON only as an array of exactly {num_questions} objects with this 
 
 Only include "options" for multiple choice questions (omit for essay). Each question must be distinct and follow a strictly randomized selection of topics from the sources provided. Do not include markdown or extra commentary. Produce valid JSON only."""
 
-    def _load_resource_context(self, year_key: str, subject_slug: str) -> tuple[str, str, str]:
-        """Load context from site resources and fallback past questions."""
+    def _load_resource_context(self, year_key: str, subject_slug: str) -> tuple[str, str, str, str]:
+        """Load context from all four sources: past questions, textbooks, syllabi, chief examiners' report."""
         years_to_check = [year_key]
         if year_key == "year_3":
-            # Mixed resource: pull from all SHS years if year 3 is selected
             years_to_check = ["year_1", "year_2", "year_3"]
 
         past_snippets = []
         textbook_snippets = []
         teacher_snippets = []
+        syllabi_snippets = []
 
         for yk in years_to_check:
             textbooks_dir = settings.SITE_RESOURCE_DIR / "textbooks" / yk / subject_slug
             past_dir = settings.SITE_RESOURCE_DIR / "past_questions" / yk / subject_slug
             teacher_dir = settings.SITE_RESOURCE_DIR / "teacher_resources" / yk / subject_slug
+            syllabi_dir = settings.SITE_RESOURCE_DIR / "syllabi" / yk / subject_slug
 
             past_context = self._extract_excerpts_from_directory(past_dir, max_docs=2)
             if not past_context:
                 past_context = self._extract_excerpts_from_legacy_past_questions(subject_slug, max_docs=1)
-            
+
             if past_context:
                 past_snippets.append(f"--- {yk.replace('_', ' ').title()} Past Questions ---\n{past_context}")
 
-            # Mix textbook and teacher notes for better topical coverage
             textbook_context = self._extract_excerpts_from_directory(textbooks_dir, max_docs=1)
             if textbook_context:
                 textbook_snippets.append(f"--- {yk.replace('_', ' ').title()} Textbook ---\n{textbook_context}")
@@ -361,10 +365,33 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
             if teacher_context:
                 teacher_snippets.append(f"--- {yk.replace('_', ' ').title()} Teacher Notes ---\n{teacher_context}")
 
+            syllabi_context = self._extract_excerpts_from_directory(syllabi_dir, max_docs=1)
+            if syllabi_context:
+                syllabi_snippets.append(f"--- {yk.replace('_', ' ').title()} Syllabus ---\n{syllabi_context}")
+
+        # Chief examiners' report (global pool, not year-specific)
+        chief_snippets: list[str] = []
+        cer_dir = settings.DATA_DIR / "chief_examiners_report"
+        if cer_dir.exists():
+            terms = [t for t in subject_slug.split("_") if t]
+            matched: list[Path] = []
+            for pdf in cer_dir.glob("*.pdf"):
+                key = re.sub(r"[^a-z0-9]+", "_", pdf.stem.lower()).strip("_")
+                if any(t in key for t in terms):
+                    matched.append(pdf)
+            # fallback: first pdf in the dir
+            all_pdfs = list(cer_dir.glob("*.pdf"))
+            candidates = matched[:2] if matched else all_pdfs[:1]
+            for pdf in candidates:
+                ctx = self._read_pdf_excerpt(pdf, max_chars=700)
+                if ctx:
+                    chief_snippets.append(f"--- Chief Examiner's Report ({pdf.stem}) ---\n{ctx}")
+
         return (
             "\n\n".join(past_snippets) if past_snippets else "",
             "\n\n".join(textbook_snippets) if textbook_snippets else "",
-            "\n\n".join(teacher_snippets) if teacher_snippets else ""
+            "\n\n".join(teacher_snippets + syllabi_snippets) if (teacher_snippets or syllabi_snippets) else "",
+            "\n\n".join(chief_snippets) if chief_snippets else "",
         )
 
     def get_source_status(self, year_key: str, subject_slug: str) -> dict:

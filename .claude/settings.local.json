@@ -16,7 +16,12 @@
       "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:8000/health\" -TimeoutSec 15; $r.Content } catch { \"Error: $_\" })",
       "PowerShell(Stop-Process *)",
       "Bash(git push *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(npx vite *)",
+      "Bash(curl -s http://127.0.0.1:5174/ -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s http://127.0.0.1:5174/ -o /dev/null -w \"HTTP: %{http_code}\\\\n\")",
+      "Bash(curl -s http://127.0.0.1:5174/src/index.css -o /dev/null -w \"CSS: %{http_code}\\\\n\")",
+      "Bash(xargs grep *)"
     ]
   }
 }

@@ -1,67 +1,31 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    alias: { '@': path.resolve(__dirname, './src') },
+  },
+  plugins: [react()],
+  server: {
+    port: 5175,
+    host: '127.0.0.1',
+    proxy: {
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/health': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/uploads': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     },
   },
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
-      manifest: {
-        name: 'BroxStudies Online',
-        short_name: 'BroxStudies',
-        description: 'Premium AI-powered WASSCE exam prep simulator and SHS study coach.',
-        theme_color: '#0b7a4b',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait',
-        icons: [
-          {
-            src: 'icon.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml'
-          },
-          {
-            src: 'icon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml'
-          },
-          {
-            src: 'icon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
-          }
-        ]
-      }
-    })
-  ],
   build: {
     minify: 'esbuild',
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ['react', 'react-dom'],
-          katex: ['katex', 'react-katex'],
-          vendor: ['axios', 'lucide-react'],
+          react: ['react', 'react-dom', 'react-router-dom'],
+          motion: ['framer-motion'],
+          vendor: ['axios', 'lucide-react', 'clsx', 'tailwind-merge'],
         },
-      },
-    },
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
       },
     },
   },

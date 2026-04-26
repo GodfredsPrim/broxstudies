@@ -1,0 +1,417 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   BROXSTUDIES for SHS — Light Mode (default) + Dark Mode
+   Light-first. Warm paper surface, ink text, emerald accent, amber for earned.
+   ========================================================================== */
+
+:root {
+  /* surfaces — warm paper, for readability in class and under sunlight */
+  --bg-0: #FBF8F1;                /* page — warm off-white */
+  --bg-1: #FFFFFF;                /* raised card */
+  --bg-2: #F3EFE5;                /* hover raised */
+  --bg-3: #EAE4D6;                /* input / sunken */
+  --line: rgba(34, 39, 49, 0.10);
+  --line-strong: rgba(34, 39, 49, 0.18);
+
+  /* text — ink not pure black, easier on the eye */
+  --fg-0: #14202B;                /* primary */
+  --fg-1: #2F3A47;                /* secondary */
+  --fg-2: #5A6572;                /* tertiary */
+  --fg-3: #8A94A0;                /* muted / placeholder */
+
+  /* accent — emerald (growth / learning) */
+  --accent: #059669;              /* slightly deeper for contrast on paper */
+  --accent-strong: #047857;
+  --accent-tint: rgba(5, 150, 105, 0.10);
+  --accent-glow: rgba(5, 150, 105, 0.28);
+
+  /* gold — earned / awards */
+  --gold: #D97706;
+  --gold-tint: rgba(217, 119, 6, 0.12);
+
+  --danger: #E11D48;
+  --danger-tint: rgba(225, 29, 72, 0.10);
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+}
+
+/* Dark mode overrides — kept for user preference toggle */
+html.dark {
+  --bg-0: #07080B;
+  --bg-1: #0D0F15;
+  --bg-2: #12151D;
+  --bg-3: #1A1E28;
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.10);
+
+  --fg-0: #F3F4F7;
+  --fg-1: #C4C8D3;
+  --fg-2: #8A8F9F;
+  --fg-3: #5B6271;
+
+  --accent: #10B981;
+  --accent-strong: #059669;
+  --accent-tint: rgba(16, 185, 129, 0.12);
+  --accent-glow: rgba(16, 185, 129, 0.35);
+
+  --gold: #F59E0B;
+  --gold-tint: rgba(245, 158, 11, 0.12);
+
+  --danger: #F43F5E;
+  --danger-tint: rgba(244, 63, 94, 0.14);
+}
+
+html {
+  background: var(--bg-0);
+  color: var(--fg-0);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+html.dark { color-scheme: dark; }
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: 'ss01', 'cv11';
+  background:
+    radial-gradient(1100px 600px at 12% -10%, var(--accent-tint), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, var(--gold-tint), transparent 55%),
+    radial-gradient(600px 400px at 50% 110%, var(--accent-tint), transparent 60%),
+    var(--bg-0);
+  min-height: 100dvh;
+  transition: background 300ms ease;
+}
+
+/* Selection */
+::selection { background: var(--accent-tint); color: var(--fg-0); }
+
+/* Scrollbar — adapts to theme via currentColor-like token */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-3);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--accent);
+  border-radius: inherit;
+}
+
+/* ==========================================================================
+   UTILITY LAYERS
+   ========================================================================== */
+
+@layer components {
+  /* Glass plate — only where it earns it: topbar, modals */
+  .v2-glass {
+    background: color-mix(in oklab, var(--bg-1) 80%, transparent);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid var(--line);
+  }
+
+  /* Card — the core surface */
+  .v2-card {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.8) inset,
+      0 1px 2px -1px rgba(20, 32, 43, 0.06),
+      0 8px 24px -12px rgba(20, 32, 43, 0.12);
+  }
+  html.dark .v2-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--bg-1);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+      0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  }
+
+  .v2-card-interactive {
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                background 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .v2-card-interactive:hover {
+    border-color: var(--line-strong);
+    background: var(--bg-2);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+      0 2px 4px -1px rgba(20, 32, 43, 0.08),
+      0 20px 40px -18px rgba(20, 32, 43, 0.22);
+    transform: translateY(-1px);
+  }
+  html.dark .v2-card-interactive:hover {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent), var(--bg-2);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.06) inset, 0 20px 44px -20px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Accent dot */
+  .v2-dot {
+    display: inline-block;
+    width: 6px; height: 6px; border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* Display headline — serif, gives schoolbook / editorial feel */
+  .v2-display {
+    font-family: 'Instrument Serif', ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+    color: var(--fg-0);
+  }
+
+  /* Eyebrow label */
+  .v2-eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  /* Buttons */
+  .v2-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 42px; padding: 0 16px;
+    border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    border: 1px solid transparent;
+    transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+                background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .v2-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .v2-btn-primary {
+    background: var(--accent);
+    color: #FFFFFF;
+    box-shadow:
+      0 0 0 1px var(--accent),
+      0 8px 20px -8px var(--accent-glow);
+  }
+  .v2-btn-primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 1px var(--accent-strong),
+      0 12px 28px -10px var(--accent-glow);
+  }
+  html.dark .v2-btn-primary { color: #02180F; }
+
+  .v2-btn-ghost {
+    background: transparent; color: var(--fg-0);
+    border-color: var(--line);
+  }
+  .v2-btn-ghost:hover:not(:disabled) {
+    background: var(--bg-2); border-color: var(--line-strong);
+    transform: translateY(-1px);
+  }
+
+  .v2-btn-subtle {
+    background: var(--bg-2); color: var(--fg-0);
+    border-color: var(--line);
+  }
+  .v2-btn-subtle:hover:not(:disabled) {
+    background: var(--bg-3); border-color: var(--line-strong);
+  }
+
+  /* Input */
+  .v2-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    color: var(--fg-0);
+    font-size: 14px;
+    font-weight: 500;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  }
+  html.dark .v2-input { background: var(--bg-3); }
+  .v2-input::placeholder { color: var(--fg-3); }
+  .v2-input:hover { border-color: var(--line-strong); }
+  .v2-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-1);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* Chip */
+  .v2-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 12px;
+    border-radius: 999px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    color: var(--fg-1);
+    font-size: 12px; font-weight: 600;
+    transition: all 160ms ease;
+    cursor: pointer;
+  }
+  .v2-chip:hover { background: var(--bg-2); color: var(--fg-0); border-color: var(--line-strong); }
+  .v2-chip[data-active='true'] {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+    color: var(--accent-strong);
+  }
+  html.dark .v2-chip[data-active='true'] { color: #6EE7B7; }
+
+  /* Badge */
+  .v2-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 20px; padding: 0 8px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--bg-1);
+    color: var(--fg-2);
+    border: 1px solid var(--line);
+  }
+  .v2-badge[data-tone='accent'] {
+    color: var(--accent-strong);
+    background: var(--accent-tint);
+    border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  html.dark .v2-badge[data-tone='accent'] { color: #6EE7B7; }
+  .v2-badge[data-tone='gold'] {
+    color: var(--gold);
+    background: var(--gold-tint);
+    border-color: color-mix(in oklab, var(--gold) 35%, transparent);
+  }
+  html.dark .v2-badge[data-tone='gold'] { color: #FCD34D; }
+  .v2-badge[data-tone='danger'] {
+    color: var(--danger);
+    background: var(--danger-tint);
+    border-color: color-mix(in oklab, var(--danger) 35%, transparent);
+  }
+  html.dark .v2-badge[data-tone='danger'] { color: #FDA4AF; }
+
+  /* Grain overlay — subtle paper texture on hero surfaces */
+  .v2-grain::after {
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.12  0 0 0 0 0.17  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.5;
+    border-radius: inherit;
+  }
+  html.dark .v2-grain::after {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+    opacity: 0.6;
+  }
+}
+
+/* ==========================================================================
+   KEYFRAMES
+   ========================================================================== */
+
+@keyframes v2-mesh-shift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(6%, -4%, 0); }
+  66% { transform: translate3d(-4%, 5%, 0); }
+}
+
+@keyframes v2-ring-pulse {
+  0% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  70% { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.v2-mesh {
+  position: absolute; inset: -20%;
+  background:
+    radial-gradient(40% 40% at 20% 30%, var(--accent-tint), transparent 60%),
+    radial-gradient(35% 35% at 80% 70%, var(--gold-tint), transparent 60%),
+    radial-gradient(30% 30% at 60% 20%, rgba(99, 102, 241, 0.08), transparent 60%);
+  filter: blur(60px);
+  animation: v2-mesh-shift 18s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   LIGHT-MODE BACKPORT — Tailwind utility classes originally authored for
+   dark mode (text-ink-*, border-white/*, bg-white/*) are remapped here so
+   that light mode stays readable without touching 78 components.
+   Dark mode is opted into with the .dark class on <html>.
+   ========================================================================== */
+
+html:not(.dark) .text-ink-0     { color: var(--fg-0); }
+html:not(.dark) .text-ink-50    { color: var(--fg-0); }
+html:not(.dark) .text-ink-100   { color: var(--fg-0); }
+html:not(.dark) .text-ink-200   { color: var(--fg-1); }
+html:not(.dark) .text-ink-300   { color: var(--fg-1); }
+html:not(.dark) .text-ink-400   { color: var(--fg-2); }
+html:not(.dark) .text-ink-500   { color: var(--fg-3); }
+
+html:not(.dark) .bg-ink-50      { background-color: var(--bg-1); }
+html:not(.dark) .bg-ink-100     { background-color: var(--bg-2); }
+html:not(.dark) .bg-ink-800     { background-color: var(--bg-2); }
+html:not(.dark) .bg-ink-900     { background-color: var(--bg-1); }
+html:not(.dark) .bg-ink-950     { background-color: var(--bg-0); }
+
+html:not(.dark) .border-ink-700 { border-color: var(--line); }
+html:not(.dark) .border-ink-800 { border-color: var(--line); }
+html:not(.dark) .border-ink-900 { border-color: var(--line-strong); }
+
+/* Transparent-white strokes / fills → darken equivalents */
+html:not(.dark) .border-white\/5   { border-color: var(--line); }
+html:not(.dark) .border-white\/10  { border-color: var(--line-strong); }
+html:not(.dark) .border-white\/15  { border-color: var(--line-strong); }
+html:not(.dark) .border-white\/20  { border-color: var(--line-strong); }
+
+html:not(.dark) .bg-white\/5      { background-color: rgba(20, 32, 43, 0.035); }
+html:not(.dark) .bg-white\/10     { background-color: rgba(20, 32, 43, 0.06); }
+html:not(.dark) .bg-white\/15     { background-color: rgba(20, 32, 43, 0.08); }
+html:not(.dark) .bg-white\/20     { background-color: rgba(20, 32, 43, 0.1); }
+
+html:not(.dark) .hover\:bg-white\/5:hover   { background-color: rgba(20, 32, 43, 0.04); }
+html:not(.dark) .hover\:bg-white\/10:hover  { background-color: rgba(20, 32, 43, 0.07); }
+
+html:not(.dark) .ring-white\/5    { --tw-ring-color: var(--line); }
+html:not(.dark) .ring-white\/10   { --tw-ring-color: var(--line-strong); }
+html:not(.dark) .ring-white\/20   { --tw-ring-color: var(--line-strong); }
+
+/* Placeholder & divider helpers */
+html:not(.dark) .placeholder\:text-ink-400::placeholder { color: var(--fg-3); }
+html:not(.dark) .divide-white\/5 > * + * { border-color: var(--line); }
+html:not(.dark) .divide-white\/10 > * + * { border-color: var(--line-strong); }
+
+/* Mobile-drawer & card backgrounds that referenced hardcoded dark tokens */
+html:not(.dark) .bg-black\/60 { background-color: rgba(20, 32, 43, 0.55); }
+
+/* Emerald helpers used on glow / CTA in dark; keep visible on paper */
+html:not(.dark) .text-emerald-200 { color: var(--accent-strong); }
+html:not(.dark) .text-emerald-300 { color: var(--accent-strong); }
+html:not(.dark) .text-emerald-300\/70 { color: color-mix(in oklab, var(--accent-strong) 70%, transparent); }

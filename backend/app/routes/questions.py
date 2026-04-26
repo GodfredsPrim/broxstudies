@@ -168,7 +168,7 @@ async def generate_questions(request: QuestionGenerationRequest):
             fetch_summary = await fetcher.ensure_subject_resources(
                 year_key=year_key,
                 subject_slug=subject_id,
-                resource_types=["past_questions", "textbooks", "teacher_resources"],
+                resource_types=["past_questions", "textbooks", "teacher_resources", "syllabi"],
             )
             source_status = generator.get_source_status(year_key=year_key, subject_slug=subject_id)
             if source_status.get("source_used") == "none_found":

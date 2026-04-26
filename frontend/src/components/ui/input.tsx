@@ -1,24 +1,59 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react'
+import { cn } from '@/lib/cn'
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  leading?: ReactNode
+  trailing?: ReactNode
+  invalid?: boolean
+}
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, leading, trailing, invalid, ...rest },
+  ref,
+) {
+  if (leading || trailing) {
     return (
-      <input
-        type={type}
+      <div
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          className
+          'v2-input flex h-11 items-center gap-2 px-3',
+          invalid && 'border-rose-400/40 shadow-[0_0_0_3px_rgba(244,63,94,0.12)]',
+          className,
         )}
-        ref={ref}
-        {...props}
-      />
+      >
+        {leading && <span className="text-ink-400">{leading}</span>}
+        <input
+          ref={ref}
+          className="h-full flex-1 border-0 bg-transparent p-0 text-sm font-medium text-ink-0 placeholder:text-ink-400 focus:outline-none"
+          {...rest}
+        />
+        {trailing && <span className="text-ink-400">{trailing}</span>}
+      </div>
     )
   }
-)
-Input.displayName = "Input"
+  return (
+    <input
+      ref={ref}
+      className={cn(
+        'v2-input',
+        invalid && 'border-rose-400/40 shadow-[0_0_0_3px_rgba(244,63,94,0.12)]',
+        className,
+      )}
+      {...rest}
+    />
+  )
+})
 
-export { Input }
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function Textarea({ className, ...rest }, ref) {
+    return (
+      <textarea
+        ref={ref}
+        className={cn(
+          'v2-input block min-h-[96px] py-3 leading-relaxed',
+          className,
+        )}
+        {...rest}
+      />
+    )
+  },
+)
