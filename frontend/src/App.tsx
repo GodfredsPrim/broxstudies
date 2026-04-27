@@ -93,7 +93,7 @@ export default function App() {
           <Route
             path="/library"
             element={
-              <Gate requireSubscription={false} label="Library" pitch="Every syllabus and past paper from curriculumresources.edu.gh, on tap.">
+              <Gate requireSubscription={false} label="Library" pitch="Browse a premium global library powered by local favorites and OpenLibrary discovery. Find Ghanaian classics, global bestsellers, study guides, and post-reading quizzes.">
                 <LibraryPage />
               </Gate>
             }
