@@ -4,9 +4,9 @@ import { Sparkles } from 'lucide-react'
 import { TrackSelector } from '@/components/TrackSelector'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useAuth } from '@/hooks/useAuth'
-import { Card } from '@/components/ui/Card'
+import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 export function TrackSelectionPage() {
   const { selectedTrack, setSelectedTrack, loading } = useAcademicTrack()

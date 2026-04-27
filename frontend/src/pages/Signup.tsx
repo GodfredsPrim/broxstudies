@@ -4,8 +4,8 @@ import { Mail, KeyRound, User, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { AuthLayout, Field } from './Login'
 
 export function SignupPage() {

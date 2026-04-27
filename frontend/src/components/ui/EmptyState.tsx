@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Card } from './Card'
+import { Card } from './card'
 
 interface EmptyStateProps {
   icon?: ReactNode

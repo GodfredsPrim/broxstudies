@@ -19,9 +19,9 @@ import {
 import { adminApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input, Textarea } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/button'
+import { Input, Textarea } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import type {
