@@ -55,11 +55,35 @@ class TutorService:
             "solve", "calculate", "simplify", "evaluate", "differentiate", "integrate",
             "equation", "algebra", "geometry", "simultaneous", "probability", "ratio",
             "working", "show your working", "find x", "factorize", "expand", "log",
-            "matrix", "trigonometry", "mensuration", "surd", "graph", "formula"
+            "matrix", "trigonometry", "mensuration", "surd", "graph"
         ]
         has_math_term = any(term in haystack for term in math_terms)
         has_numeric_pattern = bool(re.search(r"\d", haystack) and re.search(r"[+\-*/=^()]", haystack))
         return subject_id in self.math_subject_tokens or has_math_term or has_numeric_pattern
+
+    def _is_definitional_request(self, question: str) -> bool:
+        q = question.lower().strip()
+        patterns = [
+            r"\bwhat is\b",
+            r"\bwhat are\b",
+            r"\bdefine\b",
+            r"\bdefinition of\b",
+            r"\bmeaning of\b",
+            r"\bgive (me )?(the )?formula\b",
+            r"\bformula (for|of)\b",
+            r"\bwrite (the )?formula\b",
+            r"\bchemical formula\b",
+            r"\bstructural formula\b",
+            r"\bsymbol for\b",
+        ]
+        return any(re.search(pattern, q) for pattern in patterns)
+
+    def _is_full_overview_requested(self, question: str) -> bool:
+        q = question.lower()
+        return any(phrase in q for phrase in [
+            "full overview", "full explanation", "in detail", "detailed", "more detail",
+            "detailed overview", "explain in detail", "give more details", "explain fully"
+        ])
 
     def _extract_excerpts_from_directory(self, root: Path, max_docs: int = 2, max_chars: int = 900) -> str:
         """Extract small excerpts from subject files for RAG."""
@@ -95,6 +119,10 @@ class TutorService:
         mode = "math_step_by_step" if is_math_like else "concept_coach"
         request_kind = "image-based study help" if is_image_request else "text-based study help"
 
+        if self._is_definitional_request(question) and not self._is_full_overview_requested(question):
+            is_main_concept_only = True
+            is_math_like = False
+
         if is_main_concept_only:
             prompt = f"""
 You are BroxStudies's Ghana SHS Study Coach. The student wants the MAIN CONCEPT ONLY.
@@ -105,7 +133,8 @@ HARD RULES:
 3. No intro phrases ("Here is", "Certainly", "In summary"), no bullet points, no headings, no lists, no examples, no steps, no tips.
 4. No filler adjectives. Use precise Ghana SHS / WASSCE-standard vocabulary.
 5. The response must be a complete thought — do not cut off mid-sentence.
-6. MATH FORMATTING: Use LaTeX delimiters $..$ (inline) or $$..$$ (block) for every symbol, equation, or formula.
+6. If the student asks for a formula, output the formula in standard notation directly with no surrounding dollar signs or markdown. For example, use C6H12O6 or H2O, not $C_6H_{12}O_6$.
+7. Use LaTeX delimiters $..$ (inline) or $$..$$ (block) only for complex mathematical expressions that need formatting. Do not wrap simple chemical or plain formula notation in $...$.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
@@ -144,7 +173,7 @@ Helpful textbook context:
             prompt = f"""
 You are fun2learn online's Ghana SHS Study Coach helping with {request_kind}.
 
-Your job is to provide a comprehensive, clear, and engaging explanation of the student's topic. 
+Your job is to provide a comprehensive, clear, and engaging explanation of the student's topic.
 Adopt the tone of a high-end personal tutor who is thorough but stays on point.
 
 Response rules:
@@ -153,7 +182,8 @@ Response rules:
 - Use paragraph breaks to separate distinct ideas for better readability.
 - Do NOT use generic conversational filler.
 - Do not use markdown tables.
-- MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for all symbols, formulas, and equations.
+- When asked for a formula, provide the exact formula using standard scientific notation (for example C6H12O6 or H2O) and avoid unnecessary dollar signs or markdown wrappers.
+- Use LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) only for complex mathematical expressions that truly require rendering.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
