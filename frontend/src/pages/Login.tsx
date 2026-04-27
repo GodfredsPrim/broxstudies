@@ -1,13 +1,13 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, KeyRound, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 
 export function LoginPage() {
@@ -56,7 +56,7 @@ export function LoginPage() {
             autoComplete="email"
             placeholder="student@example.com"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             leading={<Mail size={16} />}
             required
             autoFocus
@@ -68,7 +68,7 @@ export function LoginPage() {
             autoComplete="current-password"
             placeholder="Enter your password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             leading={<KeyRound size={16} />}
             trailing={
               <button

@@ -1,11 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail, KeyRound, User, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { AuthLayout, Field } from './Login'
 
 export function SignupPage() {
@@ -57,7 +57,7 @@ export function SignupPage() {
             autoComplete="name"
             placeholder="Ama Mensah"
             value={fullName}
-            onChange={e => setFullName(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)}
             leading={<User size={16} />}
             required
             autoFocus
@@ -69,7 +69,7 @@ export function SignupPage() {
             autoComplete="email"
             placeholder="student@example.com"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             leading={<Mail size={16} />}
             required
           />
@@ -80,7 +80,7 @@ export function SignupPage() {
             autoComplete="new-password"
             placeholder="Create a password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             leading={<KeyRound size={16} />}
             trailing={
               <button

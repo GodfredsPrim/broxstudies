@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useGuestChats } from '@/hooks/useGuestChats'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { StatCard } from '@/components/ui/StatCard'
-import { Card } from '@/components/ui/Card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
 

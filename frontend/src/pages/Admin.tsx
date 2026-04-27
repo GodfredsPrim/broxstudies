@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ChangeEvent, type ReactNode } from 'react'
 import {
   BarChart3,
   Banknote,
@@ -19,10 +19,10 @@ import {
 import { adminApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input, Textarea } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/button'
+import { Input, Textarea } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import type {
   AccessCodeRecord,
@@ -348,7 +348,7 @@ function CodesPanel() {
               min={1}
               max={100}
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setQuantity(Number(e.target.value))}
               required
             />
           </div>
@@ -360,7 +360,7 @@ function CodesPanel() {
               max={24}
               placeholder="default"
               value={duration}
-              onChange={(e) => {
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
                 const raw = e.target.value
                 setDuration(raw === '' ? '' : Number(raw))
               }}
@@ -556,13 +556,13 @@ function CompetitionCreateForm({ onCreated }: { onCreated: () => Promise<void> |
       <h3 className="font-display text-lg">Create competition</h3>
       <form onSubmit={onSubmit} className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
         <LabeledField label="Title">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <Input value={title} onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)} required />
         </LabeledField>
         <LabeledField label="Prize">
-          <Input value={prize} onChange={(e) => setPrize(e.target.value)} required placeholder="e.g. GH₵ 500 + swag" />
+          <Input value={prize} onChange={(e: ChangeEvent<HTMLInputElement>) => setPrize(e.target.value)} required placeholder="e.g. GH₵ 500 + swag" />
         </LabeledField>
         <LabeledField label="Start date">
-          <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} required />
+          <Input type="date" value={start} onChange={(e: ChangeEvent<HTMLInputElement>) => setStart(e.target.value)} required />
         </LabeledField>
         <LabeledField label="End date">
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} required />
@@ -571,7 +571,7 @@ function CompetitionCreateForm({ onCreated }: { onCreated: () => Promise<void> |
           <LabeledField label="Description">
             <Textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
               rows={3}
               required
             />

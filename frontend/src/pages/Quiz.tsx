@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Zap, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { questionsApi, liveQuizApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import type { LiveQuizStateResponse } from '@/api/types'

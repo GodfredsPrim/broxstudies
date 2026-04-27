@@ -1,14 +1,14 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Ticket, ArrowRight, Check, Smartphone } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
-import { Eyebrow } from '@/components/ui/Eyebrow'
-import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { Eyebrow } from '@/components/ui/eyebrow'
+import { Badge } from '@/components/ui/badge'
 
 export function ActivatePage() {
   const { user, refresh } = useAuth()
@@ -80,7 +80,7 @@ export function ActivatePage() {
                 type="text"
                 placeholder="BROX-XXXX"
                 value={code}
-                onChange={e => setCode(e.target.value.toUpperCase())}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value.toUpperCase())}
                 className="font-mono text-base tracking-[0.2em]"
                 autoFocus
                 required

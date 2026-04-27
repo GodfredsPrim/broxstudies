@@ -1,12 +1,12 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ChangeEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { KeyRound, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 
 /**
@@ -84,7 +84,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
                 type="password"
                 placeholder="••••••••••"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value)}
                 leading={<KeyRound size={14} />}
                 autoFocus
                 required

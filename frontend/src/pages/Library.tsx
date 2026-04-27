@@ -135,7 +135,7 @@ export function LibraryPage() {
       if (!query) return true
       return [book.title, book.author, book.description, book.category, book.source]
         .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query))
+        .some((value) => (value as string).toLowerCase().includes(query))
     })
   }, [searchQuery, selectedCategory])
 
