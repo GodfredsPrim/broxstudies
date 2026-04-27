@@ -5,9 +5,11 @@ import {
   FileText, ClipboardList, ScrollText,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import type { Question, Subject } from '@/api/types'
 
-const YEARS = ['Year 1', 'Year 2', 'Year 3']
+const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
+const TVET_LEVELS = ['Level 1', 'Level 2']
 
 type Phase = 'setup' | 'practice' | 'results'
 
@@ -64,19 +66,48 @@ export function PracticePage() {
         setSubjects(list)
         if (list.length) {
           setSelectedName(list[0].name)
-          setSelectedYear(YEARS[0])
+          setSelectedYear(SHS_YEARS[0])
         }
       })
       .catch(() => setGenError('Unable to load subjects. Please refresh.'))
   }, [])
 
-  const uniqueNames = useMemo(
-    () => [...new Set(subjects.map(s => s.name))].sort(),
-    [subjects],
+  const { selectedTrack } = useAcademicTrack()
+
+  const filteredSubjects = useMemo(
+    () => subjects.filter(subject => {
+      if (selectedTrack === 'tvet') {
+        return subject.academic_level === 'tvet'
+      }
+      if (selectedTrack === 'shs') {
+        return subject.academic_level !== 'tvet'
+      }
+      return true
+    }),
+    [subjects, selectedTrack],
   )
 
-  // All three years are always selectable — backend handles any year key
-  const availableYears = YEARS
+  const uniqueNames = useMemo(
+    () => [...new Set(filteredSubjects.map(s => s.name))].sort(),
+    [filteredSubjects],
+  )
+
+  const yearLabel = selectedTrack === 'tvet' ? 'TVET Level' : 'SHS Year'
+  const yearHint = selectedTrack === 'tvet' ? 'Choose the TVET level you want to practice.' : 'Choose your SHS year.'
+
+  const availableYears: string[] = selectedTrack === 'tvet' ? TVET_LEVELS : SHS_YEARS
+
+  useEffect(() => {
+    if (uniqueNames.length && !uniqueNames.includes(selectedName)) {
+      setSelectedName(uniqueNames[0])
+    }
+  }, [uniqueNames, selectedName])
+
+  useEffect(() => {
+    if (!availableYears.includes(selectedYear)) {
+      setSelectedYear(availableYears[0])
+    }
+  }, [availableYears, selectedYear])
 
   // Find any catalog entry for this subject name to extract its slug
   const subjectEntry = useMemo(
@@ -169,7 +200,7 @@ export function PracticePage() {
         <div className="mt-8">
           <h1 className="text-3xl font-black text-foreground">Practice Questions</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Choose your subject and SHS year, set how many questions you want, then start a personalised practice session.
+            Choose your subject and {selectedTrack === 'tvet' ? 'TVET level' : 'SHS year'}, set how many questions you want, then start a personalised practice session.
           </p>
         </div>
 
@@ -203,9 +234,10 @@ export function PracticePage() {
 
           {/* SHS Year */}
           <div>
-            <label className="text-sm font-semibold text-foreground">SHS Year</label>
+            <label className="text-sm font-semibold text-foreground">{yearLabel}</label>
+            <p className="mt-1 text-xs text-muted-foreground">{yearHint}</p>
             <div className="mt-2 flex gap-2">
-              {YEARS.map(y => {
+              {availableYears.map((y) => {
                 const available = availableYears.includes(y)
                 return (
                   <button

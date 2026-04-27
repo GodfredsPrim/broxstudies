@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.models import (
+    AcademicLevel,
     GeneratedQuestions,
     QuestionGenerationRequest,
     PracticeMarkRequest,
@@ -59,6 +60,43 @@ def _resolve_subject_label(year_key: str, subject_slug: str) -> str:
             pass
     return subject_slug.replace("_", " ").title()
 
+
+TVET_FALLBACK_SUBJECTS = {
+    "level_1": [
+        "Electrical Installation and Maintenance",
+        "Welding and Fabrication",
+        "Motor Vehicle Mechanics",
+        "Carpentry and Joinery",
+        "Plumbing and Pipefitting",
+        "Hospitality Services",
+        "Food Production",
+        "Information and Communication Technology",
+        "Business Management",
+        "Agriculture",
+        "Fashion Design",
+        "Graphic Design",
+        "Refrigeration and Air Conditioning",
+        "Sheet Metal Work",
+        "Bricklaying",
+    ],
+    "level_2": [
+        "Advanced Electrical Installation",
+        "Advanced Welding and Fabrication",
+        "Automotive Repair",
+        "Advanced Carpentry and Joinery",
+        "Advanced Plumbing",
+        "Hospitality Management",
+        "Food and Beverage Services",
+        "ICT Support and Networking",
+        "Entrepreneurship",
+        "Crop Production",
+        "Fashion Design and Textiles",
+        "Environmental Health",
+        "Refrigeration Systems",
+        "Civil Engineering Technology",
+        "Metal Fabrication",
+    ],
+}
 
 def _subject_slug_from_url(subject_url: str, year_key: str) -> str:
     from urllib.parse import urlparse
@@ -140,7 +178,7 @@ async def generate_questions(request: QuestionGenerationRequest):
 
         if request.year:
             request_year = request.year.lower().strip().replace(" ", "_")
-            if request_year in {"year_1", "year_2", "year_3"}:
+            if request_year in {"year_1", "year_2", "year_3", "level_1", "level_2"}:
                 year_key = request_year
             elif request_year in {"1", "year1"}:
                 year_key = "year_1"
@@ -148,6 +186,10 @@ async def generate_questions(request: QuestionGenerationRequest):
                 year_key = "year_2"
             elif request_year in {"3", "year3", "year_3"}:
                 year_key = "year_3"
+            elif request_year in {"level1", "level_1", "nc1", "nc_i"}:
+                year_key = "level_1"
+            elif request_year in {"level2", "level_2", "nc2", "nc_ii", "ncii"}:
+                year_key = "level_2"
 
         if not year_key:
             year_key = "year_1"
@@ -265,7 +307,7 @@ async def get_subjects():
                 catalog = json.load(f)
 
             years = catalog.get("years", {})
-            for year_key in ["year_1", "year_2", "year_3"]:
+            for year_key in ["year_1", "year_2", "year_3", "level_1", "level_2"]:
                 for subject_info in years.get(year_key, []):
                     name = subject_info.get("name", "").strip()
                     if not name:
@@ -285,7 +327,11 @@ async def get_subjects():
                         {
                             "id": subject_id,
                             "name": name,
-                            "year": year_key.replace("_", " ").title(),
+                            "year": (
+                                f"TVET Level {year_key.split('_')[1]}" if year_key.startswith("level_")
+                                else year_key.replace("_", " ").title()
+                            ),
+                            "academic_level": AcademicLevel.TVET.value if year_key.startswith("level_") else AcademicLevel.SHS.value,
                         }
                     )
         except Exception as e:
@@ -312,7 +358,7 @@ async def get_subjects():
                 "Building Construction and Wood Technology", "Electrical and Electronic Technology", "Arabic",
                 "Art and Design Foundation", "Biology", "Biomedical Science", "Business Management", "Accounting",
                 "Chemistry", "Economics", "English Language", "French", "Geography", "Government", "History",
-                "Information Communication Technology (ICT)", "Literature-in-English", "Manufacturing Engineering",
+                "Information Communication and Technology (ICT)", "Literature-in-English", "Manufacturing Engineering",
                 "Mathematics", "Music", "Physics", "Social Studies", "Design and Communication Technology",
                 "Engineering", "Food and Nutrition", "Clothing and Textiles", "Aviation and Aerospace Engineering",
             ],
@@ -321,7 +367,7 @@ async def get_subjects():
                 "Building Construction and Wood Technology", "Electrical and Electronic Technology", "Arabic",
                 "Art and Design Foundation", "Biology", "Biomedical Science", "Business Management", "Accounting",
                 "Chemistry", "Economics", "English Language", "French", "Geography", "Government", "History",
-                "Information Communication Technology (ICT)", "Literature-in-English", "Manufacturing Engineering",
+                "Information Communication and Technology (ICT)", "Literature-in-English", "Manufacturing Engineering",
                 "Mathematics", "Music", "Physics", "Social Studies", "Design and Communication Technology",
                 "Engineering", "Food and Nutrition", "Clothing and Textiles", "Aviation and Aerospace Engineering",
             ],
@@ -339,10 +385,27 @@ async def get_subjects():
                         "id": subject_id,
                         "name": name,
                         "year": year_key.replace("_", " ").title(),
+                        "academic_level": AcademicLevel.SHS.value,
                     }
                 )
 
-    subjects_list.sort(key=lambda x: (x["year"], x["name"]))
+    for year_key, names in TVET_FALLBACK_SUBJECTS.items():
+        for name in names:
+            slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+            subject_id = f"{year_key}:{slug}"
+            if subject_id in seen:
+                continue
+            seen.add(subject_id)
+            subjects_list.append(
+                {
+                    "id": subject_id,
+                    "name": name,
+                    "year": f"TVET Level {year_key.split('_')[1]}",
+                    "academic_level": AcademicLevel.TVET.value,
+                }
+            )
+
+    subjects_list.sort(key=lambda x: (x.get("academic_level", "shs"), x["year"], x["name"]))
     return {"subjects": subjects_list}
 
 
@@ -357,6 +420,8 @@ async def get_resource_status(year: str, subject: str):
     if year_key in {"1", "year1"}: year_key = "year_1"
     elif year_key in {"2", "year2"}: year_key = "year_2"
     elif year_key in {"3", "year3"}: year_key = "year_3"
+    elif year_key in {"level1", "level_1", "nc1", "nc_i"}: year_key = "level_1"
+    elif year_key in {"level2", "level_2", "nc2", "nc_ii", "ncii"}: year_key = "level_2"
     subject_token = subject.lower().strip()
     if ":" in subject_token:
         _, subject_token = subject_token.split(":", 1)
@@ -385,6 +450,11 @@ async def create_live_quiz(request: LiveQuizCreateRequest):
     subject_slug = subject_token
     if ":" in subject_token:
         year_key, subject_slug = subject_token.split(":", 1)
+    if year_key in {"1", "year1"}: year_key = "year_1"
+    elif year_key in {"2", "year2"}: year_key = "year_2"
+    elif year_key in {"3", "year3", "year_3"}: year_key = "year_3"
+    elif year_key in {"level1", "level_1", "nc1", "nc_i"}: year_key = "level_1"
+    elif year_key in {"level2", "level_2", "nc2", "nc_ii", "ncii"}: year_key = "level_2"
     subject_id = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
 
     from app.services.curriculum_fetcher import CurriculumResourceFetcher

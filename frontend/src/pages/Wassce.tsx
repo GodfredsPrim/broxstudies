@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import type { Question, Subject } from '@/api/types'
 
 const YEARS = ['Year 1', 'Year 2', 'Year 3']
@@ -83,6 +84,10 @@ export function WassceePage() {
   const [score, setScore] = useState(0)
   const [percentage, setPercentage] = useState(0)
   const [markResults, setMarkResults] = useState<MarkResult[]>([])
+  const { selectedTrack } = useAcademicTrack()
+  const curriculumName = selectedTrack === 'tvet' ? 'NAPTEX' : 'WASSCE'
+  const likelyLabel = selectedTrack === 'tvet' ? 'Likely NAPTEX Questions' : 'Likely WASSCE Questions'
+  const examLabel = selectedTrack === 'tvet' ? 'NAPTEX Exam Simulation' : 'WASSCE Exam Simulation'
 
   /* load subjects */
   useEffect(() => {
@@ -240,11 +245,11 @@ export function WassceePage() {
         <div className="mt-8">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
             <Shield className="h-3.5 w-3.5" />
-            WASSCE Exam Simulation
+            {examLabel}
           </div>
-          <h1 className="text-3xl font-black text-foreground">Likely WASSCE Questions</h1>
+          <h1 className="text-3xl font-black text-foreground">{likelyLabel}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Questions are generated exclusively from past exam papers following the exact WASSCE paper structure. Subjects without past papers fall back to their official textbooks.
+            Questions are generated exclusively from past exam papers following the exact {curriculumName} paper structure. Subjects without past papers fall back to their official textbooks.
           </p>
         </div>
 
@@ -303,7 +308,7 @@ export function WassceePage() {
 
           {/* Paper structure preview */}
           <div className="rounded-2xl bg-muted/30 px-4 py-3">
-            <p className="mb-2 text-xs font-semibold text-foreground">Paper structure (exact WASSCE template):</p>
+            <p className="mb-2 text-xs font-semibold text-foreground">Paper structure (exact {curriculumName} template):</p>
             <div className="space-y-1.5">
               {(['paper_1', 'paper_2', 'paper_3'] as PaperKey[]).map(k => (
                 <div key={k} className="flex items-center gap-2">
@@ -331,7 +336,7 @@ export function WassceePage() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <TrendingUp size={16} />
-            Begin WASSCE simulation
+            Begin {curriculumName} simulation
           </button>
         </form>
       </div>
@@ -343,7 +348,7 @@ export function WassceePage() {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white px-6">
         <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
-        <h2 className="mt-5 text-xl font-bold text-foreground">Building your WASSCE paper…</h2>
+        <h2 className="mt-5 text-xl font-bold text-foreground">Building your {curriculumName} paper…</h2>
         <p className="mt-2 max-w-xs text-center text-sm text-muted-foreground">
           Analysing past paper templates for <strong>{selectedName}</strong> ({selectedYear}) and generating exam-grade questions.
         </p>
@@ -397,7 +402,7 @@ export function WassceePage() {
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
           <div className="min-w-0">
             <p className="truncate text-sm font-black text-foreground">{selectedName}</p>
-            <p className="text-xs text-muted-foreground">{selectedYear} · Likely WASSCE</p>
+            <p className="text-xs text-muted-foreground">{selectedYear} · {likelyLabel}</p>
           </div>
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -588,7 +593,7 @@ export function WassceePage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
       <div className="mt-8">
-        <h1 className="text-2xl font-black text-foreground">WASSCE Results</h1>
+        <h1 className="text-2xl font-black text-foreground">{curriculumName} Results</h1>
         <p className="text-sm text-muted-foreground">
           {selectedName} · {selectedYear} · {fmt(elapsed)} elapsed
         </p>
@@ -684,7 +689,7 @@ export function WassceePage() {
         className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
       >
         <RotateCcw size={14} />
-        New WASSCE simulation
+        New {curriculumName} simulation
       </button>
     </div>
   )

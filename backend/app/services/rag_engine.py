@@ -1,7 +1,6 @@
 import json
 
 from app.config import settings
-from app.models import Subject
 
 
 class RAGEngine:
@@ -10,7 +9,7 @@ class RAGEngine:
         self.llm = None
         self.vector_store_path = settings.VECTOR_STORE_DIR
 
-    async def add_documents(self, documents: list, subject: Subject):
+    async def add_documents(self, documents: list, subject: str):
         """Add documents to the lightweight cache used by the app."""
         try:
             if not documents:
@@ -43,7 +42,7 @@ class RAGEngine:
         except Exception as e:
             raise Exception(f"Error adding documents: {str(e)}")
 
-    async def analyze_patterns(self, subject: Subject):
+    async def analyze_patterns(self, subject: str):
         """Analyze patterns in past questions."""
         try:
             patterns = {
@@ -57,7 +56,7 @@ class RAGEngine:
         except Exception as e:
             raise Exception(f"Error analyzing patterns: {str(e)}")
 
-    async def get_topics(self, subject: Subject):
+    async def get_topics(self, subject: str):
         """Get common topics for a subject."""
         topics = {
             "mathematics": ["Algebra", "Geometry", "Calculus", "Statistics", "Trigonometry"],

@@ -5,7 +5,9 @@ import {
   ArrowUpRight, Flame, Target, Sparkles
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useGuestChats } from '@/hooks/useGuestChats'
+import { TrackSelector } from '@/components/TrackSelector'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { StatCard } from '@/components/ui/StatCard'
 import { Card } from '@/components/ui/card'
@@ -24,8 +26,26 @@ const DESTINATIONS = [
 
 export function HomePage() {
   const { user } = useAuth()
+  const { selectedTrack, setSelectedTrack, loading: trackLoading } = useAcademicTrack()
   const { remaining, limit } = useGuestChats()
   const firstName = (user?.full_name || user?.email || '').split(/[\s@]/)[0] || 'student'
+
+  if (trackLoading) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center px-4 py-20">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
+      </div>
+    )
+  }
+
+  const showTrackSelection = !selectedTrack
+  if (showTrackSelection) {
+    return (
+      <div className="relative mx-auto w-full max-w-[1240px] px-4 pb-16 pt-8 sm:px-8 lg:px-12">
+        <TrackSelector selectedTrack={selectedTrack} onSelect={setSelectedTrack} />
+      </div>
+    )
+  }
 
   return (
     <div className="relative mx-auto w-full max-w-[1240px] px-4 pb-16 pt-8 sm:px-8 lg:px-12">

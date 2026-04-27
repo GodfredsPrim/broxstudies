@@ -7,11 +7,13 @@ import { BootGate } from '@/components/BootGate'
 import { LoginPage } from '@/pages/Login'
 import { SignupPage } from '@/pages/Signup'
 import { ActivatePage } from '@/pages/Activate'
+import { TrackSelectionPage } from '@/pages/TrackSelection'
 import { StudyPage } from '@/pages/Study'
 import { AdminPage } from '@/pages/Admin'
 import { PracticePage } from '@/pages/Practice'
 import { WassceePage } from '@/pages/Wassce'
 import { QuizPage } from '@/pages/Quiz'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { NewsPage } from '@/pages/News'
 import { RankingsPage } from '@/pages/Rankings'
 import { LibraryPage } from '@/pages/Library'
@@ -19,6 +21,12 @@ import { HistoryPage } from '@/pages/History'
 import { NotFoundPage } from '@/pages/stubs'
 
 export default function App() {
+  const { selectedTrack } = useAcademicTrack()
+  const wassceLabel = selectedTrack === 'tvet' ? 'Likely NAPTEX Questions' : 'Likely WASSCE Questions'
+  const wasscePitch = selectedTrack === 'tvet'
+    ? 'Topic-by-topic likelihood scores from NAPTEX past-paper analysis — unlock when you activate.'
+    : 'Topic-by-topic likelihood scores from years of past-paper analysis — unlock when you activate.'
+
   return (
     <BootGate>
       <Routes>
@@ -33,6 +41,7 @@ export default function App() {
             </Gate>
           }
         />
+        <Route path="/select-track" element={<TrackSelectionPage />} />
 
         {/* Main app shell */}
         <Route element={<AppShell />}>

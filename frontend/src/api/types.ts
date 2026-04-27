@@ -7,6 +7,7 @@ export interface AuthUser {
   subscription_status?: string
   is_admin?: boolean
   created_at?: string
+  selected_track?: 'shs' | 'tvet' | null
 }
 
 export interface AuthResponse {
@@ -26,6 +27,7 @@ export interface Subject {
   id: string
   name: string
   year: string
+  academic_level?: 'shs' | 'tvet'
 }
 
 export interface SubjectsResponse {

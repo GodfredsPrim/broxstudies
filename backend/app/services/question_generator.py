@@ -66,12 +66,16 @@ class QuestionGenerator:
         """Generate a professionally structured mock exam matching official templates."""
         logger.info(f"Generating Professional Mock for {subject_slug} ({year_key})")
         
+        # Get academic level from catalog
+        subject_info = KNOWN_SUBJECTS.get(subject_slug, {})
+        academic_level = subject_info.get("academic_level", "SHS").upper()
+        
         # 1. Analyze structure of existing past papers for this subject
-        structure = self.intel.analyze_paper_structure(subject_slug)
+        structure = self.intel.analyze_paper_structure(subject_slug, academic_level)
         
         # 2. Extract topics from textbooks for coverage
-        topics_y1 = self.intel.extract_topics_from_textbook("year_1", subject_slug)
-        topics_y2 = self.intel.extract_topics_from_textbook("year_2", subject_slug)
+        topics_y1 = self.intel.extract_topics_from_textbook("year_1", subject_slug, academic_level)
+        topics_y2 = self.intel.extract_topics_from_textbook("year_2", subject_slug, academic_level)
         all_topics = topics_y1 + topics_y2
 
         # 3. Year 3 Priority Logic: Past Questions First

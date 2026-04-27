@@ -22,6 +22,32 @@ class Subject(str, Enum):
     ELECTIVES = "electives"
 
 
+class AcademicLevel(str, Enum):
+    SHS = "shs"
+    TVET = "tvet"
+
+
+def normalize_academic_level_value(value):
+    if isinstance(value, AcademicLevel):
+        return value
+    if value is None:
+        return AcademicLevel.SHS
+
+    normalized = str(value).strip().lower()
+    aliases = {
+        "shs": AcademicLevel.SHS,
+        "senior high school": AcademicLevel.SHS,
+        "secondary": AcademicLevel.SHS,
+        "tvet": AcademicLevel.TVET,
+        "technical vocational": AcademicLevel.TVET,
+        "vocational": AcademicLevel.TVET,
+        "nc ii": AcademicLevel.TVET,
+        "nc2": AcademicLevel.TVET,
+        "ncii": AcademicLevel.TVET,
+    }
+    return aliases.get(normalized, AcademicLevel.SHS)
+
+
 SUBJECT_ALIASES = {
     "core_mathematics": Subject.MATHEMATICS.value,
     "mathematics": Subject.MATHEMATICS.value,

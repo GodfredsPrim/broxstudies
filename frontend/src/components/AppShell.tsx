@@ -6,6 +6,7 @@ import {
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
@@ -45,6 +46,8 @@ export function AppShell() {
     setDevMode(isDev)
   }, [])
 
+  const { selectedTrack, resetAcademicTrack } = useAcademicTrack()
+
   const logout = () => {
     signOut()
     navigate('/', { replace: true })
@@ -58,7 +61,13 @@ export function AppShell() {
     .join('')
     .toUpperCase()
 
-  const activeNav = NAV.find(n => (n.to === '/' ? location.pathname === '/' : location.pathname.startsWith(n.to)))
+  const pageNav = NAV.map(item =>
+    item.to === '/wassce' && selectedTrack === 'tvet'
+      ? { ...item, label: 'Likely NAPTEX Questions', short: 'NAPTEX' }
+      : item,
+  )
+
+  const activeNav = pageNav.find(n => (n.to === '/' ? location.pathname === '/' : location.pathname.startsWith(n.to)))
   const isAdmin = location.pathname.startsWith('/admin')
   const currentTitle = isAdmin ? 'Admin Dashboard' : (activeNav?.label || 'BroxStudies')
 
@@ -74,11 +83,11 @@ export function AppShell() {
           )}
           style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
         >
-          <Brand collapsed={collapsed} />
+          <Brand collapsed={collapsed} selectedTrack={selectedTrack} />
 
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-2">
             <NavGroup label="Studio" collapsed={collapsed}>
-              {NAV.filter(n => n.group === 'primary').map(item => (
+              {pageNav.filter(n => n.group === 'primary').map(item => (
                 <NavItem key={item.to} item={item} collapsed={collapsed} />
               ))}
             </NavGroup>
@@ -185,7 +194,7 @@ export function AppShell() {
                 </div>
                 <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3">
                   <NavGroup label="Studio" collapsed={false}>
-                    {NAV.filter(n => n.group === 'primary').map(item => (
+                    {pageNav.filter(n => n.group === 'primary').map(item => (
                       <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
@@ -202,22 +211,38 @@ export function AppShell() {
                 </nav>
                 <div className="mx-3 mb-3 rounded-xl border border-white/5 bg-[var(--bg-2)] p-3">
                   {user ? (
-                    <div className="flex items-center gap-2">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-[13px] font-bold text-emerald-300 ring-1 ring-emerald-400/20">
-                        {initials}
+                    <>
+                      <div className="flex items-center gap-2">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-[13px] font-bold text-emerald-300 ring-1 ring-emerald-400/20">
+                          {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-ink-0">{user.full_name || user.email}</div>
+                          <div className="truncate text-xs text-ink-400">{user.email}</div>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-ink-0">{user.full_name || user.email}</div>
-                        <div className="truncate text-xs text-ink-400">{user.email}</div>
-                      </div>
+                      {selectedTrack && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-emerald-300">
+                            {selectedTrack.toUpperCase()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={resetAcademicTrack}
+                            className="text-xs font-semibold text-ink-300 underline underline-offset-2 decoration-ink-500/20 hover:text-ink-0"
+                          >
+                            Change track
+                          </button>
+                        </div>
+                      )}
                       <button
                         onClick={logout}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-rose-500/10 hover:text-rose-400"
+                        className="mt-3 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-rose-500/10 hover:text-rose-400"
                         aria-label="Sign out"
                       >
                         <LogOut size={16} />
                       </button>
-                    </div>
+                    </>
                   ) : (
                     <div className="flex flex-col gap-2">
                       <div className="v2-eyebrow">Guest — {remaining}/{limit} free chats</div>
@@ -259,7 +284,7 @@ export function AppShell() {
             </button>
           )}
           <div className="v2-eyebrow hidden sm:flex sm:items-center sm:gap-2">
-            <span>BroxStudies · SHS</span>
+            <span>BroxStudies · {selectedTrack ? selectedTrack.toUpperCase() : 'SHS / TVET'}</span>
             <span className="text-[var(--fg-3)]">/</span>
             <span className="text-[var(--fg-1)]">{currentTitle}</span>
           </div>
@@ -316,7 +341,7 @@ export function AppShell() {
   )
 }
 
-function Brand({ collapsed }: { collapsed: boolean }) {
+function Brand({ collapsed, selectedTrack }: { collapsed: boolean; selectedTrack: string | null }) {
   return (
     <NavLink to="/" className={cn('flex items-center gap-3 px-5 pb-5 pt-6', collapsed && 'justify-center px-0')}>
       <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-glow-sm">
@@ -326,7 +351,9 @@ function Brand({ collapsed }: { collapsed: boolean }) {
        {!collapsed && (
          <div className="min-w-0">
            <div className="truncate font-display text-[20px] leading-none text-[var(--fg-0)]">BroxStudies</div>
-           <div className="mt-1 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">for SHS</div>
+           <div className="mt-1 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+             {selectedTrack ? `for ${selectedTrack.toUpperCase()}` : 'for SHS & TVET'}
+           </div>
          </div>
        )}
     </NavLink>

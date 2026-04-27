@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Sparkles, Plus, AlertTriangle } from 'lucide-react'
 import { tutorApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useGuestChats } from '@/hooks/useGuestChats'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { Button } from '@/components/ui/button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Badge } from '@/components/ui/Badge'
@@ -20,6 +21,7 @@ interface Msg {
 
 export function StudyPage() {
   const { user } = useAuth()
+  const { selectedTrack, loading: trackLoading } = useAcademicTrack()
   const guest = useGuestChats()
   const isAuth = Boolean(user)
 
@@ -59,6 +61,10 @@ export function StudyPage() {
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 180) + 'px'
   }, [input])
+
+  if (!trackLoading && !selectedTrack) {
+    return <Navigate to="/select-track" replace />
+  }
 
   const resetChat = () => {
     setMessages([])

@@ -13,38 +13,65 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 class WassceIntelligenceService:
-    """Service to analyze WASSCE materials (textbooks, past questions, solutions)."""
+    """Service to analyze WASSCE/NAPTEXT materials (textbooks, past questions, solutions)."""
 
     def __init__(self):
         self.data_dir = settings.DATA_DIR
+        self.syllabi_dir = self.data_dir / "syllabi"
         self.textbooks_dir = self.data_dir / "textbooks"
         self.past_questions_dir = self.data_dir / "past_questions"
+        self.tvet_data_dir = self.data_dir / "tvet"
+        self.tvet_syllabi_dir = self.tvet_data_dir / "syllabi"
+        self.tvet_textbooks_dir = self.tvet_data_dir / "textbooks"
+        self.tvet_past_questions_dir = self.tvet_data_dir / "past_questions"
         self.cache_dir = self.data_dir / "intelligence_cache"
+        self.tvet_cache_dir = self.tvet_data_dir / "intelligence_cache"
         self.cache_dir.mkdir(exist_ok=True)
+        self.tvet_cache_dir.mkdir(exist_ok=True)
 
-    def extract_topics_from_textbook(self, year: str, subject_slug: str) -> List[str]:
+    def extract_topics_from_textbook(self, year: str, subject_slug: str, academic_level: str = "SHS") -> List[str]:
         """Extract topics from the textbook Table of Contents."""
-        cache_file = self.cache_dir / f"topics_{year}_{subject_slug}.json"
+        cache_dir = self.tvet_cache_dir if academic_level == "TVET" else self.cache_dir
+        textbooks_dir = self.tvet_textbooks_dir if academic_level == "TVET" else self.textbooks_dir
+        cache_file = cache_dir / f"topics_{year}_{subject_slug}.json"
         if cache_file.exists():
             with open(cache_file, 'r') as f:
                 return json.load(f)
 
-        logger.info(f"Extracting topics for {subject_slug} ({year})")
+        logger.info(f"Extracting topics for {subject_slug} ({year}) - {academic_level}")
         
         # Determine textbook path
         year_folder = "ALL SUBJECTS NOTE (YEAR 1)" if "year_1" in year.lower() else "ALL SUBJECT NOTE (YEAR 2)"
-        potential_zip = self.textbooks_dir / year_folder / f"{subject_slug.replace('_', ' ').title()}.zip"
+        if academic_level == "TVET":
+            # For TVET, assume different structure or same for now
+            year_folder = "Year 1" if "year_1" in year.lower() else "Year 2"
+        potential_zip = textbooks_dir / year_folder / f"{subject_slug.replace('_', ' ').title()}.zip"
         
         # Fallback search if title case fails
         if not potential_zip.exists():
-            for item in (self.textbooks_dir / year_folder).iterdir():
-                if subject_slug.lower() in item.name.lower():
-                    potential_zip = item
-                    break
+            try:
+                for item in (textbooks_dir / year_folder).iterdir():
+                    if subject_slug.lower() in item.name.lower():
+                        potential_zip = item
+                        break
+            except FileNotFoundError:
+                pass
         
         if not potential_zip.exists():
-            logger.warning(f"Textbook ZIP not found for {subject_slug}")
-            return []
+            # For TVET, fallback to SHS data if TVET data doesn't exist
+            if academic_level == "TVET":
+                logger.info(f"TVET data not found for {subject_slug}, falling back to SHS data")
+                shs_textbooks_dir = self.textbooks_dir
+                shs_year_folder = "ALL SUBJECTS NOTE (YEAR 1)" if "year_1" in year.lower() else "ALL SUBJECT NOTE (YEAR 2)"
+                potential_zip = shs_textbooks_dir / shs_year_folder / f"{subject_slug.replace('_', ' ').title()}.zip"
+                if not potential_zip.exists():
+                    for item in (shs_textbooks_dir / shs_year_folder).iterdir():
+                        if subject_slug.lower() in item.name.lower():
+                            potential_zip = item
+                            break
+            if not potential_zip.exists():
+                logger.warning(f"No textbook data found for {subject_slug} - {academic_level}")
+                return []
 
         topics = []
         try:
@@ -83,25 +110,44 @@ class WassceIntelligenceService:
             logger.error(f"Error extracting topics for {subject_slug}: {str(e)}")
             return []
 
-    def analyze_paper_structure(self, subject_slug: str) -> Dict[str, Any]:
+    def analyze_paper_structure(self, subject_slug: str, academic_level: str = "SHS") -> Dict[str, Any]:
         """Analyze a representative past question PDF to determine the section counts."""
-        cache_file = self.cache_dir / f"structure_{subject_slug}.json"
+        cache_dir = self.tvet_cache_dir if academic_level == "TVET" else self.cache_dir
+        past_questions_dir = self.tvet_past_questions_dir if academic_level == "TVET" else self.past_questions_dir
+        cache_file = cache_dir / f"structure_{subject_slug}.json"
         if cache_file.exists():
             with open(cache_file, 'r') as f:
                 return json.load(f)
 
-        logger.info(f"Analyzing paper structure for {subject_slug}")
+        logger.info(f"Analyzing paper structure for {subject_slug} - {academic_level}")
         
-        potential_zip = self.past_questions_dir / f"{subject_slug.replace('_', ' ').title()}.zip"
+        potential_zip = past_questions_dir / f"{subject_slug.replace('_', ' ').title()}.zip"
         if not potential_zip.exists():
             # Fallback search
-            for item in self.past_questions_dir.iterdir():
-                if subject_slug.lower() in item.name.lower() and item.suffix == ".zip":
-                    potential_zip = item
-                    break
+            try:
+                for item in past_questions_dir.iterdir():
+                    if subject_slug.lower() in item.name.lower() and item.suffix == ".zip":
+                        potential_zip = item
+                        break
+            except FileNotFoundError:
+                pass
 
         if not potential_zip.exists():
-            return {"paper_1": 40, "paper_2": {"section_a": 5, "section_b": 5}, "paper_3": 0}
+            # For TVET, fallback to SHS data if TVET data doesn't exist
+            if academic_level == "TVET":
+                logger.info(f"TVET past questions not found for {subject_slug}, falling back to SHS data")
+                shs_past_questions_dir = self.past_questions_dir
+                potential_zip = shs_past_questions_dir / f"{subject_slug.replace('_', ' ').title()}.zip"
+                if not potential_zip.exists():
+                    for item in shs_past_questions_dir.iterdir():
+                        if subject_slug.lower() in item.name.lower() and item.suffix == ".zip":
+                            potential_zip = item
+                            break
+            if not potential_zip.exists():
+                # Default structure for TVET if no past questions
+                if academic_level == "TVET":
+                    return {"paper_1": 40, "paper_2": {"section_a": 5, "section_b": 5}, "paper_3": 0}
+                return {"paper_1": 40, "paper_2": {"section_a": 5, "section_b": 5}, "paper_3": 0}
 
         structure = {"paper_1": 0, "paper_2": {}, "paper_3": 0}
         

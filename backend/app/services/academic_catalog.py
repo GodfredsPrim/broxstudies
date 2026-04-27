@@ -38,12 +38,19 @@ KNOWN_SUBJECTS = {
             "Social Studies", "Spanish",
         ],
     },
-    AcademicLevel.JHS.value: {
-        "year_3": [
-            "English Language", "Mathematics", "Science", "Social Studies",
-            "Computing", "Creative Arts and Design", "Career Technology",
-            "French", "Ghanaian Language", "Religious and Moral Education",
-        ]
+    AcademicLevel.TVET.value: {
+        "level_1": [
+            "Electrical Installation and Maintenance", "Welding and Fabrication", "Motor Vehicle Mechanics",
+            "Carpentry and Joinery", "Plumbing and Pipefitting", "Hospitality Services", "Food Production",
+            "Information and Communication Technology", "Business Management", "Agriculture", "Fashion Design",
+            "Graphic Design", "Refrigeration and Air Conditioning", "Sheet Metal Work", "Bricklaying",
+        ],
+        "level_2": [
+            "Advanced Electrical Installation", "Advanced Welding and Fabrication", "Automotive Repair",
+            "Advanced Carpentry and Joinery", "Advanced Plumbing", "Hospitality Management", "Food and Beverage Services",
+            "ICT Support and Networking", "Entrepreneurship", "Crop Production", "Fashion Design and Textiles",
+            "Environmental Health", "Refrigeration Systems", "Civil Engineering Technology", "Metal Fabrication",
+        ],
     },
 }
 
@@ -58,12 +65,17 @@ YEAR_ALIASES = {
     "2": "year_2",
     "shs2": "year_2",
     "shs_year_2": "year_2",
-    "year_3": "year_3",
-    "year3": "year_3",
-    "3": "year_3",
-    "jhs3": "year_3",
-    "jhs_year_3": "year_3",
-    "bece": "year_3",
+    "level_1": "level_1",
+    "level1": "level_1",
+    "1st_level": "level_1",
+    "nc1": "level_1",
+    "nc_i": "level_1",
+    "level_2": "level_2",
+    "level2": "level_2",
+    "2nd_level": "level_2",
+    "nc2": "level_2",
+    "nc_ii": "level_2",
+    "ncii": "level_2",
 }
 
 
@@ -85,8 +97,8 @@ def normalize_academic_level(value: str | AcademicLevel | None = None) -> str:
     normalized = normalize_academic_level_value(value)
     if isinstance(normalized, AcademicLevel):
         return normalized.value
-    if normalized == AcademicLevel.JHS.value:
-        return AcademicLevel.JHS.value
+    if normalized == AcademicLevel.TVET.value:
+        return AcademicLevel.TVET.value
     return AcademicLevel.SHS.value
 
 
@@ -95,19 +107,19 @@ def normalize_year_key(value: str | None = None, academic_level: str | AcademicL
     normalized = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
     if normalized in YEAR_ALIASES:
         return YEAR_ALIASES[normalized]
-    return "year_3" if level == AcademicLevel.JHS.value else "year_1"
+    return "level_2" if level == AcademicLevel.TVET.value else "year_1"
 
 
 def infer_academic_level_from_year(year_key: str, academic_level: str | AcademicLevel | None = None) -> str:
-    if year_key == "year_3":
-        return AcademicLevel.JHS.value
+    if year_key.startswith("level_"):
+        return AcademicLevel.TVET.value
     return normalize_academic_level(academic_level)
 
 
 def format_year_label(academic_level: str | AcademicLevel, year_key: str) -> str:
     level = normalize_academic_level(academic_level)
-    if level == AcademicLevel.JHS.value:
-        return "JHS Year 3"
+    if level == AcademicLevel.TVET.value:
+        return year_key.replace("level_", "TVET Level ").upper()
     if year_key == "year_2":
         return "SHS Year 2"
     return "SHS Year 1"
@@ -159,7 +171,7 @@ def parse_subject_reference(subject: str, year: str | None = None, academic_leve
     tokens = [token.strip() for token in str(subject or "").split(":") if token.strip()]
     resolved_level = normalize_academic_level(academic_level)
 
-    if tokens and slugify(tokens[0]) in {AcademicLevel.SHS.value, AcademicLevel.JHS.value}:
+    if tokens and slugify(tokens[0]) in {AcademicLevel.SHS.value, AcademicLevel.TVET.value}:
         resolved_level = slugify(tokens.pop(0))
 
     year_token = year

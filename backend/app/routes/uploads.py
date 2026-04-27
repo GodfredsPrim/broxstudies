@@ -1,16 +1,17 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from app.services.pdf_processor import PDFProcessor
 from app.services.batch_loader import BatchLoader
-from app.models import Subject
+from app.services.rag_engine import RAGEngine
 import os
 from app.config import settings
 
 router = APIRouter()
 pdf_processor = PDFProcessor()
 batch_loader = BatchLoader()
+rag_engine = RAGEngine()
 
 @router.post("/pdf")
-async def upload_pdf(file: UploadFile = File(...), file_type: str = None, subject: Subject = None):
+async def upload_pdf(file: UploadFile = File(...), file_type: str = None, subject: str = None):
     """Upload a PDF file (syllabus, past questions, or textbook)"""
     try:
         if not file.filename.lower().endswith('.pdf'):
@@ -25,6 +26,10 @@ async def upload_pdf(file: UploadFile = File(...), file_type: str = None, subjec
         
         # Process PDF
         result = await pdf_processor.process_pdf(file_path, file_type, subject)
+        
+        # Add to vector store if subject provided
+        if subject:
+            await rag_engine.add_documents(result["chunks"], subject)
         
         return {
             "filename": file.filename,
