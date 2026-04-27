@@ -26,8 +26,8 @@ class WassceIntelligenceService:
         self.tvet_past_questions_dir = self.tvet_data_dir / "past_questions"
         self.cache_dir = self.data_dir / "intelligence_cache"
         self.tvet_cache_dir = self.tvet_data_dir / "intelligence_cache"
-        self.cache_dir.mkdir(exist_ok=True)
-        self.tvet_cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.tvet_cache_dir.mkdir(parents=True, exist_ok=True)
 
     def extract_topics_from_textbook(self, year: str, subject_slug: str, academic_level: str = "SHS") -> List[str]:
         """Extract topics from the textbook Table of Contents."""
