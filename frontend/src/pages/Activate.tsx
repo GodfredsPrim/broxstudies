@@ -61,15 +61,15 @@ export function ActivatePage() {
             </div>
 
             <h1 className="v2-display text-[36px] leading-[1.05] tracking-tighter text-ink-0">
-              Unlock everything for <span className="text-amber-300">GH₵ 10</span>.
+              Unlock everything for <span className="text-amber-300">GH₵ 20</span>.
             </h1>
             <p className="mt-3 text-[15px] leading-relaxed text-ink-300">
                Pay via MoMo to <strong className="text-ink-0">0248317900</strong>, then enter the access
-               code we send you to unlock Practice, Quiz, Library, and more for a full month.
+               code we send you to unlock Practice, Quiz, Library, and more for 3 months.
             </p>
 
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <MiniStep num="1" icon={<Smartphone size={14} />} label="Send GH₵ 10 via MoMo" />
+              <MiniStep num="1" icon={<Smartphone size={14} />} label="Send GH₵ 20 via MoMo" />
               <MiniStep num="2" icon={<Ticket size={14} />} label="Receive BROX-XXXX code" />
               <MiniStep num="3" icon={<Check size={14} />} label="Paste code to unlock" />
             </div>
@@ -122,8 +122,8 @@ export function ActivatePage() {
           <div className="flex items-center justify-between gap-3 border-t border-white/5 bg-[var(--bg-2)]/50 px-7 py-4 sm:px-9">
             <Eyebrow>Pricing</Eyebrow>
             <div className="flex items-center gap-2">
-              <Badge tone="gold">GH₵ 10</Badge>
-              <span className="text-xs text-ink-400">per month · unlimited practice</span>
+              <Badge tone="gold">GH₵ 20</Badge>
+              <span className="text-xs text-ink-400">valid for 3 months · unlimited practice</span>
             </div>
           </div>
         </Card>

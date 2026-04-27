@@ -108,7 +108,7 @@ function AuthWall({
         </div>
         <div className="border-t border-white/5 bg-[var(--bg-2)]/50 px-8 py-4 sm:px-12">
           <Eyebrow className="!text-[10px]">
-            {signup ? 'Free to start · 3 AI study chats for guests' : 'GH₵ 10 / month via MoMo · 0248317900'}
+            {signup ? 'Free to start · 3 AI study chats for guests' : 'GH₵ 20 for 3 months via MoMo · 0248317900'}
           </Eyebrow>
         </div>
       </Card>
