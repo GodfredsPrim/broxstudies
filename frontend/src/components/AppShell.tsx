@@ -183,7 +183,7 @@ export function AppShell() {
                 className="fixed inset-y-0 left-0 z-50 flex w-[288px] flex-col border-r border-white/5 bg-[var(--bg-1)] lg:hidden"
               >
                 <div className="flex items-center justify-between px-4 py-4">
-                  <Brand collapsed={false} />
+                  <Brand collapsed={false} selectedTrack={selectedTrack} />
                   <button
                     onClick={() => setMobileOpen(false)}
                     className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 hover:bg-white/5 hover:text-ink-0"

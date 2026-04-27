@@ -4,9 +4,9 @@ import { Sparkles } from 'lucide-react'
 import { TrackSelector } from '@/components/TrackSelector'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useAuth } from '@/hooks/useAuth'
-import { Card } from '@/components/ui/card'
+import { Card } from '@/components/ui/Card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 
 export function TrackSelectionPage() {
   const { selectedTrack, setSelectedTrack, loading } = useAcademicTrack()
@@ -54,7 +54,7 @@ export function TrackSelectionPage() {
                     Continue to Study
                   </Link>
                   {user ? (
-                    <Button onClick={() => navigate('/')} variant="secondary" fullWidth>
+                    <Button onClick={() => navigate('/')} variant="ghost" fullWidth>
                       Continue as signed-in user
                     </Button>
                   ) : (
