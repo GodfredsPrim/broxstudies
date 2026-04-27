@@ -7,8 +7,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Eyebrow } from '@/components/ui/eyebrow'
-import { Badge } from '@/components/ui/badge'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { Badge } from '@/components/ui/Badge'
 
 export function ActivatePage() {
   const { user, refresh } = useAuth()

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Lock, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Card } from './ui/card'
-import { Eyebrow } from './ui/eyebrow'
+import { Eyebrow } from './ui/Eyebrow'
 
 interface GateProps {
   children: ReactNode
