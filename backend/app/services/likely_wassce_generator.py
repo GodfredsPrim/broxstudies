@@ -60,7 +60,8 @@ class LikelyWASSCEGenerator:
         self.data_dir = settings.DATA_DIR
         self.textbook_root = settings.SITE_RESOURCE_DIR / "textbooks"
         self.past_root = settings.DATA_DIR / "past_questions"
-        self._llm: Optional[ChatOpenAI] = None
+        self._llm_openai: Optional[ChatOpenAI] = None  # WASSCE-critical work (Essays, marking guides)
+        self._llm_deepseek: Optional[ChatOpenAI] = None  # Fast parallel work (MCQs, Practicals)
         self._exclude_hashes: Set[str] = set()
         self._topic_cache: Dict[str, List[str]] = {}
         self._textbook_excerpt_cache: Dict[str, str] = {}
@@ -680,6 +681,18 @@ class LikelyWASSCEGenerator:
                 score += matches / len(words)
         return score
 
+    def _get_preferred_llm_for_section(self, section: SectionBlueprint) -> str:
+        """Determine which LLM to use based on section type.
+        
+        Strategy:
+        - Paper 2 (Essays): OpenAI (quality, detailed marking guides)
+        - Paper 1 (MCQs): DeepSeek (fast, structured)
+        - Paper 3 (Practicals): DeepSeek (fast, can run in parallel)
+        """
+        if section.paper_key == "paper_2" or section.question_type == QuestionType.ESSAY:
+            return "openai"  # Quality for essays
+        return "deepseek"  # Speed for MCQs and practicals
+
     async def _generate_missing_questions(
         self,
         subject_slug: str,
@@ -695,7 +708,10 @@ class LikelyWASSCEGenerator:
 
         generated: List[Question] = []
         attempts = 0
-        max_attempts = 2  # Reduced from 3 to 2 to speed up generation
+        max_attempts = 2
+        llm_provider = self._get_preferred_llm_for_section(section)
+        
+        logger.info(f"Generating {missing_count} {section.question_type.value} questions for {section.title} using {llm_provider.upper()} (strategy: quality for essays, speed for MCQs)")
         
         while len(generated) < missing_count and attempts < max_attempts:
             attempts += 1
@@ -709,12 +725,25 @@ class LikelyWASSCEGenerator:
             )
 
             try:
-                response = await asyncio.wait_for(self._call_openai(prompt), timeout=90.0)  # Reduced from 120s
+                # Route to appropriate LLM based on section type
+                if llm_provider == "openai":
+                    response = await asyncio.wait_for(self._call_openai(prompt), timeout=90.0)  # OpenAI gets more time for quality
+                else:
+                    response = await asyncio.wait_for(self._call_deepseek(prompt), timeout=75.0)  # DeepSeek optimized for speed
             except asyncio.TimeoutError:
-                logger.warning(f"LLM call timeout for {subject_label} {section.title}; continuing with generated questions")
-                break
+                logger.warning(f"LLM ({llm_provider}) timeout for {subject_label} {section.title}; retrying with fallback")
+                # Try the other LLM on timeout
+                try:
+                    fallback_llm = "deepseek" if llm_provider == "openai" else "openai"
+                    if fallback_llm == "openai":
+                        response = await asyncio.wait_for(self._call_openai(prompt), timeout=60.0)
+                    else:
+                        response = await asyncio.wait_for(self._call_deepseek(prompt), timeout=45.0)  # Very fast fallback
+                except Exception:
+                    logger.warning(f"Fallback LLM also failed; continuing with generated questions")
+                    break
             except Exception as e:
-                logger.warning(f"LLM call failed: {e}; continuing with generated questions")
+                logger.warning(f"LLM ({llm_provider}) call failed: {e}; continuing with generated questions")
                 if attempts >= max_attempts:
                     break
                 continue
@@ -862,24 +891,61 @@ JSON format:
 ]
 """
 
-    async def _call_openai(self, prompt: str) -> str:
+    async def _call_llm(self, prompt: str, question_type: QuestionType = None, is_critical: bool = False) -> str:
+        """Smart LLM selection: OpenAI for WASSCE-critical work, DeepSeek for speed."""
+        if is_critical or question_type in [QuestionType.ESSAY, QuestionType.SHORT_ANSWER]:
+            # Use OpenAI for essays, marking guides, and critical WASSCE content
+            return await self._call_openai(prompt)
+        else:
+            # Use DeepSeek for MCQs and other fast parallel work
+            return await self._call_deepseek(prompt)
+        """Call OpenAI for WASSCE-critical generation (essays, marking guides)."""
         if not settings.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY is required for Likely WASSCE generation.")
+            logger.warning("OPENAI_API_KEY not configured; falling back to DeepSeek")
+            return await self._call_deepseek(prompt)
 
-        if self._llm is None:
+        if self._llm_openai is None:
             kwargs: Dict[str, Any] = {
                 "model": settings.OPENAI_MODEL,
                 "api_key": settings.OPENAI_API_KEY,
                 "temperature": 0.85,
-                "request_timeout": 120.0,
-                "max_retries": 3,
+                "request_timeout": 90.0,  # Reduced from 120s
+                "max_retries": 2,  # Reduced from 3
             }
             if settings.OPENAI_BASE_URL:
                 kwargs["base_url"] = settings.OPENAI_BASE_URL
-            self._llm = ChatOpenAI(**kwargs)
+            self._llm_openai = ChatOpenAI(**kwargs)
 
-        message = await self._llm.ainvoke([HumanMessage(content=prompt)])
-        return message.content
+        try:
+            message = await self._llm_openai.ainvoke([HumanMessage(content=prompt)])
+            return message.content
+        except Exception as e:
+            logger.warning(f"OpenAI call failed: {e}; falling back to DeepSeek")
+            return await self._call_deepseek(prompt)
+
+    async def _call_deepseek(self, prompt: str) -> str:
+        """Call DeepSeek for fast parallel generation (MCQs, practicals)."""
+        if not settings.DEEPSEEK_API_KEY:
+            raise ValueError("DEEPSEEK_API_KEY is required as fallback for question generation.")
+
+        if self._llm_deepseek is None:
+            kwargs: Dict[str, Any] = {
+                "model": settings.DEEPSEEK_MODEL,
+                "api_key": settings.DEEPSEEK_API_KEY,
+                "temperature": 0.7,  # Slightly lower for faster, more consistent responses
+                "request_timeout": 75.0,  # Optimized for speed
+                "max_retries": 1,  # Faster failure detection
+            }
+            if settings.DEEPSEEK_BASE_URL:
+                kwargs["base_url"] = settings.DEEPSEEK_BASE_URL
+            self._llm_deepseek = ChatOpenAI(**kwargs)
+
+        try:
+            message = await self._llm_deepseek.ainvoke([HumanMessage(content=prompt)])
+            return message.content
+        except Exception as e:
+            logger.error(f"DeepSeek call failed: {e}")
+            raise
 
     def _load_textbook_excerpts(self, year_key: str, subject_slug: str, max_items: int = 6, max_chars: int = 1200) -> List[str]:
         excerpts: List[str] = []
