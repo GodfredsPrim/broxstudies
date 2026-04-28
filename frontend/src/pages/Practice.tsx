@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { MathText } from '@/components/MathText'
 import type { Question, Subject } from '@/api/types'
 
 const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
@@ -352,7 +353,9 @@ export function PracticePage() {
                   )}
                 </div>
 
-                <p className="text-sm font-medium leading-relaxed text-foreground">{q.question_text}</p>
+                <p className="text-sm font-medium leading-relaxed text-foreground">
+                  <MathText>{q.question_text}</MathText>
+                </p>
 
                 {q.options?.length ? (
                   <div className="mt-4 space-y-2">
@@ -375,7 +378,7 @@ export function PracticePage() {
                           }`}>
                             {letter}
                           </span>
-                          {opt}
+                          <MathText>{opt}</MathText>
                         </button>
                       )
                     })}
@@ -467,23 +470,23 @@ export function PracticePage() {
                 }
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-relaxed text-foreground">
-                    Q{i + 1}. {q.question_text}
+                    Q{i + 1}. <MathText>{q.question_text}</MathText>
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                     }`}>
-                      Your answer: {myAnswer}
+                      Your answer: <MathText>{myAnswer}</MathText>
                     </span>
                     {!isCorrect && q.correct_answer && (
                       <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                        Correct: {q.correct_answer}
+                        Correct: <MathText>{q.correct_answer}</MathText>
                       </span>
                     )}
                   </div>
                   {(r?.feedback || q.explanation) && (
                     <div className="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                      {r?.feedback || q.explanation}
+                      <MathText>{r?.feedback || q.explanation || ''}</MathText>
                     </div>
                   )}
                 </div>

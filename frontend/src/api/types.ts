@@ -8,6 +8,7 @@ export interface AuthUser {
   is_admin?: boolean
   created_at?: string
   selected_track?: 'shs' | 'tvet' | null
+  track?: 'shs' | 'tvet' | null   // server-locked track after subscription activation
 }
 
 export interface AuthResponse {

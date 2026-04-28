@@ -7,6 +7,7 @@ import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useGuestChats } from '@/hooks/useGuestChats'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { MathText } from '@/components/MathText'
 import { Button } from '@/components/ui/button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Badge } from '@/components/ui/Badge'
@@ -289,7 +290,7 @@ function MessageBubble({ msg }: { msg: Msg }) {
                 : 'v2-card !p-4 text-[var(--fg-0)]',
           )}
         >
-          {msg.content}
+          <MathText>{msg.content}</MathText>
         </div>
       </div>
     </motion.div>

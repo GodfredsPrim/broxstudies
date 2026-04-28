@@ -217,6 +217,7 @@ CATEGORY_LABELS = {
 
 class BookLibraryService:
     OPENLIBRARY_BASE_URL = "https://openlibrary.org"
+    INTERNET_ARCHIVE_BASE_URL = "https://archive.org"
     SEARCH_LIMIT = 18
 
     async def search_books(self, query: Optional[str] = None, category: str = "all") -> List[Dict[str, Any]]:
@@ -259,6 +260,19 @@ class BookLibraryService:
                 ):
                     continue
                 results.append(remote_book)
+                if len(results) >= self.SEARCH_LIMIT:
+                    break
+
+        if len(results) < self.SEARCH_LIMIT:
+            ia_results = await self._search_internet_archive(query_text=query_text, limit=self.SEARCH_LIMIT - len(results))
+            for ia_book in ia_results:
+                if any(
+                    existing["title"].lower() == ia_book["title"].lower()
+                    and existing["author"].lower() == ia_book["author"].lower()
+                    for existing in results
+                ):
+                    continue
+                results.append(ia_book)
                 if len(results) >= self.SEARCH_LIMIT:
                     break
 
@@ -341,6 +355,74 @@ class BookLibraryService:
 
         return results
 
+    async def _search_internet_archive(self, query_text: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Search Internet Archive for free-to-read books."""
+        if not query_text:
+            query_text = "popular texts"
+
+        results: List[Dict[str, Any]] = []
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                # Internet Archive Advanced Search API
+                response = await client.get(
+                    f"{self.INTERNET_ARCHIVE_BASE_URL}/advancedsearch.php",
+                    params={
+                        "q": f"({query_text}) AND (mediatype:texts) AND (lending__lendinglibrary:true OR downloads:[100 TO *])",
+                        "output": "json",
+                        "rows": limit,
+                        "fl": "identifier,title,creator,description,date,cover",
+                        "sort": "-downloads",
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                for doc in data.get("response", {}).get("docs", []):
+                    identifier = doc.get("identifier")
+                    title = doc.get("title")
+                    if not title or not identifier:
+                        continue
+
+                    creators = doc.get("creator", [])
+                    if isinstance(creators, list):
+                        author = " & ".join(creators[:2]) if creators else "Internet Archive"
+                    else:
+                        author = str(creators) if creators else "Internet Archive"
+
+                    ia_id = f"ia:{identifier}"
+                    cover_url = f"https://archive.org/services/img/{identifier}"
+                    description = doc.get("description") or f"Free book available on Internet Archive"
+                    if isinstance(description, list):
+                        description = description[0]
+
+                    pub_date = doc.get("date", "")
+                    if isinstance(pub_date, list):
+                        pub_date = pub_date[0] if pub_date else ""
+                    pub_year = str(pub_date)[:4] if pub_date else None
+
+                    results.append(
+                        {
+                            "id": ia_id,
+                            "title": title,
+                            "author": author,
+                            "category": "novel",
+                            "rating": 4.3,
+                            "description": description,
+                            "pages": None,
+                            "isbn": None,
+                            "publication_year": pub_year,
+                            "cover_url": cover_url,
+                            "source": "Internet Archive",
+                            "read_url": f"https://archive.org/details/{identifier}",
+                        }
+                    )
+                    if len(results) >= limit:
+                        break
+        except Exception as e:
+            logger.warning("Internet Archive search failed: %s", e)
+
+        return results
+
     async def get_book(self, book_id: str) -> Optional[Dict[str, Any]]:
         for book in LOCAL_BOOK_CATALOG:
             if book["id"] == book_id:
@@ -394,59 +476,217 @@ class BookLibraryService:
             except Exception as e:
                 logger.warning("Failed to load OpenLibrary book detail: %s", e)
 
+        if book_id.startswith("ia:"):
+            identifier = book_id.split("ia:", 1)[1]
+            try:
+                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                    # Fetch metadata from Internet Archive API
+                    response = await client.get(f"{self.INTERNET_ARCHIVE_BASE_URL}/metadata/{identifier}")
+                    response.raise_for_status()
+                    data = response.json()
+
+                    metadata = data.get("metadata", {})
+                    title = metadata.get("title") or identifier
+                    creators = metadata.get("creator", [])
+                    if isinstance(creators, list):
+                        author = " & ".join(creators[:2]) if creators else "Internet Archive"
+                    else:
+                        author = str(creators) if creators else "Internet Archive"
+
+                    description = metadata.get("description") or "Free book available on Internet Archive"
+                    if isinstance(description, list):
+                        description = description[0]
+
+                    pub_date = metadata.get("date", "")
+                    if isinstance(pub_date, list):
+                        pub_date = pub_date[0] if pub_date else ""
+                    pub_year = str(pub_date)[:4] if pub_date else None
+
+                    cover_url = f"https://archive.org/services/img/{identifier}"
+
+                    return {
+                        "id": book_id,
+                        "title": title,
+                        "author": author,
+                        "category": "novel",
+                        "rating": 4.3,
+                        "description": description,
+                        "pages": None,
+                        "isbn": None,
+                        "publication_year": pub_year,
+                        "cover_url": cover_url,
+                        "source": "Internet Archive",
+                        "read_url": f"https://archive.org/details/{identifier}",
+                    }
+            except Exception as e:
+                logger.warning("Failed to load Internet Archive book detail: %s", e)
+
         return None
 
-    async def generate_quiz(self, book_id: str, num_questions: int = 4) -> Dict[str, Any]:
+    async def _fetch_gutenberg_text(self, title: str, author: str) -> Optional[str]:
+        """Search Project Gutenberg for a matching book and return a short excerpt."""
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.get(
+                    "https://gutendex.com/books/",
+                    params={"search": f"{title} {author}"},
+                )
+                resp.raise_for_status()
+                results = resp.json().get("results", [])
+                if not results:
+                    return None
+
+                book_data = results[0]
+                formats = book_data.get("formats", {})
+
+                # Prefer plain text
+                text_url = (
+                    formats.get("text/plain; charset=utf-8")
+                    or formats.get("text/plain; charset=us-ascii")
+                    or formats.get("text/plain")
+                )
+                if not text_url:
+                    return None
+
+                text_resp = await client.get(text_url, timeout=15.0)
+                text_resp.raise_for_status()
+                raw = text_resp.text
+
+                # Strip Gutenberg header/footer
+                start = raw.find("*** START OF")
+                end = raw.find("*** END OF")
+                if start != -1:
+                    raw = raw[raw.find("\n", start) + 1:]
+                if end != -1:
+                    raw = raw[:end]
+
+                # Return first ~1500 chars as excerpt
+                excerpt = raw.strip()[:1500]
+                return excerpt if len(excerpt) > 100 else None
+        except Exception as e:
+            logger.debug("Gutenberg fetch failed for '%s': %s", title, e)
+            return None
+
+    async def generate_quiz(self, book_id: str, num_questions: int = 5) -> Dict[str, Any]:
         book = await self.get_book(book_id)
         if not book:
             raise ValueError("Book not found")
 
-        category_answer = CATEGORY_LABELS.get(book.get("category", ""), book.get("category", "Other").capitalize())
-        topic_answer = "Ghana" if book.get("category") in ("ghanaian", "african") else "General study"
-        read_goal = (
-            "subject mastery" if book.get("category") == "subject" else "entrepreneurial skills" if book.get("category") == "entrepreneur" else "literature and culture"
-        )
+        title = book["title"]
+        author = book["author"]
+        description = book.get("description", "")
+        category = book.get("category", "novel")
 
-        quiz_questions = [
-            {
-                "question": f"Who is the author of '{book['title']}'?",
-                "type": "short_answer",
-                "options": None,
-                "answer": book["author"],
-            },
-            {
-                "question": f"Which category best describes '{book['title']}'?",
-                "type": "multiple_choice",
-                "options": [
-                    category_answer,
-                    "Story Books",
-                    "Entrepreneurship",
-                    "Subject Books",
-                ],
-                "answer": category_answer,
-            },
-            {
-                "question": f"This book is especially valuable for students studying which region or country?",
-                "type": "short_answer",
-                "options": None,
-                "answer": topic_answer,
-            },
-            {
-                "question": f"What does reading '{book['title']}' help you improve?",
-                "type": "multiple_choice",
-                "options": [
-                    read_goal,
-                    "Physical fitness",
-                    "Cooking skills",
-                    "Graphic design",
-                ],
-                "answer": read_goal,
-            },
-        ]
+        # Try AI-powered quiz generation first
+        quiz_questions = await self._generate_ai_quiz(title, author, description, category, num_questions)
+        if not quiz_questions:
+            quiz_questions = self._generate_fallback_quiz(book, num_questions)
 
         return {
             "book_id": book_id,
-            "title": book["title"],
+            "title": title,
             "questions": quiz_questions[:max(1, min(num_questions, len(quiz_questions)))],
             "source": book.get("source", "Internal Library"),
         }
+
+    async def _generate_ai_quiz(
+        self, title: str, author: str, description: str, category: str, num_questions: int
+    ) -> List[Dict[str, Any]]:
+        """Generate comprehension quiz questions using the AI model."""
+        try:
+            from app.config import settings
+            from langchain_openai import ChatOpenAI
+            from langchain_core.messages import HumanMessage
+
+            llm = ChatOpenAI(
+                model=settings.resolved_llm_model,
+                openai_api_key=settings.OPENAI_API_KEY,
+                openai_api_base=settings.OPENAI_API_BASE or None,
+                temperature=0.5,
+                max_tokens=1000,
+            )
+
+            prompt = f"""You are a reading comprehension quiz creator for Ghanaian SHS students.
+
+Book: "{title}" by {author}
+Category: {category}
+Description: {description}
+
+Generate {num_questions} quiz questions about this book. Mix question types: multiple choice (4 options) and short answer.
+Focus on themes, characters, setting, author background, and literary significance.
+
+Return ONLY valid JSON in this exact format:
+[
+  {{"question": "...", "type": "multiple_choice", "options": ["A", "B", "C", "D"], "answer": "A"}},
+  {{"question": "...", "type": "short_answer", "options": null, "answer": "..."}}
+]"""
+
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            text = response.content.strip()
+
+            # Extract JSON
+            import json, re
+            json_match = re.search(r'\[[\s\S]+\]', text)
+            if not json_match:
+                return []
+            questions = json.loads(json_match.group())
+            return [
+                {
+                    "question": q.get("question", ""),
+                    "type": q.get("type", "short_answer"),
+                    "options": q.get("options"),
+                    "answer": q.get("answer", ""),
+                }
+                for q in questions
+                if q.get("question")
+            ]
+        except Exception as e:
+            logger.warning("AI quiz generation failed for '%s': %s", title, e)
+            return []
+
+    def _generate_fallback_quiz(self, book: Dict[str, Any], num_questions: int) -> List[Dict[str, Any]]:
+        """Fallback quiz based on book metadata."""
+        title = book["title"]
+        author = book["author"]
+        category = book.get("category", "novel")
+        category_label = CATEGORY_LABELS.get(category, category.capitalize())
+        region = "Ghana" if category in ("ghanaian", "african") else "International"
+        genre_goal = (
+            "subject mastery" if category == "subject"
+            else "entrepreneurial mindset" if category == "entrepreneur"
+            else "cultural awareness and literacy"
+        )
+        pub_year = book.get("publication_year", "the 20th century")
+
+        return [
+            {
+                "question": f"Who wrote '{title}'?",
+                "type": "short_answer",
+                "options": None,
+                "answer": author,
+            },
+            {
+                "question": f"Which genre or category best describes '{title}'?",
+                "type": "multiple_choice",
+                "options": [category_label, "Science Fiction", "Technology", "Sports"],
+                "answer": category_label,
+            },
+            {
+                "question": f"'{title}' is most associated with which region of the world?",
+                "type": "multiple_choice",
+                "options": [region, "South America", "East Asia", "Scandinavia"],
+                "answer": region,
+            },
+            {
+                "question": f"Reading '{title}' is especially useful for developing what?",
+                "type": "multiple_choice",
+                "options": [genre_goal, "Sports skills", "Cooking techniques", "Architecture"],
+                "answer": genre_goal,
+            },
+            {
+                "question": f"When was '{title}' first published (approximate decade or year)?",
+                "type": "short_answer",
+                "options": None,
+                "answer": str(pub_year),
+            },
+        ][:num_questions]

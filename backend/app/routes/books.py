@@ -60,8 +60,39 @@ async def get_book(book_id: str):
 @router.post("/quiz", response_model=BookQuizResponse)
 async def create_book_quiz(request: BookQuizRequest):
     try:
-        return await service.generate_quiz(request.book_id, num_questions=request.num_questions or 4)
+        return await service.generate_quiz(request.book_id, num_questions=request.num_questions or 5)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+class BookExcerptResponse(BaseModel):
+    book_id: str
+    title: str
+    excerpt: Optional[str] = None
+    read_url: Optional[str] = None
+    source: str
+
+
+@router.get("/{book_id:path}/excerpt", response_model=BookExcerptResponse)
+async def get_book_excerpt(book_id: str):
+    """Fetch a short reading excerpt from Project Gutenberg if available."""
+    book = await service.get_book(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    excerpt = await service._fetch_gutenberg_text(book["title"], book["author"])
+
+    read_url = None
+    if book_id.startswith("openlib:"):
+        key = book_id.replace("openlib:", "")
+        read_url = f"https://openlibrary.org{key if key.startswith('/') else '/' + key}"
+
+    return BookExcerptResponse(
+        book_id=book_id,
+        title=book["title"],
+        excerpt=excerpt,
+        read_url=read_url,
+        source="Project Gutenberg" if excerpt else (book.get("source") or "OpenLibrary"),
+    )

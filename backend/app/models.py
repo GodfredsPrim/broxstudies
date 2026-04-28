@@ -329,6 +329,7 @@ class AuthUser(BaseModel):
     subscription_status: str = "inactive"   # inactive | active | expired
     subscription_expires_at: Optional[str] = None
     is_admin: bool = False
+    track: Optional[str] = None             # shs | tvet — locked once subscription activates
 
 
 class AuthResponse(BaseModel):
@@ -349,6 +350,7 @@ class AuthConfigResponse(BaseModel):
 
 class AccessCodeVerifyRequest(BaseModel):
     code: str
+    track: Optional[str] = None   # shs | tvet — locked to account on first activation
 
 
 class AdminCodeGenerateRequest(BaseModel):

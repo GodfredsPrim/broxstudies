@@ -1,9 +1,10 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Ticket, ArrowRight, Check, Smartphone } from 'lucide-react'
+import { Ticket, ArrowRight, Check, Smartphone, Lock } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
+import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/Badge'
 
 export function ActivatePage() {
   const { user, refresh } = useAuth()
+  const { selectedTrack, isLocked } = useAcademicTrack()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const next = params.get('next') || '/'
@@ -27,7 +29,8 @@ export function ActivatePage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.verifyCode(code.trim())
+      // Pass current track so server locks it to this account
+      await authApi.verifyCode(code.trim(), selectedTrack)
       await refresh()
       setSuccess(true)
       setTimeout(() => navigate(next, { replace: true }), 900)
@@ -73,6 +76,17 @@ export function ActivatePage() {
               <MiniStep num="2" icon={<Ticket size={14} />} label="Receive BROX-XXXX code" />
               <MiniStep num="3" icon={<Check size={14} />} label="Paste code to unlock" />
             </div>
+
+            {selectedTrack && (
+              <div className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                <Lock size={14} className="shrink-0" />
+                <span>
+                  This code will lock your account to the{' '}
+                  <strong className="font-semibold text-emerald-200">{selectedTrack.toUpperCase()}</strong>{' '}
+                  track{isLocked ? ' (already locked)' : ''}. You cannot switch tracks after activation.
+                </span>
+              </div>
+            )}
 
             <form onSubmit={onSubmit} className="mt-7 space-y-3">
               <label className="mb-1.5 block text-[13px] font-medium text-ink-100">Access code</label>

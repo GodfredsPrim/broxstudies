@@ -34,8 +34,8 @@ export const authApi = {
   google: (body: { credential: string }) =>
     api.post<AuthResponse>('/api/auth/google', body).then(r => r.data),
   me: () => api.get<AuthUser>('/api/auth/me').then(r => r.data),
-  verifyCode: (code: string) =>
-    api.post<AuthUser>('/api/auth/verify-code', { code }).then(r => r.data),
+  verifyCode: (code: string, track?: string | null) =>
+    api.post<AuthUser>('/api/auth/verify-code', { code, track }).then(r => r.data),
   subscription: () =>
     api.get<{ has_access: boolean; subscription_status: string }>('/api/auth/subscription').then(r => r.data),
   adminLogin: (secret: string) =>
@@ -159,6 +159,10 @@ export const libraryApi = {
   getBook: (id: string) => api.get<Book>(`/api/books/${encodeURIComponent(id)}`).then(r => r.data),
   quiz: (body: { book_id: string; num_questions?: number }) =>
     api.post<BookQuizResponse>('/api/books/quiz', body).then(r => r.data),
+  excerpt: (bookId: string) =>
+    api.get<{ book_id: string; title: string; excerpt?: string; read_url?: string; source: string }>(
+      `/api/books/${encodeURIComponent(bookId)}/excerpt`
+    ).then(r => r.data),
 }
 
 /* ------------------------------ COMPETITIONS ------------------------------ */

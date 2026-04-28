@@ -90,7 +90,7 @@ class AuthService:
             id_type = "SERIAL PRIMARY KEY" if self.is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
             
             # ── Users table ────────────────────────────────────────────────────
-            self._execute(conn, 
+            self._execute(conn,
                 f"""
                 CREATE TABLE IF NOT EXISTS users (
                     id {id_type},
@@ -105,15 +105,20 @@ class AuthService:
                     subscription_status TEXT NOT NULL DEFAULT 'inactive',
                     subscription_expires_at TEXT,
                     is_admin INTEGER NOT NULL DEFAULT 0,
-                    session_id TEXT
+                    session_id TEXT,
+                    track TEXT
                 )
                 """
             )
 
-            # Migration: Ensure session_id exists (for older SQLite DBs)
+            # Migration: Ensure session_id and track exist (for older SQLite DBs)
             if not self.is_postgres:
                 try:
                     self._execute(conn, "ALTER TABLE users ADD COLUMN session_id TEXT")
+                except:
+                    pass
+                try:
+                    self._execute(conn, "ALTER TABLE users ADD COLUMN track TEXT")
                 except:
                     pass
 
@@ -277,6 +282,11 @@ class AuthService:
             except ValueError:
                 pass
 
+        try:
+            row_track = row["track"]
+        except (KeyError, IndexError):
+            row_track = None
+
         return AuthUser(
             id=row["id"],
             full_name=row["full_name"],
@@ -285,6 +295,7 @@ class AuthService:
             subscription_status=status,
             subscription_expires_at=expires_at,
             is_admin=bool(row["is_admin"]),
+            track=row_track,
         )
 
     def _issue_token(self, user: AuthUser, is_static_admin: bool = False, session_id: Optional[str] = None) -> str:
@@ -564,12 +575,13 @@ class AuthService:
             """).fetchall()
             return [dict(r) for r in rows]
 
-    def verify_access_code(self, user_id: int, code: str) -> AuthUser:
+    def verify_access_code(self, user_id: int, code: str, track: Optional[str] = None) -> AuthUser:
         code_clean = code.strip().upper()
         now = datetime.now(timezone.utc)
+        valid_tracks = {"shs", "tvet"}
 
         with self._connect() as conn:
-            code_row = self._execute(conn, 
+            code_row = self._execute(conn,
                 "SELECT * FROM access_codes WHERE code = ?", (code_clean,)
             ).fetchone()
 
@@ -579,11 +591,22 @@ class AuthService:
                 raise ValueError("This access code has already been used.")
 
             # Calculate new expiry — extend from existing expiry if still active
-            user_row = self._execute(conn, 
+            user_row = self._execute(conn,
                 "SELECT * FROM users WHERE id = ?", (user_id,)
             ).fetchone()
             if not user_row:
                 raise ValueError("User not found.")
+
+            # Track lock: if user already has a track, they cannot change it via a new code
+            existing_track = user_row["track"] if "track" in user_row.keys() else None
+            if existing_track and track and existing_track != track:
+                raise ValueError(
+                    f"Your account is locked to the {existing_track.upper()} track. "
+                    "You cannot switch tracks. Contact support if this is an error."
+                )
+
+            # Determine which track to lock this account to
+            resolved_track = existing_track or (track if track in valid_tracks else None)
 
             existing_expiry = user_row["subscription_expires_at"]
             if existing_expiry and user_row["subscription_status"] == "active":
@@ -604,18 +627,18 @@ class AuthService:
             new_expiry = (base_dt + timedelta(days=30 * months)).isoformat()
 
             # Mark code used
-            self._execute(conn, 
+            self._execute(conn,
                 "UPDATE access_codes SET used_at = ?, used_by_user_id = ? WHERE code = ?",
                 (now.isoformat(), user_id, code_clean),
             )
-            # Activate subscription
-            self._execute(conn, 
+            # Activate subscription and lock track
+            self._execute(conn,
                 """
                 UPDATE users
-                SET subscription_status = 'active', subscription_expires_at = ?
+                SET subscription_status = 'active', subscription_expires_at = ?, track = ?
                 WHERE id = ?
                 """,
-                (new_expiry, user_id),
+                (new_expiry, resolved_track, user_id),
             )
 
             updated = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()

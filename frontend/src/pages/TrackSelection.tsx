@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Lock } from 'lucide-react'
 import { TrackSelector } from '@/components/TrackSelector'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useAuth } from '@/hooks/useAuth'
@@ -9,7 +9,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Button } from '@/components/ui/button'
 
 export function TrackSelectionPage() {
-  const { selectedTrack, setSelectedTrack, loading } = useAcademicTrack()
+  const { selectedTrack, setSelectedTrack, isLocked, loading } = useAcademicTrack()
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -20,6 +20,7 @@ export function TrackSelectionPage() {
   }, [loading, selectedTrack, user, navigate])
 
   const handleSelect = (track: 'shs' | 'tvet') => {
+    if (isLocked) return
     setSelectedTrack(track)
   }
 
@@ -41,6 +42,17 @@ export function TrackSelectionPage() {
                 Select the curriculum that matches your path. After that, log in with the same account flow we already have for SHS.
               </p>
             </div>
+
+            {isLocked && (
+              <div className="mb-5 flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
+                <Lock size={14} className="shrink-0" />
+                <span>
+                  Your account is permanently locked to the{' '}
+                  <strong className="font-semibold text-amber-200">{selectedTrack?.toUpperCase()}</strong>{' '}
+                  track. Track switching is not available after subscription activation.
+                </span>
+              </div>
+            )}
 
             <TrackSelector selectedTrack={selectedTrack} onSelect={handleSelect} />
 

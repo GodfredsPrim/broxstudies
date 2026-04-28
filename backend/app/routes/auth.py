@@ -126,7 +126,7 @@ async def verify_access_code(
 ):
     """Verify a paid access code to activate or extend the user's subscription."""
     try:
-        updated_user = auth_service.verify_access_code(current_user.id, request.code)
+        updated_user = auth_service.verify_access_code(current_user.id, request.code, request.track)
         return updated_user
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

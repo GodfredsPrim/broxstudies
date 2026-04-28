@@ -584,10 +584,10 @@ class LikelyWASSCEGenerator:
         """Preserve the actual counts extracted from the subject's past paper.
 
         Each section's `expected_count` is whatever the real WASSCE paper showed
-        (e.g. 50 MCQs for English, 40 for Maths, 8 theory for History). We only
-        apply a minimum of 1 and a cap to catch PDF parse blowups.
+        (e.g. 40 MCQs for Maths, 8 theory for History). We apply a minimum of 1,
+        and we cap paper 1 to the defined WASSCE target count to keep output stable.
         """
-        MAX_MCQ = 80
+        MAX_MCQ = self.TARGET_PAPER_1_COUNT
         MAX_THEORY = 20
         MAX_PRACTICAL = 10
 
@@ -999,21 +999,35 @@ JSON format:
         except Exception as e:
             logger.warning(f"Validation error for generated item: {e}")
             return False
+
+    def _load_textbook_excerpts(
+        self,
+        year_key: str,
+        subject_slug: str,
+        max_items: int = 4,
+        max_chars: int = 1200,
+    ) -> List[str]:
         excerpts: List[str] = []
         sources = self._find_textbook_sources(year_key, subject_slug)
-        
-        # Use ThreadPoolExecutor to read textbooks in parallel
+        if not sources:
+            return excerpts
+
         import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [executor.submit(self._read_textbook_excerpt, source, max_chars) for source in sources[:max_items]]
-            for i, future in enumerate(concurrent.futures.as_completed(futures)):
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(3, len(sources))) as executor:
+            future_to_source = {
+                executor.submit(self._read_textbook_excerpt, source, max_chars): source
+                for source in sources[:max_items]
+            }
+            for future in concurrent.futures.as_completed(future_to_source):
+                source = future_to_source[future]
                 try:
                     text = future.result()
                     if text:
-                        excerpts.append(f"{sources[i].name}: {text}")
+                        excerpts.append(f"{source.name}: {text}")
                 except Exception as e:
                     logger.debug(f"Failed to read textbook excerpt: {e}")
-        
+
         return excerpts
 
     def _find_textbook_sources(self, year_key: str, subject_slug: str) -> List[Path]:

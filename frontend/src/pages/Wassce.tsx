@@ -7,9 +7,11 @@ import {
 import { questionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { MathText } from '@/components/MathText'
 import type { Question, Subject } from '@/api/types'
 
-const YEARS = ['Year 1', 'Year 2', 'Year 3']
+const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
+const TVET_LEVELS = ['Level 1', 'Level 2']
 
 type Phase = 'setup' | 'generating' | 'exam' | 'results'
 
@@ -21,7 +23,7 @@ interface MarkResult {
   expected_answer: string
 }
 
-/* ── Paper accent colours (inline styles to avoid Tailwind purge) ── */
+/* ── Paper accent colours ── */
 const PAPER = {
   paper_1: {
     label: 'Paper 1',
@@ -29,7 +31,6 @@ const PAPER = {
     hex: '#2563EB',
     light: '#EFF6FF',
     border: '#BFDBFE',
-    badge: '#1D4ED8',
   },
   paper_2: {
     label: 'Paper 2',
@@ -37,7 +38,6 @@ const PAPER = {
     hex: '#7C3AED',
     light: '#F5F3FF',
     border: '#DDD6FE',
-    badge: '#6D28D9',
   },
   paper_3: {
     label: 'Paper 3',
@@ -45,7 +45,6 @@ const PAPER = {
     hex: '#B45309',
     light: '#FFFBEB',
     border: '#FDE68A',
-    badge: '#92400E',
   },
 } as const
 
@@ -59,16 +58,118 @@ function fmt(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
+function GeneratingScreen({ 
+  subjectName, 
+  yearLabel, 
+  curriculumName,
+  estimatedSeconds = 60,
+}: {
+  subjectName: string
+  yearLabel: string
+  curriculumName: string
+  estimatedSeconds?: number
+}) {
+  const [displayPct, setDisplayPct] = useState(0)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const startTimeRef = useRef(Date.now())
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const elapsed = (now - startTimeRef.current) / 1000
+      setElapsedTime(elapsed)
+
+      // Calculate percentage based on actual elapsed time vs estimated time
+      // Ramp up 0-95% over the estimated period, then slow down to 97%
+      let pct = Math.min(95, (elapsed / estimatedSeconds) * 95)
+      
+      // If we're past estimated time, creep toward 97%
+      if (elapsed > estimatedSeconds) {
+        pct = Math.min(97, 95 + ((elapsed - estimatedSeconds) / estimatedSeconds) * 2)
+      }
+      
+      setDisplayPct(Math.floor(pct))
+    }, 200)
+    
+    return () => clearInterval(interval)
+  }, [estimatedSeconds])
+
+  const stages = [
+    { pct: 8,  msg: 'Loading past question archive…', timeMs: 8000 },
+    { pct: 20, msg: 'Extracting paper structure & question patterns…', timeMs: 15000 },
+    { pct: 38, msg: 'Generating Paper 1 — Objective (MCQ)…', timeMs: 20000 },
+    { pct: 58, msg: 'Generating Paper 2 — Theory & Essay…', timeMs: 20000 },
+    { pct: 78, msg: 'Generating Paper 3 — Practical / Alternative…', timeMs: 15000 },
+    { pct: 90, msg: 'Applying marking scheme & finalizing…', timeMs: 8000 },
+  ]
+
+  const currentStageIdx = Math.min(
+    Math.floor((elapsedTime / estimatedSeconds) * stages.length),
+    stages.length - 1
+  )
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white px-6">
+      <div className="w-full max-w-sm text-center">
+        <div className="relative mx-auto mb-6 h-20 w-20">
+          <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#e2e8f0" strokeWidth="6" />
+            <circle
+              cx="40" cy="40" r="34"
+              fill="none"
+              stroke="#059669"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 34}`}
+              strokeDashoffset={`${2 * Math.PI * 34 * (1 - displayPct / 100)}`}
+              style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+            />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-lg font-black text-emerald-700">
+            {displayPct}%
+          </span>
+        </div>
+
+        <h2 className="text-xl font-bold text-foreground">
+          Building your {curriculumName} paper…
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          <strong>{subjectName}</strong> · {yearLabel}
+        </p>
+
+        <div className="mt-6 space-y-2 text-left">
+          {stages.map((stage, i) => (
+            <div key={i} className={`flex items-center gap-3 text-sm transition-all duration-300 ${
+              i < currentStageIdx ? 'text-emerald-600' : i === currentStageIdx ? 'font-semibold text-foreground' : 'text-muted-foreground/40'
+            }`}>
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                i < currentStageIdx ? 'bg-emerald-100 text-emerald-700' :
+                i === currentStageIdx ? 'bg-emerald-600 text-white' :
+                'bg-slate-100 text-slate-400'
+              }`}>
+                {i < currentStageIdx ? '✓' : i + 1}
+              </span>
+              {stage.msg}
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-6 text-xs text-muted-foreground">
+          Time elapsed: <span className="font-mono font-semibold">{fmt(Math.floor(elapsedTime))}</span> — questions are built from real past papers.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function WassceePage() {
   const [phase, setPhase] = useState<Phase>('setup')
 
-  /* setup */
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [selectedName, setSelectedName] = useState('')
   const [selectedYear, setSelectedYear] = useState('')
   const [setupError, setSetupError] = useState('')
 
-  /* exam */
   const [organizedPapers, setOrganizedPapers] = useState<Partial<Record<PaperKey, Question[]>>>({})
   const [allQuestions, setAllQuestions] = useState<Question[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -80,37 +181,55 @@ export function WassceePage() {
   const [submitError, setSubmitError] = useState('')
   const overlayRef = useRef<HTMLDivElement>(null)
 
-  /* results */
   const [score, setScore] = useState(0)
   const [percentage, setPercentage] = useState(0)
   const [markResults, setMarkResults] = useState<MarkResult[]>([])
+
   const { selectedTrack } = useAcademicTrack()
   const curriculumName = selectedTrack === 'tvet' ? 'NAPTEX' : 'WASSCE'
   const likelyLabel = selectedTrack === 'tvet' ? 'Likely NAPTEX Questions' : 'Likely WASSCE Questions'
   const examLabel = selectedTrack === 'tvet' ? 'NAPTEX Exam Simulation' : 'WASSCE Exam Simulation'
+  const YEARS = selectedTrack === 'tvet' ? TVET_LEVELS : SHS_YEARS
 
-  /* load subjects */
+  /* filter subjects by track */
+  const filteredSubjects = useMemo(
+    () => subjects.filter(s => {
+      if (selectedTrack === 'tvet') return s.academic_level === 'tvet'
+      if (selectedTrack === 'shs') return s.academic_level !== 'tvet'
+      return true
+    }),
+    [subjects, selectedTrack],
+  )
+
   useEffect(() => {
     questionsApi.subjects()
       .then(res => {
         const list = res.subjects
         setSubjects(list)
-        if (list.length) {
-          setSelectedName(list[0].name)
-          setSelectedYear(YEARS[0])
-        }
       })
       .catch(() => setSetupError('Unable to load subjects. Please refresh.'))
   }, [])
 
-  /* elapsed timer */
+  /* reset selections when filtered subjects change */
+  useEffect(() => {
+    const names = [...new Set(filteredSubjects.map(s => s.name))].sort()
+    if (names.length && !names.includes(selectedName)) {
+      setSelectedName(names[0])
+    }
+  }, [filteredSubjects, selectedName])
+
+  useEffect(() => {
+    if (!YEARS.includes(selectedYear)) {
+      setSelectedYear(YEARS[0])
+    }
+  }, [YEARS, selectedYear])
+
   useEffect(() => {
     if (phase !== 'exam') return
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
     return () => clearInterval(id)
   }, [phase, startTime])
 
-  /* block tab close during exam */
   useEffect(() => {
     if (phase !== 'exam') return
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
@@ -118,7 +237,6 @@ export function WassceePage() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [phase])
 
-  /* detect fullscreen exit and warn */
   useEffect(() => {
     if (phase !== 'exam') return
     const handler = () => setFsWarning(!document.fullscreenElement)
@@ -126,28 +244,22 @@ export function WassceePage() {
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [phase])
 
-  const uniqueNames = useMemo(() => [...new Set(subjects.map(s => s.name))].sort(), [subjects])
+  const uniqueNames = useMemo(
+    () => [...new Set(filteredSubjects.map(s => s.name))].sort(),
+    [filteredSubjects],
+  )
 
-  // All three years are always selectable — backend handles any year key
-  const availableYears = YEARS
-
-  // Find any catalog entry for this subject name to extract its slug
   const subjectEntry = useMemo(
     () => subjects.find(s => s.name === selectedName),
     [subjects, selectedName],
   )
 
-  // Construct the subject ID for the chosen year: e.g. "year_3:mathematics"
   const subjectId = useMemo(() => {
     if (!subjectEntry || !selectedYear) return null
     const slug = subjectEntry.id.includes(':') ? subjectEntry.id.split(':')[1] : subjectEntry.id
     const yearKey = selectedYear.toLowerCase().replace(' ', '_')
     return `${yearKey}:${slug}`
   }, [subjectEntry, selectedYear])
-
-  const handleNameChange = (name: string) => {
-    setSelectedName(name)
-  }
 
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault()
@@ -162,7 +274,6 @@ export function WassceePage() {
         return
       }
       const organized = (result.organized_papers || {}) as Partial<Record<PaperKey, Question[]>>
-      /* fallback: all questions → paper_1 */
       if (!Object.keys(organized).length) organized.paper_1 = result.questions
 
       setOrganizedPapers(organized)
@@ -174,7 +285,6 @@ export function WassceePage() {
       setElapsed(0)
       setFsWarning(false)
       setPhase('exam')
-      /* request fullscreen after render */
       setTimeout(() => overlayRef.current?.requestFullscreen?.().catch(() => {}), 120)
     } catch (err) {
       setSetupError(extractError(err, 'Generation failed. Please try again.'))
@@ -182,7 +292,6 @@ export function WassceePage() {
     }
   }
 
-  /* Paper-level index offsets in allQuestions */
   const paperOffsets = useMemo<Record<PaperKey, number>>(() => {
     let offset = 0
     const map = {} as Record<PaperKey, number>
@@ -262,12 +371,11 @@ export function WassceePage() {
         </div>
 
         <form onSubmit={handleGenerate} className="mt-8 space-y-5 rounded-3xl border border-input bg-card p-6 shadow-sm">
-          {/* Subject */}
           <div>
             <label className="text-sm font-semibold text-foreground">Subject</label>
             <select
               value={selectedName}
-              onChange={e => handleNameChange(e.target.value)}
+              onChange={e => setSelectedName(e.target.value)}
               className="mt-2 block w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             >
@@ -276,37 +384,31 @@ export function WassceePage() {
             </select>
           </div>
 
-          {/* SHS Year */}
           <div>
-            <label className="text-sm font-semibold text-foreground">SHS Year</label>
+            <label className="text-sm font-semibold text-foreground">
+              {selectedTrack === 'tvet' ? 'TVET Level' : 'SHS Year'}
+            </label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Questions are generated from that year's past papers and textbook.
+              Questions are generated from that {selectedTrack === 'tvet' ? "level's" : "year's"} past papers and textbook.
             </p>
             <div className="mt-2 flex gap-2">
-              {YEARS.map(y => {
-                const available = availableYears.includes(y)
-                return (
-                  <button
-                    key={y}
-                    type="button"
-                    disabled={!available}
-                    onClick={() => setSelectedYear(y)}
-                    className={`flex-1 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition
-                      ${selectedYear === y
-                        ? 'border-emerald-600 bg-emerald-600 text-white'
-                        : available
-                          ? 'border-input bg-background text-foreground hover:border-emerald-400'
-                          : 'cursor-not-allowed border-input bg-muted/30 text-muted-foreground opacity-40'
-                      }`}
-                  >
-                    {y}
-                  </button>
-                )
-              })}
+              {YEARS.map(y => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => setSelectedYear(y)}
+                  className={`flex-1 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition
+                    ${selectedYear === y
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : 'border-input bg-background text-foreground hover:border-emerald-400'
+                    }`}
+                >
+                  {y}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Paper structure preview */}
           <div className="rounded-2xl bg-muted/30 px-4 py-3">
             <p className="mb-2 text-xs font-semibold text-foreground">Paper structure (exact {curriculumName} template):</p>
             <div className="space-y-1.5">
@@ -343,21 +445,14 @@ export function WassceePage() {
     )
   }
 
-  /* ──────────────── GENERATING ──────────────── */
+  /* ──────────────── GENERATING (Progress Bar) ──────────────── */
   if (phase === 'generating') {
     return (
-      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white px-6">
-        <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
-        <h2 className="mt-5 text-xl font-bold text-foreground">Building your {curriculumName} paper…</h2>
-        <p className="mt-2 max-w-xs text-center text-sm text-muted-foreground">
-          Analysing past paper templates for <strong>{selectedName}</strong> ({selectedYear}) and generating exam-grade questions.
-        </p>
-        <ul className="mt-6 space-y-1 text-xs text-muted-foreground">
-          <li>✓ Loading past question archive</li>
-          <li>✓ Extracting paper structure &amp; question counts</li>
-          <li>⚙ Generating questions from source material…</li>
-        </ul>
-      </div>
+      <GeneratingScreen
+        subjectName={selectedName}
+        yearLabel={selectedYear}
+        curriculumName={curriculumName}
+      />
     )
   }
 
@@ -377,7 +472,6 @@ export function WassceePage() {
         className="fixed inset-0 z-[9999] flex flex-col"
         style={{ backgroundColor: '#f8fafc', userSelect: 'none' }}
       >
-        {/* Fullscreen-exit warning banner */}
         {fsWarning && (
           <div
             className="shrink-0 flex items-center justify-between gap-3 px-5 py-2 text-sm font-semibold text-white"
@@ -398,7 +492,6 @@ export function WassceePage() {
           </div>
         )}
 
-        {/* Top bar */}
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
           <div className="min-w-0">
             <p className="truncate text-sm font-black text-foreground">{selectedName}</p>
@@ -426,7 +519,6 @@ export function WassceePage() {
           </div>
         </div>
 
-        {/* Paper tabs */}
         <div className="shrink-0 flex border-b border-slate-200 bg-white px-2">
           {availablePapers.map(k => {
             const m = PAPER[k]
@@ -459,7 +551,6 @@ export function WassceePage() {
           })}
         </div>
 
-        {/* Paper header stripe */}
         <div
           className="shrink-0 px-6 py-2.5"
           style={{ backgroundColor: meta.hex }}
@@ -470,7 +561,6 @@ export function WassceePage() {
           </p>
         </div>
 
-        {/* Questions scroll area */}
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8">
           <div className="mx-auto max-w-3xl space-y-5">
             {currentQs.map((q, li) => {
@@ -498,7 +588,9 @@ export function WassceePage() {
                     )}
                   </div>
 
-                  <p className="text-sm font-medium leading-relaxed text-foreground">{q.question_text}</p>
+                  <p className="text-sm font-medium leading-relaxed text-foreground">
+                    <MathText>{q.question_text}</MathText>
+                  </p>
 
                   {q.options?.length ? (
                     <div className="mt-4 space-y-2">
@@ -526,7 +618,7 @@ export function WassceePage() {
                             >
                               {letter}
                             </span>
-                            {opt}
+                            <MathText>{opt}</MathText>
                           </button>
                         )
                       })}
@@ -538,7 +630,7 @@ export function WassceePage() {
                       placeholder="Write your answer here…"
                       rows={4}
                       className="mt-4 block w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2"
-                      style={{ userSelect: 'text', outline: 'none' }}
+                      style={{ userSelect: 'text' }}
                       onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${meta.hex}40`)}
                       onBlur={e => (e.currentTarget.style.boxShadow = '')}
                     />
@@ -549,7 +641,6 @@ export function WassceePage() {
           </div>
         </div>
 
-        {/* Bottom action bar */}
         <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
             <div className="flex gap-2">
@@ -599,7 +690,6 @@ export function WassceePage() {
         </p>
       </div>
 
-      {/* Score card */}
       <div className={`mt-6 rounded-3xl border p-8 text-center ${gradeBg}`}>
         <Trophy className={`mx-auto mb-3 h-10 w-10 ${gradeColor}`} />
         <div className={`text-5xl font-black ${gradeColor}`}>{Math.round(percentage)}%</div>
@@ -609,7 +699,6 @@ export function WassceePage() {
         </div>
       </div>
 
-      {/* Per-paper breakdown */}
       {(['paper_1', 'paper_2', 'paper_3'] as PaperKey[])
         .filter(k => (organizedPapers[k] || []).length > 0)
         .map(paperKey => {
@@ -652,25 +741,23 @@ export function WassceePage() {
                         }
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold leading-relaxed text-foreground">
-                            Q{li + 1}. {q.question_text}
+                            Q{li + 1}. <MathText>{q.question_text}</MathText>
                           </p>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            <span
-                              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              Your answer: {myAnswer}
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              Your answer: <MathText>{myAnswer}</MathText>
                             </span>
                             {!isCorrect && q.correct_answer && (
                               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                                Correct: {q.correct_answer}
+                                Correct: <MathText>{q.correct_answer}</MathText>
                               </span>
                             )}
                           </div>
                           {(r?.feedback || q.explanation) && (
                             <div className="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                              {r?.feedback || q.explanation}
+                              <MathText>{r?.feedback || q.explanation || ''}</MathText>
                             </div>
                           )}
                         </div>
