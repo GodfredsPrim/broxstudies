@@ -754,22 +754,32 @@ class LikelyWASSCEGenerator:
                 continue
 
             for item in payload[: missing_count - len(generated)]:
-                normalized = self._normalize_generated_item(item, section.question_type)
-                if self.hash_question(normalized["question_text"]) in self._exclude_hashes:
-                    continue
-                generated.append(
-                    Question(
-                        subject=subject_enum,
-                        question_type=section.question_type,
-                        question_text=normalized["question_text"],
-                        options=normalized["options"],
-                        correct_answer=normalized["correct_answer"],
-                        explanation=normalized["explanation"],
-                        difficulty_level="medium",
-                        year_generated=2026,
-                        pattern_confidence=0.88,
+                try:
+                    normalized = self._normalize_generated_item(item, section.question_type)
+                    if self.hash_question(normalized["question_text"]) in self._exclude_hashes:
+                        continue
+
+                    # Validate the normalized item meets basic requirements
+                    if not self._validate_generated_item(normalized, section.question_type):
+                        logger.warning(f"Generated item failed validation: {normalized.get('question_text', '')[:100]}...")
+                        continue
+
+                    generated.append(
+                        Question(
+                            subject=subject_enum,
+                            question_type=section.question_type,
+                            question_text=normalized["question_text"],
+                            options=normalized["options"],
+                            correct_answer=normalized["correct_answer"],
+                            explanation=normalized["explanation"],
+                            difficulty_level="medium",
+                            year_generated=2026,
+                            pattern_confidence=0.88,
+                        )
                     )
-                )
+                except Exception as e:
+                    logger.warning(f"Failed to process generated item: {e}")
+                    continue
             generated = self._dedupe_questions(generated)
         
         return generated
@@ -899,6 +909,8 @@ JSON format:
         else:
             # Use DeepSeek for MCQs and other fast parallel work
             return await self._call_deepseek(prompt)
+
+    async def _call_openai(self, prompt: str) -> str:
         """Call OpenAI for WASSCE-critical generation (essays, marking guides)."""
         if not settings.OPENAI_API_KEY:
             logger.warning("OPENAI_API_KEY not configured; falling back to DeepSeek")
@@ -941,13 +953,52 @@ JSON format:
             self._llm_deepseek = ChatOpenAI(**kwargs)
 
         try:
+            # Ensure DeepSeek gets the same message format as OpenAI
             message = await self._llm_deepseek.ainvoke([HumanMessage(content=prompt)])
-            return message.content
+            response_content = message.content
+
+            # Validate that we got a response
+            if not response_content or not response_content.strip():
+                raise ValueError("DeepSeek returned empty response")
+
+            return response_content
         except Exception as e:
             logger.error(f"DeepSeek call failed: {e}")
             raise
 
-    def _load_textbook_excerpts(self, year_key: str, subject_slug: str, max_items: int = 6, max_chars: int = 1200) -> List[str]:
+    def _validate_generated_item(self, item: Dict[str, Any], question_type: QuestionType) -> bool:
+        """Validate that a generated item meets basic requirements for both OpenAI and DeepSeek."""
+        try:
+            # Check required fields
+            if not item.get("question_text") or not item["question_text"].strip():
+                return False
+
+            if not item.get("correct_answer") or not item["correct_answer"].strip():
+                return False
+
+            if not item.get("explanation") or not item["explanation"].strip():
+                return False
+
+            # Type-specific validation
+            if question_type == QuestionType.MULTIPLE_CHOICE:
+                options = item.get("options", [])
+                if not isinstance(options, list) or len(options) != 4:
+                    return False
+                if not all(opt and opt.strip() for opt in options):
+                    return False
+                # Validate answer is A, B, C, or D
+                answer = item["correct_answer"].strip().upper()
+                if answer not in ["A", "B", "C", "D"]:
+                    return False
+            else:
+                # For essays and short answers, ensure substantial content
+                if len(item["correct_answer"]) < 10 or len(item["explanation"]) < 15:
+                    return False
+
+            return True
+        except Exception as e:
+            logger.warning(f"Validation error for generated item: {e}")
+            return False
         excerpts: List[str] = []
         sources = self._find_textbook_sources(year_key, subject_slug)
         
@@ -1026,14 +1077,43 @@ JSON format:
         return ""
 
     def _parse_json_array(self, response: str) -> List[Dict[str, Any]]:
+        """Parse JSON array from LLM response, handling various formats from OpenAI and DeepSeek."""
+        if not response or not response.strip():
+            logger.warning("Empty response received from LLM")
+            return []
+
+        # Clean the response - remove markdown code blocks if present
+        response = response.strip()
+        if response.startswith("```json"):
+            response = response[7:]
+        if response.startswith("```"):
+            response = response[3:]
+        if response.endswith("```"):
+            response = response[:-3]
+        response = response.strip()
+
+        # Try to find JSON array
         start = response.find("[")
         end = response.rfind("]") + 1
+
         if start == -1 or end <= 0:
+            logger.warning(f"No JSON array found in response: {response[:200]}...")
             return []
+
+        json_str = response[start:end]
         try:
-            payload = json.loads(response[start:end])
-            return payload if isinstance(payload, list) else []
-        except Exception:
+            payload = json.loads(json_str)
+            if isinstance(payload, list):
+                logger.info(f"Successfully parsed {len(payload)} questions from LLM response")
+                return payload
+            else:
+                logger.warning(f"Expected list but got {type(payload)}: {payload}")
+                return []
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON parsing failed: {e}. Response excerpt: {json_str[:200]}...")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error parsing JSON: {e}")
             return []
 
     def _candidate_to_question(self, candidate: CandidateQuestion, subject_enum: Subject) -> Question:
