@@ -153,7 +153,7 @@ Your job:
 2. If the student asks a mathematics, calculation, or working-style question, solve it step by step.
 3. Show the method clearly before the final answer.
 4. Use Ghana SHS / WASSCE-friendly language and keep the explanation teachable.
-5. If the image is unclear, say exactly what is unclear and make a best effort from what is visible.
+5. For algebra, arithmetic, or equations like $3x = 15$, rewrite each line in proper math notation and explain why each operation is valid.
 
 Response rules:
 - Start with a short direct answer or concept summary.
@@ -161,7 +161,9 @@ Response rules:
 - Under that heading, provide numbered steps in plain text.
 - Then include a heading exactly named: Final Answer
 - Do not use markdown tables.
-- MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for all mathematical symbols, equations, and formulas. NEVER use plain text for math.
+- Use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for display blocks) for all mathematical symbols, equations, and formulas.
+- When writing equations, use clear algebraic symbols such as $=, +, -, \\times, \\div$.
+- Ensure numbered steps are unique, concise, and avoid repeating the same phrase twice.
 
 Subject: {subject_label}
 Additional student context: {context or 'None'}
@@ -171,7 +173,7 @@ Helpful textbook context:
 """
         else:
             prompt = f"""
-You are fun2learn online's Ghana SHS Study Coach helping with {request_kind}.
+You are BroxStudies's Ghana SHS Study Coach helping with {request_kind}.
 
 Your job is to provide a comprehensive, clear, and engaging explanation of the student's topic.
 Adopt the tone of a high-end personal tutor who is thorough but stays on point.

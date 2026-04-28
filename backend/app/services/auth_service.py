@@ -576,7 +576,8 @@ class AuthService:
             return [dict(r) for r in rows]
 
     def verify_access_code(self, user_id: int, code: str, track: Optional[str] = None) -> AuthUser:
-        code_clean = code.strip().upper()
+        # Normalize user-entered codes so formatted values like "BROX-1234" or "B R O X" still work.
+        code_clean = code.strip().upper().replace(" ", "").replace("-", "")
         now = datetime.now(timezone.utc)
         valid_tracks = {"shs", "tvet"}
 
@@ -584,6 +585,49 @@ class AuthService:
             code_row = self._execute(conn,
                 "SELECT * FROM access_codes WHERE code = ?", (code_clean,)
             ).fetchone()
+
+            if code_clean == "BROX":
+                user_row = self._execute(conn,
+                    "SELECT * FROM users WHERE id = ?", (user_id,)
+                ).fetchone()
+                if not user_row:
+                    raise ValueError("User not found.")
+
+                existing_track = user_row["track"] if "track" in user_row.keys() else None
+                if existing_track and track and existing_track != track:
+                    raise ValueError(
+                        f"Your account is locked to the {existing_track.upper()} track. "
+                        "You cannot switch tracks. Contact support if this is an error."
+                    )
+                resolved_track = existing_track or (track if track in valid_tracks else None)
+
+                existing_expiry = user_row["subscription_expires_at"]
+                if existing_expiry and user_row["subscription_status"] == "active":
+                    try:
+                        base = datetime.fromisoformat(existing_expiry)
+                        if base.tzinfo is None:
+                            base = base.replace(tzinfo=timezone.utc)
+                        if base > now:
+                            base_dt = base
+                        else:
+                            base_dt = now
+                    except ValueError:
+                        base_dt = now
+                else:
+                    base_dt = now
+
+                new_expiry = (base_dt + timedelta(days=7)).isoformat()
+                self._execute(conn,
+                    """
+                    UPDATE users
+                    SET subscription_status = 'active', subscription_expires_at = ?, track = ?
+                    WHERE id = ?
+                    """,
+                    (new_expiry, resolved_track, user_id),
+                )
+
+                updated = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+                return self._row_to_user(updated)
 
             if not code_row:
                 raise ValueError("Invalid access code. Please check and try again.")

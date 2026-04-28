@@ -70,11 +70,14 @@ export function ActivatePage() {
                Pay via MoMo to <strong className="text-ink-0">0248317900</strong>, then enter the access
                code we send you to unlock Practice, Quiz, Library, and more for 3 months.
             </p>
+            <p className="mt-3 text-[15px] leading-relaxed text-ink-300">
+               Or use the promo code <strong className="text-emerald-300">BROX</strong> for 7 days free premium access.
+            </p>
 
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MiniStep num="1" icon={<Smartphone size={14} />} label="Send GH₵ 20 via MoMo" />
-              <MiniStep num="2" icon={<Ticket size={14} />} label="Receive BROX-XXXX code" />
-              <MiniStep num="3" icon={<Check size={14} />} label="Paste code to unlock" />
+              <MiniStep num="2" icon={<Ticket size={14} />} label="Enter BROX or a 6-character access code" />
+              <MiniStep num="3" icon={<Check size={14} />} label="Unlock premium access" />
             </div>
 
             {selectedTrack && (
@@ -92,7 +95,7 @@ export function ActivatePage() {
               <label className="mb-1.5 block text-[13px] font-medium text-ink-100">Access code</label>
               <Input
                 type="text"
-                placeholder="BROX-XXXX"
+                placeholder="BROX or 6-character code"
                 value={code}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value.toUpperCase())}
                 className="font-mono text-base tracking-[0.2em]"

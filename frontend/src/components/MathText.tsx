@@ -17,11 +17,30 @@ function convertChemicalFormulas(text: string): string {
     // Superscript notation: ^2, ^3 outside LaTeX
     .replace(/\^(\d+)/g, (_, n) => n.split('').map((d: string) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+d]).join(''))
 }
-
-// Image URL pattern embedded in question text
 const IMG_PATTERN = /\[image:\s*(https?:\/\/[^\]]+)\]/gi
 const BLOCK_MATH_PATTERN = /\$\$([^$]+)\$\$/g
 const INLINE_MATH_PATTERN = /\$([^$\n]+)\$/g
+const SIMPLE_MATH_PATTERN = /([A-Za-z0-9()]+(?:\s*[+\-*/^=]\s*[A-Za-z0-9()]+)+)/g
+
+function splitTextByMath(text: string): Segment[] {
+  const segments: Segment[] = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(SIMPLE_MATH_PATTERN)) {
+    const index = match.index ?? 0
+    if (index > lastIndex) {
+      segments.push({ type: 'text', content: convertChemicalFormulas(text.slice(lastIndex, index)) })
+    }
+    segments.push({ type: 'inline-math', content: match[1].trim() })
+    lastIndex = index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ type: 'text', content: convertChemicalFormulas(text.slice(lastIndex)) })
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'text', content: convertChemicalFormulas(text) }]
+}
 
 function parseSegments(text: string): Segment[] {
   const segments: Segment[] = []
@@ -48,7 +67,7 @@ function parseSegments(text: string): Segment[] {
     ].filter(Boolean) as Array<{ type: Segment['type']; match: RegExpExecArray }>
 
     if (matches.length === 0) {
-      segments.push({ type: 'text', content: convertChemicalFormulas(remaining) })
+      segments.push(...splitTextByMath(remaining))
       break
     }
 
@@ -56,10 +75,7 @@ function parseSegments(text: string): Segment[] {
     const earliest = matches[0]
 
     if (earliest.match.index > 0) {
-      segments.push({
-        type: 'text',
-        content: convertChemicalFormulas(remaining.slice(0, earliest.match.index)),
-      })
+      segments.push(...splitTextByMath(remaining.slice(0, earliest.match.index)))
     }
 
     segments.push({ type: earliest.type, content: earliest.match[1] })
