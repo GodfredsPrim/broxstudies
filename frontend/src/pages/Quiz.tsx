@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { questionsApi, liveQuizApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
+import { MathText } from '@/components/MathText'
 import type { LiveQuizStateResponse } from '@/api/types'
 
 interface SubjectOption {
@@ -64,7 +65,7 @@ export function QuizPage() {
     if (first && first.id !== subject) {
       setSubject(first.id)
     }
-  }, [filteredSubjects, subject])
+  }, [filteredSubjects]) // Only run when filtered subjects change (year changes), not when subject changes
 
   useEffect(() => {
     if (!roomCode) return
@@ -393,7 +394,9 @@ export function QuizPage() {
                       <span>Question {index + 1}</span>
                       <span>{question.question_type.replace('_', ' ')}</span>
                     </div>
-                    <p className="mt-3 text-base text-foreground">{question.question_text}</p>
+                    <div className="mt-3 text-base text-foreground">
+                      <MathText>{question.question_text}</MathText>
+                    </div>
                     {question.options?.length ? (
                       <div className="mt-4 grid gap-3">
                         {question.options.map((option) => (
@@ -406,7 +409,7 @@ export function QuizPage() {
                               onChange={() => handleAnswer(index, option)}
                               className="h-4 w-4 text-emerald-600"
                             />
-                            <span>{option}</span>
+                            <MathText>{option}</MathText>
                           </label>
                         ))}
                       </div>
