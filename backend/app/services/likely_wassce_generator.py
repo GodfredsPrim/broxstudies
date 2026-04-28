@@ -62,6 +62,8 @@ class LikelyWASSCEGenerator:
         self.past_root = settings.DATA_DIR / "past_questions"
         self._llm: Optional[ChatOpenAI] = None
         self._exclude_hashes: Set[str] = set()
+        self._topic_cache: Dict[str, List[str]] = {}
+        self._textbook_excerpt_cache: Dict[str, str] = {}
 
     @staticmethod
     def hash_question(question_text: str) -> str:
@@ -225,12 +227,19 @@ class LikelyWASSCEGenerator:
         }
 
     def extract_topics_from_textbooks(self, year_key: str, subject_slug: str) -> List[str]:
+        cache_key = f"{year_key}:{subject_slug}"
+        if cache_key in self._topic_cache:
+            return self._topic_cache[cache_key]
+        
         subject_dir = self.textbook_root / year_key / subject_slug
         if not subject_dir.exists():
+            self._topic_cache[cache_key] = []
             return []
 
         topics: List[str] = []
-        for pdf_path in sorted(subject_dir.glob("*.pdf")):
+        # Use list() to eagerly evaluate glob to avoid lazy iteration issues in async context
+        pdf_files = list(sorted(subject_dir.glob("*.pdf")))
+        for pdf_path in pdf_files:
             if self._is_non_content_pdf(pdf_path.name):
                 continue
             heading_topics = self._extract_topics_from_pdf(pdf_path)
@@ -242,7 +251,9 @@ class LikelyWASSCEGenerator:
             if filename_topic:
                 topics.append(filename_topic)
 
-        return self._dedupe_preserve_order([topic for topic in topics if topic])
+        result = self._dedupe_preserve_order([topic for topic in topics if topic])
+        self._topic_cache[cache_key] = result
+        return result
 
     def _extract_topics_from_pdf(self, pdf_path: Path) -> List[str]:
         try:
@@ -382,7 +393,8 @@ class LikelyWASSCEGenerator:
         organized: Dict[str, List[Question]] = {"paper_1": [], "paper_2": [], "paper_3": []}
         subject_enum = self._subject_enum(subject_slug)
 
-        for section in blueprint:
+        # Run section generation in parallel instead of sequentially
+        async def process_section(section: SectionBlueprint) -> tuple[str, List[Question]]:
             section_questions = await self._generate_missing_questions(
                 subject_slug=subject_slug,
                 subject_label=subject_label,
@@ -409,7 +421,14 @@ class LikelyWASSCEGenerator:
                 topics=topics,
                 subject_enum=subject_enum,
             )
-            organized[section.paper_key].extend(section_questions[: section.expected_count])
+            return section.paper_key, section_questions[: section.expected_count]
+
+        # Execute all section generation tasks concurrently
+        tasks = [process_section(section) for section in blueprint]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+        
+        for paper_key, questions in results:
+            organized[paper_key].extend(questions)
 
         return {key: value for key, value in organized.items() if value}
 
@@ -425,7 +444,7 @@ class LikelyWASSCEGenerator:
         subject_enum = self._subject_enum(subject_slug)
         organized: Dict[str, List[Question]] = {"paper_1": [], "paper_2": [], "paper_3": []}
 
-        for section in blueprint:
+        async def process_section(section: SectionBlueprint) -> tuple[str, List[Question]]:
             y1_section = self._slice_section_questions(year_1_exam.get(section.paper_key, []), blueprint, section)
             y2_section = self._slice_section_questions(year_2_exam.get(section.paper_key, []), blueprint, section)
             merged = self._merge_question_lists(y1_section, y2_section)
@@ -451,7 +470,14 @@ class LikelyWASSCEGenerator:
                 topics=combined_topics,
                 subject_enum=subject_enum,
             )
-            organized[section.paper_key].extend(merged[: section.expected_count])
+            return section.paper_key, merged[: section.expected_count]
+
+        # Execute all section processing tasks concurrently
+        tasks = [process_section(section) for section in blueprint]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+        
+        for paper_key, questions in results:
+            organized[paper_key].extend(questions)
 
         return {key: value for key, value in organized.items() if value}
 
@@ -492,7 +518,7 @@ class LikelyWASSCEGenerator:
         blueprint = self._build_default_blueprint(subject_slug)
         organized: Dict[str, List[Question]] = {"paper_1": [], "paper_2": [], "paper_3": []}
 
-        for section in blueprint:
+        async def process_section(section: SectionBlueprint) -> tuple[str, List[Question]]:
             generated = await self._generate_missing_questions(
                 subject_slug=subject_slug,
                 subject_label=subject_label,
@@ -511,7 +537,14 @@ class LikelyWASSCEGenerator:
                 topics=topics,
                 subject_enum=subject_enum,
             )
-            organized[section.paper_key].extend(standardized[: section.expected_count])
+            return section.paper_key, standardized[: section.expected_count]
+
+        # Execute all section generation tasks concurrently
+        tasks = [process_section(section) for section in blueprint]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+        
+        for paper_key, questions in results:
+            organized[paper_key].extend(questions)
 
         return {key: value for key, value in organized.items() if value}
 
@@ -662,7 +695,9 @@ class LikelyWASSCEGenerator:
 
         generated: List[Question] = []
         attempts = 0
-        while len(generated) < missing_count and attempts < 3:
+        max_attempts = 2  # Reduced from 3 to 2 to speed up generation
+        
+        while len(generated) < missing_count and attempts < max_attempts:
             attempts += 1
             prompt = self._build_generation_prompt(
                 subject_slug=subject_slug,
@@ -673,8 +708,21 @@ class LikelyWASSCEGenerator:
                 missing_count=missing_count - len(generated),
             )
 
-            response = await self._call_openai(prompt)
+            try:
+                response = await asyncio.wait_for(self._call_openai(prompt), timeout=90.0)  # Reduced from 120s
+            except asyncio.TimeoutError:
+                logger.warning(f"LLM call timeout for {subject_label} {section.title}; continuing with generated questions")
+                break
+            except Exception as e:
+                logger.warning(f"LLM call failed: {e}; continuing with generated questions")
+                if attempts >= max_attempts:
+                    break
+                continue
+            
             payload = self._parse_json_array(response)
+            if not payload:
+                logger.warning(f"Failed to parse LLM response for {section.title}; retrying...")
+                continue
 
             for item in payload[: missing_count - len(generated)]:
                 normalized = self._normalize_generated_item(item, section.question_type)
@@ -694,6 +742,7 @@ class LikelyWASSCEGenerator:
                     )
                 )
             generated = self._dedupe_questions(generated)
+        
         return generated
 
     async def _ensure_section_standard(
@@ -834,10 +883,20 @@ JSON format:
 
     def _load_textbook_excerpts(self, year_key: str, subject_slug: str, max_items: int = 6, max_chars: int = 1200) -> List[str]:
         excerpts: List[str] = []
-        for source in self._find_textbook_sources(year_key, subject_slug)[:max_items]:
-            text = self._read_textbook_excerpt(source, max_chars=max_chars)
-            if text:
-                excerpts.append(f"{source.name}: {text}")
+        sources = self._find_textbook_sources(year_key, subject_slug)
+        
+        # Use ThreadPoolExecutor to read textbooks in parallel
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(self._read_textbook_excerpt, source, max_chars) for source in sources[:max_items]]
+            for i, future in enumerate(concurrent.futures.as_completed(futures)):
+                try:
+                    text = future.result()
+                    if text:
+                        excerpts.append(f"{sources[i].name}: {text}")
+                except Exception as e:
+                    logger.debug(f"Failed to read textbook excerpt: {e}")
+        
         return excerpts
 
     def _find_textbook_sources(self, year_key: str, subject_slug: str) -> List[Path]:

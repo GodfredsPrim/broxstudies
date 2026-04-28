@@ -67,7 +67,7 @@ export const questionsApi = {
   subjects: () => api.get<SubjectsResponse>('/api/questions/subjects').then(r => r.data),
   questionTypes: () => api.get<{ types: string[] }>('/api/questions/question-types').then(r => r.data),
   generate: (body: GenerateQuestionBody) =>
-    api.post<GeneratedQuestions>('/api/questions/generate', body, { timeout: 300_000 }).then(r => r.data),
+    api.post<GeneratedQuestions>('/api/questions/generate', body, { timeout: 600_000 }).then(r => r.data),
   generateProfessional: (subject: string, year: string) =>
     api.post<GeneratedQuestions>(
       '/api/questions/generate-professional',
@@ -78,7 +78,7 @@ export const questionsApi = {
         num_questions: 46,
         difficulty_level: 'medium',
       },
-      { timeout: 300_000 },
+      { timeout: 600_000 },
     ).then(r => r.data),
   markPractice: (    items: Array<{
       question_text: string

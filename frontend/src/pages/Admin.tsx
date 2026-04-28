@@ -565,7 +565,7 @@ function CompetitionCreateForm({ onCreated }: { onCreated: () => Promise<void> |
           <Input type="date" value={start} onChange={(e: ChangeEvent<HTMLInputElement>) => setStart(e.target.value)} required />
         </LabeledField>
         <LabeledField label="End date">
-          <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} required />
+          <Input type="date" value={end} onChange={(e: ChangeEvent<HTMLInputElement>) => setEnd(e.target.value)} required />
         </LabeledField>
         <div className="md:col-span-2">
           <LabeledField label="Description">
