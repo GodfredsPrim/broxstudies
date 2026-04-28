@@ -297,6 +297,15 @@ Requirements:
 9. If no excerpts are available below, generate high-quality questions from your internal WAEC/Ghanaian curriculum knowledge.
 10. MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for ALL mathematical symbols, equations, arithmetic, and formulas. NEVER use plain text for symbols like pi, theta, or fractions.
 
+*** CRITICAL SUBJECT EXCLUSIVITY RULE ***
+You are STRICTLY GENERATING QUESTIONS FOR: {display_subject}
+ABSOLUTELY DO NOT include questions from:
+- Related subjects (e.g., if generating Additional Mathematics, do NOT include Physics, Chemistry, or Biology questions)
+- Other science subjects if requesting a mathematics subject
+- Mathematics if requesting a science or social studies subject
+- Any subject outside the strictly requested {display_subject} domain
+Every single question MUST be exclusively about {display_subject}. Cross-check each question before returning it.
+
 *** CRITICAL RANDOMIZATION DIRECTIVE ***
 Seed Token: {random.randint(10000, 99999)}
 Creative Strategy: {random.choice(["lateral thinking", "deep application", "conceptual variation", "uncommon scenarios"])}
