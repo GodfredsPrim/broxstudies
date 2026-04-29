@@ -166,7 +166,7 @@ Return valid JSON array of {num_questions} objects:
     "options": ["A", "B", "C", "D"], (for mcq ONLY)
     "correct_answer": "answer/option letter",
     "explanation": "marking guide/step-by-step solution",
-    "difficulty_level": "medium",
+    "difficulty_level": "standard",
     "topic": "topic name"
   }}
 ]
@@ -188,7 +188,7 @@ Return valid JSON array of {num_questions} objects:
         validate: bool = True,
     ):
         try:
-            logger.info(f"Generating {num_questions} {difficulty_level or 'medium'} level {question_type.value} questions for {subject.value}")
+            logger.info(f"Generating {num_questions} {difficulty_level or 'standard'} level {question_type.value} questions for {subject.value}")
             prompt = self._build_prompt(
                 subject,
                 question_type,
@@ -513,12 +513,24 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
         except Exception:
             return ""
 
-    async def _call_llm(self, prompt: str, temperature: float = 0.85) -> str:
+    _SYSTEM_PROMPT = (
+        "You are a senior Ghana WASSCE examination setter with 20+ years of experience at WAEC. "
+        "You produce exam questions that exactly match the standard, format, cognitive demand, and marking "
+        "conventions of official Ghana WAEC past papers. "
+        "MCQ stems must be unambiguous; all distractors plausible; correct answers verifiably right. "
+        "Theory questions must demand well-structured working or developed prose with mark-step rubrics. "
+        "Never invent false facts. Return valid JSON only — no preamble, no trailing text."
+    )
+
+    async def _call_llm(self, prompt: str, temperature: float = 0.75) -> str:
         """Call the LLM to generate a response."""
         try:
             logger.debug("Calling LLM with prompt...")
-            from langchain_core.messages import HumanMessage
-            message = await self._get_llm(temperature=temperature).ainvoke([HumanMessage(content=prompt)])
+            from langchain_core.messages import HumanMessage, SystemMessage
+            message = await self._get_llm(temperature=temperature).ainvoke([
+                SystemMessage(content=self._SYSTEM_PROMPT),
+                HumanMessage(content=prompt),
+            ])
             logger.info("LLM response received successfully")
             return message.content
         except Exception as e:
@@ -763,7 +775,7 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
                         options=options,
                         correct_answer=item.get("correct_answer", ""),
                         explanation=item.get("explanation", ""),
-                        difficulty_level=item.get("difficulty_level") or item.get("difficulty") or "medium",
+                        difficulty_level=item.get("difficulty_level") or item.get("difficulty") or "standard",
                         year_generated=2026,
                         pattern_confidence=0.92,
                     )

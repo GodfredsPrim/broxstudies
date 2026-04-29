@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   BookOpen, Loader2, CheckCircle2, XCircle,
   RotateCcw, Trophy, ChevronRight, BookMarked, GraduationCap,
-  FileText, ClipboardList, ScrollText,
+  FileText, ClipboardList, ScrollText, Download, Share2,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { MathText } from '@/components/MathText'
 import type { Question, Subject } from '@/api/types'
+import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
 
 const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
 const TVET_LEVELS = ['Level 1', 'Level 2']
@@ -54,6 +55,8 @@ export function PracticePage() {
   const [sourceUsed, setSourceUsed] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+
+  const [shareLabel, setShareLabel] = useState('')
 
   // results
   const [score, setScore] = useState(0)
@@ -194,6 +197,25 @@ export function PracticePage() {
     setSourceUsed('')
   }
 
+  const handleDownload = () => {
+    downloadQuestionsAsPDF(
+      `${selectedName} — Practice Questions`,
+      `${selectedYear} · ${questions.length} questions`,
+      [{ heading: 'Questions', questions }],
+      `${selectedName}_${selectedYear}_practice.pdf`.replace(/\s+/g, '_'),
+    )
+  }
+
+  const handleShare = async () => {
+    const text = buildShareText(
+      `${selectedName} – ${selectedYear} Practice Questions`,
+      [{ heading: 'Questions', questions }],
+    )
+    const result = await shareOrCopy(text, `${selectedName} Practice Questions`)
+    setShareLabel(result === 'copied' ? 'Copied!' : 'Shared!')
+    setTimeout(() => setShareLabel(''), 2500)
+  }
+
   /* ── Setup ── */
   if (phase === 'setup') {
     return (
@@ -306,10 +328,28 @@ export function PracticePage() {
             <h1 className="text-2xl font-black text-foreground">{selectedName}</h1>
             <p className="text-sm text-muted-foreground">{selectedYear} · {questions.length} questions</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               <span className="font-black text-foreground">{answered}</span>/{questions.length} answered
             </span>
+            <button
+              type="button"
+              onClick={handleDownload}
+              title="Download as branded PDF"
+              className="rounded-2xl border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              <Download size={11} className="mr-1 inline" />
+              PDF
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              title="Share or copy questions"
+              className="rounded-2xl border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              <Share2 size={11} className="mr-1 inline" />
+              {shareLabel || 'Share'}
+            </button>
             <button
               type="button"
               onClick={handleReset}
@@ -348,7 +388,9 @@ export function PracticePage() {
                         ? 'bg-green-100 text-green-700'
                         : q.difficulty_level === 'hard'
                           ? 'bg-red-100 text-red-700'
-                          : 'bg-yellow-100 text-yellow-700'
+                          : q.difficulty_level === 'standard'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-yellow-100 text-yellow-700'
                     }`}>{q.difficulty_level}</span>
                   )}
                 </div>

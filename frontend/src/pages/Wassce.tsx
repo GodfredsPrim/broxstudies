@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   Loader2, TrendingUp, AlertTriangle, Trophy, CheckCircle2,
   XCircle, RotateCcw, Shield, Clock, ChevronRight,
-  Maximize2,
+  Maximize2, Download, Share2,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { MathText } from '@/components/MathText'
 import type { Question, Subject } from '@/api/types'
+import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
 
 const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
 const TVET_LEVELS = ['Level 1', 'Level 2']
@@ -184,6 +185,7 @@ export function WassceePage() {
   const [score, setScore] = useState(0)
   const [percentage, setPercentage] = useState(0)
   const [markResults, setMarkResults] = useState<MarkResult[]>([])
+  const [shareLabel, setShareLabel] = useState('')
 
   const { selectedTrack } = useAcademicTrack()
   const curriculumName = selectedTrack === 'tvet' ? 'NAPTEX' : 'WASSCE'
@@ -347,6 +349,31 @@ export function WassceePage() {
     setSubmitting(false)
   }
 
+  const buildSections = () =>
+    (Object.entries(organizedPapers) as [PaperKey, Question[]][])
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, qs]) => ({
+        heading: `${PAPER[key].label} — ${PAPER[key].subtitle}`,
+        questions: qs,
+      }))
+
+  const handleDownload = () => {
+    downloadQuestionsAsPDF(
+      `${selectedName} — ${likelyLabel}`,
+      `${selectedYear} · ${allQuestions.length} questions`,
+      buildSections(),
+      `${selectedName}_${selectedYear}_${curriculumName}.pdf`.replace(/\s+/g, '_'),
+    )
+  }
+
+  const handleShare = async () => {
+    const title = `${selectedName} ${selectedYear} — ${likelyLabel}`
+    const text = buildShareText(title, buildSections())
+    const result = await shareOrCopy(text, title)
+    setShareLabel(result === 'copied' ? 'Copied!' : 'Shared!')
+    setTimeout(() => setShareLabel(''), 2500)
+  }
+
   /* ──────────────── SETUP ──────────────── */
   if (phase === 'setup') {
     return (
@@ -497,7 +524,7 @@ export function WassceePage() {
             <p className="truncate text-sm font-black text-foreground">{selectedName}</p>
             <p className="text-xs text-muted-foreground">{selectedYear} · {likelyLabel}</p>
           </div>
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span className="font-mono font-bold">{fmt(elapsed)}</span>
@@ -506,6 +533,24 @@ export function WassceePage() {
               <span className="font-black text-foreground">{totalAnswered}</span>
               /{allQuestions.length}
             </div>
+            <button
+              type="button"
+              onClick={handleDownload}
+              title="Download as branded PDF"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Download size={12} />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              title="Share or copy questions"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Share2 size={12} />
+              <span className="hidden sm:inline">{shareLabel || 'Share'}</span>
+            </button>
             <button
               type="button"
               onClick={handleSubmit}
@@ -583,6 +628,7 @@ export function WassceePage() {
                       <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                         q.difficulty_level === 'easy' ? 'bg-green-100 text-green-700' :
                         q.difficulty_level === 'hard' ? 'bg-red-100 text-red-700' :
+                        q.difficulty_level === 'standard' ? 'bg-blue-100 text-blue-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>{q.difficulty_level}</span>
                     )}

@@ -6,11 +6,12 @@ import logging
 import random
 import re
 import zipfile
+from collections import Counter
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from PyPDF2 import PdfReader
 
@@ -31,6 +32,10 @@ class SectionBlueprint:
     source_file: str = ""
     samples: List[str] = field(default_factory=list)
     answer_samples: List[str] = field(default_factory=list)
+    # Cross-year pattern data derived by scanning ALL available past papers
+    multi_year_samples: List[str] = field(default_factory=list)
+    style_notes: str = ""
+    years_scanned: int = 0
 
 
 @dataclass
@@ -289,6 +294,7 @@ class LikelyWASSCEGenerator:
         return []
 
     def _analyze_subject_archives(self, subject_slug: str, archive_path: Path) -> tuple[list[SectionBlueprint], list[CandidateQuestion]]:
+        """Scan ALL available past paper years to build an authoritative pattern profile."""
         paper_groups = self._group_subject_files(archive_path)
         blueprint: List[SectionBlueprint] = []
         candidates: List[CandidateQuestion] = []
@@ -301,86 +307,204 @@ class LikelyWASSCEGenerator:
             if not question_files:
                 continue
 
-            parsed_sections = []
-            chosen_question = None
-            ordered_question_files = self._order_representative_files(question_files, preferred_year)
-            for question_file in ordered_question_files:
+            # --- PHASE 1: Read and parse ALL available year files ---
+            # (sorted newest-first so first valid = most recent representative)
+            sorted_files = sorted(question_files, key=lambda f: f["year"], reverse=True)
+            all_year_data: List[tuple[str, str, List[Dict[str, Any]]]] = []
+            for question_file in sorted_files:
                 question_text = self._read_pdf_from_container(archive_path, question_file["path"])
                 if not question_text.strip():
                     continue
-
-                parsed_sections = self._parse_paper_sections(
+                parsed = self._parse_paper_sections(
                     paper_key=paper_key,
                     source_year=question_file["year"],
                     source_file=question_file["path"],
                     full_text=question_text,
                 )
-                if parsed_sections:
-                    chosen_question = question_file
-                    break
+                if parsed:
+                    all_year_data.append((question_file["year"], question_file["path"], parsed))
 
-            if not parsed_sections:
+            if not all_year_data:
                 continue
 
-            if preferred_year is None and chosen_question:
-                preferred_year = chosen_question["year"]
+            # Designate the most recent parseable year as the representative
+            rep_year, rep_path, rep_sections = all_year_data[0]
+            if preferred_year is None:
+                preferred_year = rep_year
 
-            chosen_solution = self._pick_solution_file(solution_files, chosen_question["year"] if chosen_question else None)
+            # Pick answers/solutions aligned with the representative year
+            chosen_solution = self._pick_solution_file(solution_files, rep_year)
             answers = self._extract_answers_from_solution(
                 archive_path=archive_path,
                 paper_key=paper_key,
                 solution_path=chosen_solution["path"] if chosen_solution else None,
             )
 
-            for section in parsed_sections:
-                section_questions = section["questions"]
-                if not section_questions:
+            # --- PHASE 2: Aggregate cross-year pattern profile per section_key ---
+            # section_key → {counts: [], samples_by_year: {}, all_texts: []}
+            section_profiles: Dict[str, Dict[str, Any]] = {}
+            for year, path, sections in all_year_data:
+                for section in sections:
+                    sk = section["section_key"]
+                    if sk not in section_profiles:
+                        section_profiles[sk] = {
+                            "title": section["title"],
+                            "question_type": section["question_type"],
+                            "counts": [],
+                            "samples_by_year": {},
+                            "all_texts": [],
+                        }
+                    qs = section["questions"]
+                    if qs:
+                        count = max(q["number"] for q in qs)
+                        section_profiles[sk]["counts"].append(count)
+                        section_profiles[sk]["samples_by_year"][year] = [q["text"] for q in qs[:3]]
+                        section_profiles[sk]["all_texts"].extend(q["text"] for q in qs)
+
+            # --- PHASE 3: Build blueprint entries with consensus counts & style notes ---
+            for sk, profile in section_profiles.items():
+                counts = profile["counts"]
+                if not counts:
                     continue
 
-                sample_texts = [item["text"] for item in section_questions[:3]]
-                answer_samples = []
-                for item in section_questions[:3]:
-                    answer_text = answers.get(str(item["number"]), "")
-                    if answer_text:
-                        answer_samples.append(answer_text)
+                # Use the modal (most common) count across all scanned years
+                consensus_count = Counter(counts).most_common(1)[0][0]
 
-                expected_count = max(item["number"] for item in section_questions)
+                # Multi-year sample block: up to 2 questions per year, newest first
+                multi_year_samples: List[str] = []
+                for year in sorted(profile["samples_by_year"], reverse=True):
+                    for q_text in profile["samples_by_year"][year][:2]:
+                        multi_year_samples.append(f"[{year}] {q_text[:300]}")
+
+                style_notes = self._derive_style_notes(
+                    paper_key=paper_key,
+                    question_texts=profile["all_texts"],
+                    subject_slug=subject_slug,
+                    count_distribution=counts,
+                )
+
+                # Primary samples + answer samples from the representative year
+                primary_samples: List[str] = []
+                answer_samples: List[str] = []
+                for section in rep_sections:
+                    if section["section_key"] == sk:
+                        primary_samples = [q["text"] for q in section["questions"][:3]]
+                        for q in section["questions"][:3]:
+                            ans = answers.get(str(q["number"]), "")
+                            if ans:
+                                answer_samples.append(ans)
+                        break
 
                 blueprint.append(
                     SectionBlueprint(
                         paper_key=paper_key,
-                        section_key=section["section_key"],
-                        title=section["title"],
-                        question_type=section["question_type"],
-                        expected_count=expected_count,
-                        source_year=chosen_question["year"] if chosen_question else section["source_year"],
-                        source_file=chosen_question["path"] if chosen_question else section["source_file"],
-                        samples=sample_texts,
+                        section_key=sk,
+                        title=profile["title"],
+                        question_type=profile["question_type"],
+                        expected_count=consensus_count,
+                        source_year=rep_year,
+                        source_file=rep_path,
+                        samples=primary_samples,
                         answer_samples=answer_samples,
+                        multi_year_samples=multi_year_samples,
+                        style_notes=style_notes,
+                        years_scanned=len(all_year_data),
                     )
                 )
 
-                for item in section_questions:
-                    candidates.append(
-                        CandidateQuestion(
-                            paper_key=paper_key,
-                            section_key=section["section_key"],
-                            section_title=section["title"],
-                            question_type=section["question_type"],
-                            source_year=chosen_question["year"] if chosen_question else section["source_year"],
-                            source_file=chosen_question["path"] if chosen_question else section["source_file"],
-                            number=item["number"],
-                            text=item["text"],
-                            options=item.get("options"),
-                            answer=answers.get(str(item["number"]), ""),
-                            explanation=answers.get(str(item["number"]), ""),
-                        )
-                    )
+                # --- PHASE 4: Add ALL questions from ALL years as candidates ---
+                for year, path, sections in all_year_data:
+                    year_answers = answers if year == rep_year else {}
+                    for section in sections:
+                        if section["section_key"] != sk:
+                            continue
+                        for item in section["questions"]:
+                            candidates.append(
+                                CandidateQuestion(
+                                    paper_key=paper_key,
+                                    section_key=sk,
+                                    section_title=profile["title"],
+                                    question_type=profile["question_type"],
+                                    source_year=year,
+                                    source_file=path,
+                                    number=item["number"],
+                                    text=item["text"],
+                                    options=item.get("options"),
+                                    answer=year_answers.get(str(item["number"]), ""),
+                                    explanation=year_answers.get(str(item["number"]), ""),
+                                )
+                            )
 
         if not blueprint:
             raise ValueError(f"Could not extract a WASSCE paper structure for '{subject_slug}'.")
 
         return self._normalize_blueprint(blueprint), candidates
+
+    def _derive_style_notes(
+        self,
+        paper_key: str,
+        question_texts: List[str],
+        subject_slug: str,
+        count_distribution: List[int],
+    ) -> str:
+        """Analyse all past-paper question texts to produce a human-readable style summary."""
+        if not question_texts:
+            return ""
+
+        all_text = " ".join(question_texts).lower()
+        notes: List[str] = []
+
+        # Count distribution summary
+        if count_distribution:
+            counts = sorted(set(count_distribution))
+            if len(counts) == 1:
+                notes.append(f"consistently {counts[0]} questions across all scanned years")
+            else:
+                modal = Counter(count_distribution).most_common(1)[0][0]
+                notes.append(f"typically {modal} questions (range {min(counts)}–{max(counts)} across {len(count_distribution)} years)")
+
+        # Cognitive style detection
+        calc_kws = ["calculate", "find the", "solve", "evaluate", "simplify", "compute", "hence find", "show that"]
+        theory_kws = ["explain", "describe", "state", "outline", "discuss", "give reasons", "what is meant"]
+        diagram_kws = ["diagram", "figure", "draw", "label", "sketch"]
+        choice_kws = ["answer any", "answer only", "choose any", "attempt any"]
+        proof_kws = ["prove", "proof", "show that", "verify that"]
+
+        calc_hits = sum(1 for kw in calc_kws if kw in all_text)
+        theory_hits = sum(1 for kw in theory_kws if kw in all_text)
+        proof_hits = sum(1 for kw in proof_kws if kw in all_text)
+
+        if paper_key in ("paper_2", "paper_3"):
+            if calc_hits >= 3:
+                notes.append("calculation-heavy — most questions require mathematical working/steps")
+            if theory_hits >= 3:
+                notes.append("explanation-heavy — most questions require descriptive written answers")
+            if proof_hits >= 2:
+                notes.append("includes proof/verification questions")
+        if any(kw in all_text for kw in diagram_kws):
+            notes.append("includes diagram/figure-based questions")
+        if any(kw in all_text for kw in choice_kws):
+            notes.append("contains optional questions — candidates choose from a set")
+
+        # Subject-specific additions
+        subj = subject_slug.lower()
+        if "mathematics" in subj and paper_key == "paper_2":
+            if "vector" in all_text:
+                notes.append("Vectors section present")
+            if "integrat" in all_text or "differentiat" in all_text:
+                notes.append("Calculus section present")
+            if "probabilit" in all_text or "statistic" in all_text:
+                notes.append("Statistics/Probability section present")
+        if "english" in subj and paper_key == "paper_2":
+            notes.append("typically includes comprehension passage + directed writing (essay/letter/report)")
+        if "biology" in subj and paper_key == "paper_3":
+            notes.append("practical-alternative: labelled diagrams + experimental procedures")
+        if "chemistry" in subj and paper_key == "paper_3":
+            notes.append("practical-alternative: qualitative analysis + volumetric/titration calculations")
+        if "physics" in subj and paper_key == "paper_3":
+            notes.append("practical-alternative: experiment design + data analysis + error estimation")
+
+        return "; ".join(notes)
 
     async def _build_exam_for_topics(
         self,
@@ -772,7 +896,7 @@ class LikelyWASSCEGenerator:
                             options=normalized["options"],
                             correct_answer=normalized["correct_answer"],
                             explanation=normalized["explanation"],
-                            difficulty_level="medium",
+                            difficulty_level="standard",
                             year_generated=2026,
                             pattern_confidence=0.88,
                         )
@@ -853,50 +977,98 @@ class LikelyWASSCEGenerator:
         randomness_mode = random.choice(
             ["topic rotation", "novel scenario building", "fresh numeric variation", "mixed-skill sequencing"]
         )
-        source_mode = (
-            "Use the scanned textbook excerpts as the main source because no verified past-paper archive is available."
-            if not section.source_file
-            else "Use the representative past paper for structure and the scanned textbook excerpts for topic depth."
-        )
 
+        # ---- Source mode instruction ----
+        if not section.source_file:
+            source_mode = (
+                "No verified past-paper archive exists for this subject. "
+                "Use the scanned textbook excerpts and official Ghana SHS syllabus as the sole source."
+            )
+        else:
+            years_note = f" ({section.years_scanned} years of past papers scanned)" if section.years_scanned > 1 else ""
+            source_mode = (
+                f"Use the verified past-paper archive{years_note} for structure and difficulty, "
+                "and the scanned textbook excerpts for topic depth."
+            )
+
+        # ---- Option/answer rule ----
         option_rule = (
             'Include exactly four options in "options" and return the correct option letter in "correct_answer".'
             if section.question_type == QuestionType.MULTIPLE_CHOICE
             else 'Do not include "options". Put the official-style marking points in "correct_answer" and a fuller rubric in "explanation".'
         )
 
-        return f"""Create a likely WASSCE exam section for BroxStudies.
+        # ---- Cross-year pattern block ----
+        if section.style_notes:
+            pattern_block = (
+                f"PATTERN OBSERVED ACROSS ALL SCANNED PAST PAPERS: {section.style_notes}. "
+                "You MUST reproduce this exact style and difficulty distribution."
+            )
+        elif section.source_file:
+            pattern_block = "Match the structure, difficulty, and style of the representative past paper exactly."
+        else:
+            pattern_block = "Write to the standard of official Ghana WASSCE examination questions."
 
-Generate exactly {missing_count} questions for:
-- Subject: {subject_label}
-- Level source: {year_key.replace('_', ' ').title()}
-- Section: {section.title}
-- Paper: {section.paper_key.replace('_', ' ').title()}
-- Question type: {section.question_type.value}
-- Representative past paper: {section.source_file} ({section.source_year})
+        # ---- Multi-year sample block ----
+        if section.multi_year_samples:
+            # Show up to 6 samples drawn from different years
+            sampled_multi = self._sample_reference_text(section.multi_year_samples, 6)
+            multi_year_block = (
+                "ACTUAL PAST-PAPER QUESTIONS FROM MULTIPLE YEARS (study the question style, cognitive demand, "
+                "and format — do NOT reproduce these verbatim):\n"
+                + "\n".join(f"  • {s[:350]}" for s in sampled_multi)
+            )
+        else:
+            multi_year_block = ""
 
-Requirements:
+        return f"""You are a Ghana WASSCE exam setter for BroxStudies.
+
+Generate exactly {missing_count} new questions for:
+  Subject  : {subject_label}
+  Level    : {year_key.replace('_', ' ').title()}
+  Section  : {section.title}
+  Paper    : {section.paper_key.replace('_', ' ').title()}
+  Type     : {section.question_type.value}
+  Reference: {section.source_file or 'textbook only'} ({section.source_year or 'N/A'})
+
+━━━ SOURCE INSTRUCTION ━━━
+{source_mode}
+
+━━━ PAST-PAPER PATTERN ━━━
+{pattern_block}
+
+{multi_year_block}
+
+━━━ OFFICIAL SAMPLE QUESTIONS (representative year) ━━━
+{sample_questions}
+
+━━━ OFFICIAL ANSWER STYLE ━━━
+{sample_answers}
+
+━━━ CURRICULUM TOPICS TO COVER ━━━
+{topic_block}
+
+━━━ TEXTBOOK CONTENT (use for factual accuracy) ━━━
+{textbook_excerpts}
+
+━━━ GENERATION RULES ━━━
 1. {source_mode}
-2. Match the exact mode of setting, structure, tone, and difficulty required for WASSCE-style papers.
-3. Keep the questions in a natural exam flow, from simpler to more demanding.
-4. Base the content on these textbook topics: {topic_block}
-5. Use these scanned textbook excerpts as source material: {textbook_excerpts}
-6. Match the format of these official sample questions when available: {sample_questions}
-7. Match the style of these official answer excerpts when available: {sample_answers}
-8. If no sample questions are available, write subject-accurate WASSCE-standard questions directly from the scanned textbook material.
-9. {option_rule}
-10. Paper 1 must contain exam-standard objective items, and theory or practical sections must include solid mark-worthy answers.
-11. Randomization seed: {seed_token}. Use {randomness_mode}. Avoid repeating archived stems verbatim.
-12. Wrap ALL mathematical expressions in $...$ (inline) or $$...$$ (display) using LaTeX syntax so they render properly — fractions as \\frac{{a}}{{b}}, powers as x^{{2}}, square roots as \\sqrt{{x}}, Greek letters as \\theta, \\pi, degree symbols as 30^{{\\circ}}. Never emit raw ASCII math like sqrt(x) or x^2 outside of $...$.
-13. Return valid JSON only as an array.
+2. {pattern_block}
+3. Questions must progress from simpler to more demanding within the section.
+4. {option_rule}
+5. Paper 1 objective questions must be crisp, unambiguous WASSCE-standard MCQs.
+   Paper 2/3 questions must demand substantial working or explanation worth full marks.
+6. Randomization seed: {seed_token}. Mode: {randomness_mode}. Never copy archived question stems verbatim.
+7. Wrap ALL math in $...$ (inline) or $$...$$ (display) — e.g. $\\frac{{a}}{{b}}$, $x^{{2}}$, $\\sqrt{{x}}$, $\\theta$, $30^{{\\circ}}$. No raw ASCII math outside $...$.
+8. Return ONLY a valid JSON array — no preamble, no trailing text.
 
 JSON format:
 [
   {{
-    "question_text": "question text",
-    "options": ["A", "B", "C", "D"],
+    "question_text": "Full question stem here",
+    "options": ["option text", "option text", "option text", "option text"],
     "correct_answer": "A",
-    "explanation": "rubric or solution"
+    "explanation": "Full solution or marking rubric"
   }}
 ]
 """
@@ -910,6 +1082,18 @@ JSON format:
             # Use DeepSeek for MCQs and other fast parallel work
             return await self._call_deepseek(prompt)
 
+    _SYSTEM_PROMPT = (
+        "You are a senior Ghana WASSCE examination setter with 20+ years of experience at WAEC. "
+        "You produce exam questions that match the exact standard, format, cognitive demand, and marking "
+        "conventions of official Ghana WAEC past papers. "
+        "For Paper 1 (MCQs): every option must be plausible, the stem unambiguous, and the correct answer "
+        "verifiably right. "
+        "For Paper 2 (Theory/Essay): questions must demand structured working or well-developed prose; "
+        "marking schemes must award marks in logical steps. "
+        "For Paper 3 (Practical/Alternative): questions must follow WAEC practical rubric conventions. "
+        "Never invent false facts. Always return valid JSON — no preamble, no trailing text."
+    )
+
     async def _call_openai(self, prompt: str) -> str:
         """Call OpenAI for WASSCE-critical generation (essays, marking guides)."""
         if not settings.OPENAI_API_KEY:
@@ -920,16 +1104,19 @@ JSON format:
             kwargs: Dict[str, Any] = {
                 "model": settings.OPENAI_MODEL,
                 "api_key": settings.OPENAI_API_KEY,
-                "temperature": 0.85,
-                "request_timeout": 90.0,  # Reduced from 120s
-                "max_retries": 2,  # Reduced from 3
+                "temperature": 0.75,
+                "request_timeout": 90.0,
+                "max_retries": 2,
             }
             if settings.OPENAI_BASE_URL:
                 kwargs["base_url"] = settings.OPENAI_BASE_URL
             self._llm_openai = ChatOpenAI(**kwargs)
 
         try:
-            message = await self._llm_openai.ainvoke([HumanMessage(content=prompt)])
+            message = await self._llm_openai.ainvoke([
+                SystemMessage(content=self._SYSTEM_PROMPT),
+                HumanMessage(content=prompt),
+            ])
             return message.content
         except Exception as e:
             logger.warning(f"OpenAI call failed: {e}; falling back to DeepSeek")
@@ -944,17 +1131,19 @@ JSON format:
             kwargs: Dict[str, Any] = {
                 "model": settings.DEEPSEEK_MODEL,
                 "api_key": settings.DEEPSEEK_API_KEY,
-                "temperature": 0.7,  # Slightly lower for faster, more consistent responses
-                "request_timeout": 75.0,  # Optimized for speed
-                "max_retries": 1,  # Faster failure detection
+                "temperature": 0.65,
+                "request_timeout": 75.0,
+                "max_retries": 1,
             }
             if settings.DEEPSEEK_BASE_URL:
                 kwargs["base_url"] = settings.DEEPSEEK_BASE_URL
             self._llm_deepseek = ChatOpenAI(**kwargs)
 
         try:
-            # Ensure DeepSeek gets the same message format as OpenAI
-            message = await self._llm_deepseek.ainvoke([HumanMessage(content=prompt)])
+            message = await self._llm_deepseek.ainvoke([
+                SystemMessage(content=self._SYSTEM_PROMPT),
+                HumanMessage(content=prompt),
+            ])
             response_content = message.content
 
             # Validate that we got a response
@@ -1149,7 +1338,7 @@ JSON format:
             options=normalized["options"],
             correct_answer=normalized["correct_answer"] or correct_answer,
             explanation=normalized["explanation"] or explanation,
-            difficulty_level="medium",
+            difficulty_level="standard",
             year_generated=int(candidate.source_year) if candidate.source_year.isdigit() else 2026,
             pattern_confidence=0.96,
         )
@@ -1402,6 +1591,8 @@ JSON format:
                 "title": section.title,
                 "question_type": section.question_type.value,
                 "expected_count": section.expected_count,
+                "style_notes": section.style_notes,
+                "years_scanned": section.years_scanned,
             }
             for section in blueprint
         ]

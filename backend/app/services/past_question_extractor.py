@@ -414,7 +414,7 @@ class PastQuestionExtractor:
                     correct_answer=q.correct_answer or "See explanation",
                     explanation=q.explanation or f"Source: WASSCE Past Question ({q.year})",
                     marking_scheme=q.marking_scheme,
-                    difficulty_level="medium",
+                    difficulty_level="standard",
                     year_generated=int(q.year) if q.year.isdigit() else 2024,
                     pattern_confidence=0.95
                 ))
