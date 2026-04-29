@@ -12,7 +12,7 @@ from PyPDF2 import PdfReader
 
 from app.config import settings
 from app.models import Question, QuestionType, Subject, PracticeMarkItem
-
+from app.services.academic_catalog import KNOWN_SUBJECTS
 from app.services.wassce_intelligence import WassceIntelligenceService
 
 logger = logging.getLogger(__name__)
@@ -37,20 +37,30 @@ class QuestionGenerator:
     ):
         """Generate questions based on patterns from past questions."""
         if question_type == QuestionType.STANDARD:
-            logger.info(f"Generating full standard exam (40 MCQ + 6 Theory) for {subject.value}")
-            try:
-                # Skip validation for standard exam — saves 5 extra LLM calls and keeps within frontend timeout
-                mcq_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.MULTIPLE_CHOICE, 40, difficulty_level, topics, year_key, subject_slug, subject_label, semester, validate=False)
-                )
-                theory_task = asyncio.create_task(
-                    self._generate_single_batch(subject, QuestionType.ESSAY, 6, difficulty_level, topics, year_key, subject_slug, subject_label, semester, validate=False)
-                )
-                mcq_questions, theory_questions = await asyncio.gather(mcq_task, theory_task)
-                return mcq_questions + theory_questions
-            except Exception as e:
-                logger.error(f"Error generating standard exam: {str(e)}")
-                raise Exception(f"Error generating standard exam: {str(e)}")
+            # Get standardized exam structure for the subject
+            subject_info = KNOWN_SUBJECTS.get(subject_slug, {})
+            academic_level = subject_info.get("academic_level", "SHS").upper()
+            structure = self.intel.analyze_paper_structure(subject_slug, academic_level)
+            
+            # Generate Paper 1 (MCQs)
+            num_mcq = structure.get("paper_1", 50)
+            mcq_questions = await self._generate_single_batch(
+                subject, QuestionType.MULTIPLE_CHOICE, num_mcq, difficulty_level, topics, year_key, subject_slug, subject_label, semester, validate=False
+            )
+            
+            # Generate Paper 2 (Theory/Essay) - sum all sections
+            theory_structure = structure.get("paper_2", {"general": 6})
+            if isinstance(theory_structure, dict):
+                num_theory = sum(theory_structure.values())
+            else:
+                num_theory = theory_structure
+            
+            theory_questions = await self._generate_single_batch(
+                subject, QuestionType.ESSAY, num_theory, difficulty_level, topics, year_key, subject_slug, subject_label, semester, validate=False
+            )
+            
+            logger.info(f"Generated standard exam for {subject_slug}: {num_mcq} MCQ + {num_theory} Theory questions")
+            return mcq_questions + theory_questions
 
         return await self._generate_single_batch(
             subject, question_type, num_questions, difficulty_level, topics, year_key, subject_slug, subject_label, semester

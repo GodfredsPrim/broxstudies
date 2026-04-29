@@ -29,6 +29,113 @@ class WassceIntelligenceService:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.tvet_cache_dir.mkdir(parents=True, exist_ok=True)
 
+        # Standardized Ghana SHS WASSCE exam structures
+        self.standard_exam_structures = {
+            "SHS": {
+                # Core Mathematics - Paper 2 has exactly 13 questions
+                "core_mathematics": {
+                    "paper_1": 50,  # 50 MCQs
+                    "paper_2": {"section_a": 10, "section_b": 3},  # Total 13 questions
+                    "paper_3": 0  # No Paper 3
+                },
+                "mathematics": {  # Additional Mathematics
+                    "paper_1": 50,  # 50 MCQs
+                    "paper_2": {"section_a": 10, "section_b": 3},  # Total 13 questions
+                    "paper_3": 0
+                },
+                # Science subjects
+                "physics": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
+                    "paper_3": 1  # Practical
+                },
+                "chemistry": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
+                    "paper_3": 1  # Practical
+                },
+                "biology": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
+                    "paper_3": 1  # Practical
+                },
+                # Social Science subjects
+                "economics": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                "geography": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                "government": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                "history": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                # Language subjects
+                "english_language": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 8},  # Total 13 questions
+                    "paper_3": 0
+                },
+                "literature_in_english": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 8},  # Total 13 questions
+                    "paper_3": 0
+                },
+                # Religious Studies
+                "christian_religious_studies": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                "islamic_religious_studies": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                # Business subjects
+                "accounting": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                "business_management": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
+                # Agricultural Science
+                "agricultural_science": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
+                    "paper_3": 1  # Practical
+                },
+                # Default structure for other subjects
+                "default": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                }
+            },
+            "TVET": {
+                # TVET subjects typically have different structures
+                "default": {
+                    "paper_1": 40,
+                    "paper_2": {"section_a": 5, "section_b": 5},
+                    "paper_3": 1
+                }
+            }
+        }
+
     def extract_topics_from_textbook(self, year: str, subject_slug: str, academic_level: str = "SHS") -> List[str]:
         """Extract topics from the textbook Table of Contents."""
         cache_dir = self.tvet_cache_dir if academic_level == "TVET" else self.cache_dir
@@ -111,108 +218,19 @@ class WassceIntelligenceService:
             return []
 
     def analyze_paper_structure(self, subject_slug: str, academic_level: str = "SHS") -> Dict[str, Any]:
-        """Analyze a representative past question PDF to determine the section counts."""
-        cache_dir = self.tvet_cache_dir if academic_level == "TVET" else self.cache_dir
-        past_questions_dir = self.tvet_past_questions_dir if academic_level == "TVET" else self.past_questions_dir
-        cache_file = cache_dir / f"structure_{subject_slug}.json"
-        if cache_file.exists():
-            with open(cache_file, 'r') as f:
-                return json.load(f)
-
-        logger.info(f"Analyzing paper structure for {subject_slug} - {academic_level}")
+        """Return standardized Ghana SHS WASSCE exam structure for the subject."""
+        # Use standardized structures for Ghana SHS exams
+        level_structures = self.standard_exam_structures.get(academic_level.upper(), {})
         
-        potential_zip = past_questions_dir / f"{subject_slug.replace('_', ' ').title()}.zip"
-        if not potential_zip.exists():
-            # Fallback search
-            try:
-                for item in past_questions_dir.iterdir():
-                    if subject_slug.lower() in item.name.lower() and item.suffix == ".zip":
-                        potential_zip = item
-                        break
-            except FileNotFoundError:
-                pass
-
-        if not potential_zip.exists():
-            # For TVET, fallback to SHS data if TVET data doesn't exist
-            if academic_level == "TVET":
-                logger.info(f"TVET past questions not found for {subject_slug}, falling back to SHS data")
-                shs_past_questions_dir = self.past_questions_dir
-                potential_zip = shs_past_questions_dir / f"{subject_slug.replace('_', ' ').title()}.zip"
-                if not potential_zip.exists():
-                    for item in shs_past_questions_dir.iterdir():
-                        if subject_slug.lower() in item.name.lower() and item.suffix == ".zip":
-                            potential_zip = item
-                            break
-            if not potential_zip.exists():
-                # Default structure for TVET if no past questions
-                if academic_level == "TVET":
-                    return {"paper_1": 40, "paper_2": {"section_a": 5, "section_b": 5}, "paper_3": 0}
-                return {"paper_1": 40, "paper_2": {"section_a": 5, "section_b": 5}, "paper_3": 0}
-
-        structure = {"paper_1": 0, "paper_2": {}, "paper_3": 0}
+        # Check if subject has a specific structure, otherwise use default
+        subject_structure = level_structures.get(subject_slug, level_structures.get("default", {
+            "paper_1": 50,
+            "paper_2": {"section_a": 8, "section_b": 5},
+            "paper_3": 0
+        }))
         
-        try:
-            with zipfile.ZipFile(potential_zip, 'r') as zp:
-                files = zp.namelist()
-                
-                # Analyze Objective Paper (Paper 1)
-                p1_files = [f for f in files if 'PAPER 1' in f.upper() or 'OBJECTIVE' in f.upper() or '1.PDF' in f.upper()]
-                if p1_files:
-                    with zp.open(p1_files[0]) as f:
-                        reader = PdfReader(io.BytesIO(f.read()))
-                        # Count questions by looking for numbers followed by dots
-                        all_text = ""
-                        for p in reader.pages:
-                            all_text += p.extract_text() or ""
-                        
-                        found = re.findall(r'\n(\d+)\.', all_text)
-                        if found:
-                            # Highest number usually indicates total
-                            structure["paper_1"] = max(int(n) for n in found if int(n) < 100)
-                
-                # Analyze Theory Paper (Paper 2)
-                p2_files = [f for f in files if 'PAPER 2' in f.upper() or 'THEORY' in f.upper() or 'STRUCTURED' in f.upper()]
-                if p2_files:
-                    with zp.open(p2_files[0]) as f:
-                        reader = PdfReader(io.BytesIO(f.read()))
-                        all_text = ""
-                        for p in reader.pages:
-                            all_text += p.extract_text() or ""
-                        
-                        sections = re.split(r'SECTION\s+([A-C])|PART\s+([I|V|1|2|3]+)', all_text, flags=re.IGNORECASE)
-                        # This split is complex, but we can look for "SECTION [A-C]" and count 1., 2. patterns after each
-                        sec_markers = list(re.finditer(r'SECTION\s+([A-C])|PART\s+([I|V|1|2|3]+)', all_text, flags=re.IGNORECASE))
-                        
-                        if not sec_markers:
-                            # If no explicit sections, just count total theory questions
-                            found = re.findall(r'\n(\d+)\.', all_text)
-                            if found:
-                                structure["paper_2"]["general"] = len(set(found))
-                        else:
-                            for i in range(len(sec_markers)):
-                                start = sec_markers[i].end()
-                                end = sec_markers[i+1].start() if i+1 < len(sec_markers) else len(all_text)
-                                label = sec_markers[i].group(1) or sec_markers[i].group(2)
-                                sec_text = all_text[start:end]
-                                counts = re.findall(r'\n(\d+)\.', sec_text)
-                                if counts:
-                                    structure["paper_2"][f"section_{label.lower()}"] = len(set(counts))
-
-                # Paper 3
-                p3_files = [f for f in files if 'PAPER 3' in f.upper() or 'PRACTICAL' in f.upper() or 'ALTERNATIVE' in f.upper()]
-                if p3_files:
-                    structure["paper_3"] = 1 # Mark as exists
-            
-            # Default fallbacks if extraction failed
-            if not structure["paper_1"]: structure["paper_1"] = 40
-            if not structure["paper_2"]: structure["paper_2"] = {"general": 6}
-
-            with open(cache_file, 'w') as f:
-                json.dump(structure, f)
-            return structure
-        except Exception:
-            return {"paper_1": 40, "paper_2": {"general": 6}, "paper_3": 0}
-
+        logger.info(f"Using standardized {academic_level} structure for {subject_slug}: {subject_structure}")
+        return subject_structure
     def extract_answers_from_solution(self, subject_slug: str, paper_type: str) -> Dict[str, str]:
         """Extract answer mapping from a solution PDF."""
         # This is high-complexity, but essentially looks for "1. A", "2. B" etc. in Solution PDFs
