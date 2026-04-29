@@ -111,15 +111,34 @@ class AuthService:
                 """
             )
 
-            # Migration: Ensure session_id and track exist (for older DBs)
-            try:
-                self._execute(conn, "ALTER TABLE users ADD COLUMN session_id TEXT")
-            except:
-                pass
-            try:
-                self._execute(conn, "ALTER TABLE users ADD COLUMN track TEXT")
-            except:
-                pass
+            # Migration: ensure session_id and track exist on older databases.
+            # PostgreSQL 9.6+ supports IF NOT EXISTS on ADD COLUMN; SQLite does not.
+            # A failed ALTER on PG leaves the connection in an aborted-transaction
+            # state and poisons every subsequent statement, so the PG path must be
+            # idempotent rather than try/except.
+            if self.is_postgres:
+                for alter_sql in (
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_id TEXT",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS track TEXT",
+                ):
+                    try:
+                        self._execute(conn, alter_sql)
+                    except Exception as exc:
+                        logger.warning(
+                            f"PostgreSQL migration warning: failed to run '{alter_sql}'. "
+                            f"This is usually safe if the column already exists. Error: {exc}"
+                        )
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+            else:
+                for col in ("session_id", "track"):
+                    try:
+                        self._execute(conn, f"ALTER TABLE users ADD COLUMN {col} TEXT")
+                    except sqlite3.OperationalError:
+                        # Column already exists on older SQLite DBs — safe to ignore.
+                        pass
 
             # ── Access codes table ─────────────────────────────────────────────
             self._execute(conn, 
