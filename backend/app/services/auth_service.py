@@ -111,16 +111,15 @@ class AuthService:
                 """
             )
 
-            # Migration: Ensure session_id and track exist (for older SQLite DBs)
-            if not self.is_postgres:
-                try:
-                    self._execute(conn, "ALTER TABLE users ADD COLUMN session_id TEXT")
-                except:
-                    pass
-                try:
-                    self._execute(conn, "ALTER TABLE users ADD COLUMN track TEXT")
-                except:
-                    pass
+            # Migration: Ensure session_id and track exist (for older DBs)
+            try:
+                self._execute(conn, "ALTER TABLE users ADD COLUMN session_id TEXT")
+            except:
+                pass
+            try:
+                self._execute(conn, "ALTER TABLE users ADD COLUMN track TEXT")
+            except:
+                pass
 
             # ── Access codes table ─────────────────────────────────────────────
             self._execute(conn, 
@@ -284,7 +283,7 @@ class AuthService:
 
         try:
             row_track = row["track"]
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             row_track = None
 
         return AuthUser(
@@ -593,7 +592,10 @@ class AuthService:
                 if not user_row:
                     raise ValueError("User not found.")
 
-                existing_track = user_row["track"] if "track" in user_row.keys() else None
+                try:
+                    existing_track = user_row["track"]
+                except (KeyError, IndexError, TypeError):
+                    existing_track = None
                 if existing_track and track and existing_track != track:
                     raise ValueError(
                         f"Your account is locked to the {existing_track.upper()} track. "
@@ -631,7 +633,11 @@ class AuthService:
 
             if not code_row:
                 raise ValueError("Invalid access code. Please check and try again.")
-            if code_row["used_at"] is not None:
+            try:
+                used_at = code_row["used_at"]
+            except (KeyError, IndexError, TypeError):
+                used_at = None
+            if used_at is not None:
                 raise ValueError("This access code has already been used.")
 
             # Calculate new expiry — extend from existing expiry if still active
@@ -642,7 +648,10 @@ class AuthService:
                 raise ValueError("User not found.")
 
             # Track lock: if user already has a track, they cannot change it via a new code
-            existing_track = user_row["track"] if "track" in user_row.keys() else None
+            try:
+                existing_track = user_row["track"]
+            except (KeyError, IndexError, TypeError):
+                existing_track = None
             if existing_track and track and existing_track != track:
                 raise ValueError(
                     f"Your account is locked to the {existing_track.upper()} track. "
@@ -667,7 +676,10 @@ class AuthService:
             else:
                 base_dt = now
 
-            months = code_row["duration_months"]
+            try:
+                months = code_row["duration_months"]
+            except (KeyError, IndexError, TypeError):
+                months = 1  # default to 1 month if not found
             new_expiry = (base_dt + timedelta(days=30 * months)).isoformat()
 
             # Mark code used
