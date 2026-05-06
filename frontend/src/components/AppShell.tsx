@@ -2,12 +2,14 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
+  WifiOff, Download,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useTheme } from '@/hooks/useTheme'
+import { usePWA } from '@/hooks/usePWA'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
 import { useGuestChats } from '@/hooks/useGuestChats'
@@ -47,6 +49,10 @@ export function AppShell() {
   }, [])
 
   const { selectedTrack, resetAcademicTrack } = useAcademicTrack()
+  const { installPrompt, isOffline, install } = usePWA()
+  const [installDismissed, setInstallDismissed] = useState(() =>
+    localStorage.getItem('brox.pwa.dismissed') === '1'
+  )
 
   const logout = () => {
     signOut()
@@ -322,6 +328,39 @@ export function AppShell() {
             <span className="sm:hidden">Study</span>
           </NavLink>
         </header>
+
+        {/* Offline indicator */}
+        {isOffline && (
+          <div className="flex items-center justify-center gap-2 bg-amber-500/90 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
+            <WifiOff size={14} />
+            You're offline — previously loaded content is still available
+          </div>
+        )}
+
+        {/* PWA install banner */}
+        {installPrompt && !installDismissed && !isOffline && (
+          <div className="flex items-center justify-between gap-3 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 sm:px-8">
+            <p className="text-sm text-emerald-300">
+              Install BroxStudies for offline access and a better experience.
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => install()}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+              >
+                <Download size={12} />
+                Install
+              </button>
+              <button
+                onClick={() => { setInstallDismissed(true); localStorage.setItem('brox.pwa.dismissed', '1') }}
+                className="grid h-7 w-7 place-items-center rounded-lg text-emerald-400 hover:bg-white/5"
+                aria-label="Dismiss"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1">
           <AnimatePresence mode="wait">

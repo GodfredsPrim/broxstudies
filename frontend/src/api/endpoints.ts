@@ -12,6 +12,7 @@ import type {
   DocumentStatus,
   ExamHistoryEntry,
   GeneratedQuestions,
+  GenerationJob,
   AvailableResourcesResponse,
   LeaderboardEntry,
   LiveQuizCreateResponse,
@@ -67,7 +68,11 @@ export const questionsApi = {
   subjects: () => api.get<SubjectsResponse>('/api/questions/subjects').then(r => r.data),
   questionTypes: () => api.get<{ types: string[] }>('/api/questions/question-types').then(r => r.data),
   generate: (body: GenerateQuestionBody) =>
-    api.post<GeneratedQuestions>('/api/questions/generate', body, { timeout: 600_000 }).then(r => r.data),
+    api.post<{ job_id: string; status: string; message: string }>('/api/questions/generate', body).then(r => r.data),
+  getJobStatus: (jobId: string) =>
+    api.get<GenerationJob>('/api/questions/jobs/' + jobId).then(r => r.data),
+  getUserJobs: () =>
+    api.get<{ jobs: GenerationJob[] }>('/api/questions/jobs').then(r => r.data),
   generateProfessional: (subject: string, year: string) =>
     api.post<GeneratedQuestions>(
       '/api/questions/generate-professional',
@@ -94,9 +99,29 @@ export const questionsApi = {
     api
       .post<PracticeMarkResponse>('/api/questions/mark-practice', { items, user, subject })
       .then(r => r.data),
+  gradeAnswers: (files: File[], questions: any, subject?: string) => {
+    const formData = new FormData()
+    files.forEach(f => formData.append('files', f))
+    formData.append('questions_json', JSON.stringify(questions))
+    if (subject) formData.append('subject', subject)
+    return api.post('/api/questions/grade-answers-pdf', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
+    }).then(r => r.data)
+  },
+  gradeAnswersPDF: (file: File, questions: any, subject?: string) => {
+    const formData = new FormData()
+    formData.append('files', file)
+    formData.append('questions_json', JSON.stringify(questions))
+    if (subject) formData.append('subject', subject)
+    return api.post('/api/questions/grade-answers-pdf', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
+    }).then(r => r.data)
+  },
   examHistory: () =>
     api.get<ExamHistoryEntry[]>('/api/questions/history/exams').then(r => r.data),
-  saveExamHistory: (body: Omit<ExamHistoryEntry, 'id' | 'created_at'>) =>
+  saveExamHistory: (body: { exam_type: string; subject: string; score_obtained: number; total_questions: number; percentage: number; created_at?: string }) =>
     api.post('/api/questions/history/exams', body).then(r => r.data),
 }
 
@@ -175,8 +200,8 @@ export const competitionsApi = {
 export const analysisApi = {
   patterns: (subject: string) =>
     api.get<Record<string, any>>(`/api/analysis/patterns/${encodeURIComponent(subject)}`).then(r => r.data),
-  topics: (subject: string) =>
-    api.get<Record<string, any>>(`/api/analysis/topics/${encodeURIComponent(subject)}`).then(r => r.data),
+  topics: (subject: string, year?: string) =>
+    api.get<Record<string, any>>(`/api/analysis/topics/${encodeURIComponent(subject)}`, { params: { year } }).then(r => r.data),
 }
 
 /* ------------------------------ ADMIN ------------------------------ */

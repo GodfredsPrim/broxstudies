@@ -2,17 +2,18 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   Loader2, TrendingUp, AlertTriangle, Trophy, CheckCircle2,
   XCircle, RotateCcw, Shield, Clock, ChevronRight,
-  Maximize2, Download, Share2,
+  Maximize2, Download, Share2, Upload,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
 import type { Question, Subject } from '@/api/types'
 import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
 
 const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
-const TVET_LEVELS = ['Level 1', 'Level 2']
+const TVET_YEARS = ['Year 1', 'Year 2', 'Year 3']
 
 type Phase = 'setup' | 'generating' | 'exam' | 'results'
 
@@ -179,8 +180,10 @@ export function WassceePage() {
   const [startTime, setStartTime] = useState(0)
   const [fsWarning, setFsWarning] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [grading, setGrading] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const overlayRef = useRef<HTMLDivElement>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
 
   const [score, setScore] = useState(0)
   const [percentage, setPercentage] = useState(0)
@@ -188,10 +191,11 @@ export function WassceePage() {
   const [shareLabel, setShareLabel] = useState('')
 
   const { selectedTrack } = useAcademicTrack()
+  const { saveLocal } = useOfflineHistory()
   const curriculumName = selectedTrack === 'tvet' ? 'NAPTEX' : 'WASSCE'
   const likelyLabel = selectedTrack === 'tvet' ? 'Likely NAPTEX Questions' : 'Likely WASSCE Questions'
   const examLabel = selectedTrack === 'tvet' ? 'NAPTEX Exam Simulation' : 'WASSCE Exam Simulation'
-  const YEARS = selectedTrack === 'tvet' ? TVET_LEVELS : SHS_YEARS
+  const YEARS = selectedTrack === 'tvet' ? TVET_YEARS : SHS_YEARS
 
   /* filter subjects by track */
   const filteredSubjects = useMemo(
@@ -328,6 +332,17 @@ export function WassceePage() {
       setPercentage(res.percentage)
       setMarkResults((res.results as unknown as MarkResult[]) || [])
       setPhase('results')
+
+      const histEntry = {
+        exam_type: curriculumName,
+        subject: selectedName,
+        score_obtained: res.score_obtained,
+        total_questions: allQuestions.length,
+        percentage: res.percentage,
+        created_at: new Date().toISOString(),
+      }
+      saveLocal(histEntry)
+      questionsApi.saveExamHistory(histEntry).catch(() => {/* stays local */})
     } catch {
       setSubmitError('Failed to submit. Please try again.')
       setSubmitting(false)
@@ -374,6 +389,47 @@ export function WassceePage() {
     setTimeout(() => setShareLabel(''), 2500)
   }
 
+  const handleUploadSolutions = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    // Reset input so the same file can be re-selected if needed
+    e.target.value = ''
+
+    const oversize = files.find(f => f.size > 8 * 1024 * 1024)
+    if (oversize) {
+      setSubmitError(`${oversize.name} exceeds the 8 MB limit.`)
+      return
+    }
+    if (files.length > 6) {
+      setSubmitError('Please upload at most 6 files at once.')
+      return
+    }
+
+    setSubmitError('')
+    setGrading(true)
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    try {
+      const questions = allQuestions.map((q, i) => ({
+        question_text: q.question_text,
+        question_type: q.question_type,
+        correct_answer: q.correct_answer || '',
+        explanation: q.explanation || '',
+        options: q.options,
+        student_answer: answers[i] || '',
+      }))
+      const res = await questionsApi.gradeAnswers(files, { questions }, selectedName)
+      const gr = res.grading_result
+      setScore(gr.score_obtained)
+      setPercentage(gr.percentage)
+      setMarkResults((gr.results as unknown as MarkResult[]) || [])
+      setPhase('results')
+    } catch (err) {
+      setSubmitError('Upload grading failed. Please try again.')
+    } finally {
+      setGrading(false)
+    }
+  }
+
   /* ──────────────── SETUP ──────────────── */
   if (phase === 'setup') {
     return (
@@ -413,7 +469,7 @@ export function WassceePage() {
 
           <div>
             <label className="text-sm font-semibold text-foreground">
-              {selectedTrack === 'tvet' ? 'TVET Level' : 'SHS Year'}
+              {selectedTrack === 'tvet' ? 'TVET Year' : 'SHS Year'}
             </label>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Questions are generated from that {selectedTrack === 'tvet' ? "level's" : "year's"} past papers and textbook.
@@ -542,6 +598,24 @@ export function WassceePage() {
               <Download size={12} />
               <span className="hidden sm:inline">PDF</span>
             </button>
+            <button
+              type="button"
+              onClick={() => uploadInputRef.current?.click()}
+              disabled={grading || submitting}
+              title="Upload photos of your solutions for AI grading"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              {grading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+              <span className="hidden sm:inline">{grading ? 'Grading…' : 'Upload'}</span>
+            </button>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic,application/pdf,.pdf"
+              multiple
+              hidden
+              onChange={handleUploadSolutions}
+            />
             <button
               type="button"
               onClick={handleShare}

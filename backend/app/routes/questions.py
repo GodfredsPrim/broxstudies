@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, List
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
@@ -27,6 +27,7 @@ from app.models import (
     Question,
     QuestionType,
 )
+from app.services.academic_catalog import is_tvet_subject_slug
 from app.services.batch_loader import BatchLoader
 from app.services.likely_wassce_generator import LikelyWASSCEGenerator
 from app.services.question_generator import QuestionGenerator
@@ -61,41 +62,53 @@ def _resolve_subject_label(year_key: str, subject_slug: str) -> str:
     return subject_slug.replace("_", " ").title()
 
 
+_TVET_TRADE_SUBJECTS = [
+    "Automotive Engineering",
+    "Electrical Engineering",
+    "Mechanical Engineering",
+    "Welding and Fabrication",
+    "Electronics Engineering",
+    "Mechatronics",
+    "Industrial Mechanics",
+    "Plumbing and Gas Technology",
+    "Building Construction",
+    "Wood Technology",
+    "Furniture Technology",
+    "Architectural Draughtmanship",
+    "Catering and Hospitality",
+    "Fashion Design Technology",
+    "Textiles",
+    "Beauty Therapy",
+    "Hair Technology",
+    "Graphic Design",
+    "Multimedia Technology",
+    "Painting",
+    "Tourism Management",
+    "Computer Hardware and Software",
+    "Agric Mechanization",
+    "Small Engines",
+    "Heavy Duty Mechanics",
+    "Heavy Duty Operation Forklift",
+    "Autobody Repairs",
+    "Refrideration and Air Conditioning",
+    "Jewellry",
+    "Leather Work",
+]
+
+_TVET_COMMON_SUBJECTS = [
+    "English Language",
+    "Maths",
+    "Science",
+    "Social Studies",
+    "Technical Drawing",
+    "Entrepreneurship",
+    "ICT",
+]
+
 TVET_FALLBACK_SUBJECTS = {
-    "level_1": [
-        "Electrical Installation and Maintenance",
-        "Welding and Fabrication",
-        "Motor Vehicle Mechanics",
-        "Carpentry and Joinery",
-        "Plumbing and Pipefitting",
-        "Hospitality Services",
-        "Food Production",
-        "Information and Communication Technology",
-        "Business Management",
-        "Agriculture",
-        "Fashion Design",
-        "Graphic Design",
-        "Refrigeration and Air Conditioning",
-        "Sheet Metal Work",
-        "Bricklaying",
-    ],
-    "level_2": [
-        "Advanced Electrical Installation",
-        "Advanced Welding and Fabrication",
-        "Automotive Repair",
-        "Advanced Carpentry and Joinery",
-        "Advanced Plumbing",
-        "Hospitality Management",
-        "Food and Beverage Services",
-        "ICT Support and Networking",
-        "Entrepreneurship",
-        "Crop Production",
-        "Fashion Design and Textiles",
-        "Environmental Health",
-        "Refrigeration Systems",
-        "Civil Engineering Technology",
-        "Metal Fabrication",
-    ],
+    "year_1": _TVET_TRADE_SUBJECTS + _TVET_COMMON_SUBJECTS,
+    "year_2": _TVET_TRADE_SUBJECTS + _TVET_COMMON_SUBJECTS,
+    "year_3": _TVET_TRADE_SUBJECTS + _TVET_COMMON_SUBJECTS,
 }
 
 def _subject_slug_from_url(subject_url: str, year_key: str) -> str:
@@ -166,134 +179,68 @@ async def load_remaining_documents():
 
 
 @router.post("/generate")
-async def generate_questions(request: QuestionGenerationRequest):
+async def generate_questions(request: QuestionGenerationRequest, user: Optional[AuthUser] = Depends(get_optional_user)):
+    """Start an asynchronous question generation job."""
     try:
-        start_time = time.time()
-        subject_token = str(request.subject).lower().strip()
-        year_key = None
-        subject_slug = subject_token
-
-        if ":" in subject_token:
-            year_key, subject_slug = subject_token.split(":", 1)
-
-        if request.year:
-            request_year = request.year.lower().strip().replace(" ", "_")
-            if request_year in {"year_1", "year_2", "year_3", "level_1", "level_2"}:
-                year_key = request_year
-            elif request_year in {"1", "year1"}:
-                year_key = "year_1"
-            elif request_year in {"2", "year2"}:
-                year_key = "year_2"
-            elif request_year in {"3", "year3", "year_3"}:
-                year_key = "year_3"
-            elif request_year in {"level1", "level_1", "nc1", "nc_i"}:
-                year_key = "level_1"
-            elif request_year in {"level2", "level_2", "nc2", "nc_ii", "ncii"}:
-                year_key = "level_2"
-
-        if not year_key:
-            year_key = "year_1"
-
-        subject_id = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
-
-        # Check if this is a request for "likely wassce questions" (standard exam with 46 questions)
-        is_likely_wassce = request.question_type == "standard" and request.num_questions == 46
-
-        from app.services.curriculum_fetcher import CurriculumResourceFetcher
-        fetcher = CurriculumResourceFetcher()
-        source_status = generator.get_source_status(year_key=year_key, subject_slug=subject_id)
-        fetch_summary = {}
-
-        # For WASSCE-style standardized past-paper requests, use local extracted past questions directly
-        # and avoid remote curriculum resource downloads that can delay or hang the endpoint.
-        if not is_likely_wassce:
-            fetch_summary = await fetcher.ensure_subject_resources(
-                year_key=year_key,
-                subject_slug=subject_id,
-                resource_types=["past_questions", "textbooks", "teacher_resources", "syllabi"],
-            )
-            source_status = generator.get_source_status(year_key=year_key, subject_slug=subject_id)
-            if source_status.get("source_used") == "none_found":
-                logger.info(f"No source material found for {subject_id}, will fallback to AI knowledge")
-                source_status["source_used"] = "ai_generated"
+        # Create the job
+        from app.services.generation_service import generation_service
         
-        try:
-            subject_enum = Subject(subject_id)
-        except ValueError:
-            subject_enum = Subject(SUBJECT_ALIASES.get(subject_id, Subject.ELECTIVES.value))
-
-        organized_papers = None
-        if is_likely_wassce:
-            # Use past question extractor for likely WASSCE questions
-            # Return questions EXACTLY as they appear in past papers - don't force a 40/6 split
-            from app.services.past_question_extractor import PastQuestionExtractor
-            extractor = PastQuestionExtractor()
-
-            # Get up to 46 questions WITHOUT forcing question type split
-            questions = extractor.get_random_questions_for_subject(
-                subject_slug=subject_id,
-                num_questions=request.num_questions,
-                question_type=None  # Don't filter by type - get all questions as they are
-            )
-
-            # If the user asked for a full WASSCE mock, preserve the past-paper order
-            # by using the first available question chunks from the subject.
-
-            if not questions:
-                logger.warning(f"No past questions found for {subject_id}, falling back to AI generation")
-                questions = await generator.generate_questions(
-                    subject=subject_enum,
-                    question_type=request.question_type,
-                    num_questions=request.num_questions,
-                    difficulty_level=request.difficulty_level,
-                    topics=request.topics,
-                    year_key=year_key,
-                    subject_slug=subject_id,
-                    subject_label=_resolve_subject_label(year_key, subject_id),
-                    semester=request.semester or "all_year",
-                )
-                source_used = "ai_generated"
-            else:
-                logger.info(f"Using {len(questions)} real past questions for {subject_id}")
-                source_used = "past_questions_only"
-                source_status = {
-                    "source_used": "past_questions_only",
-                    "has_site_past": False,
-                    "has_legacy_past": True,
-                    "has_site_textbook": False,
-                    "has_site_teacher": False,
-                }
-            organized_papers = _organize_wassce_questions_into_papers(questions)
-        else:
-            questions = await generator.generate_questions(
-                subject=subject_enum,
-                question_type=request.question_type,
-                num_questions=request.num_questions,
-                difficulty_level=request.difficulty_level,
-                topics=request.topics,
-                year_key=year_key,
-                subject_slug=subject_id,
-                subject_label=_resolve_subject_label(year_key, subject_id),
-                semester=request.semester or "all_year",
-            )
-            source_used = source_status.get("source_used")
-
-        return GeneratedQuestions(
-            questions=questions,
-            generation_time=time.time() - start_time,
-            model_used="past_question_extraction" if is_likely_wassce and source_used == "past_questions_only" else settings.resolved_llm_model,
-            source_used=source_used if is_likely_wassce else source_status.get("source_used"),
-            source_details={**source_status, "fetch_summary": fetch_summary, "is_likely_wassce": is_likely_wassce},
-            organized_papers=organized_papers,
-        )
+        request_data = {
+            "subject": str(request.subject),
+            "year": request.year,
+            "question_type": request.question_type,
+            "num_questions": request.num_questions,
+            "difficulty_level": request.difficulty_level,
+            "topics": request.topics,
+            "semester": request.semester,
+        }
+        
+        user_id = user.id if user else None
+        job_id = generation_service.auth_service.create_generation_job(user_id, request_data)
+        
+        # Start the background task
+        asyncio.create_task(generation_service.start_generation_job(job_id))
+        
+        return {
+            "job_id": job_id,
+            "status": "pending",
+            "message": "Question generation started. Check status with GET /api/questions/jobs/{job_id}"
+        }
+        
     except Exception as e:
-        logger.error(f"Error generating questions: {str(e)}")
+        logger.error(f"Error starting generation job: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/jobs/{job_id}")
+async def get_generation_job_status(job_id: str, user: Optional[AuthUser] = Depends(get_optional_user)):
+    """Get the status of a generation job."""
+    from app.services.generation_service import generation_service
+    
+    job = generation_service.auth_service.get_generation_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check if user owns this job (or is admin)
+    if job['user_id'] and user and job['user_id'] != user.id and not getattr(user, 'is_admin', False):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return job
+
+
+@router.get("/jobs")
+async def get_user_generation_jobs(user: Optional[AuthUser] = Depends(get_optional_user)):
+    """Get generation jobs for the current user."""
+    from app.services.generation_service import generation_service
+    
+    user_id = user.id if user else None
+    jobs = generation_service.auth_service.get_user_generation_jobs(user_id)
+    return {"jobs": jobs}
 
 
 @router.get("/subjects")
 async def get_subjects():
-    """Get subjects from site catalog (Year 1 and Year 2)."""
+    """Get subjects from site catalog (Year 1, Year 2 and Year 3)."""
     import json
     import re
 
@@ -307,7 +254,7 @@ async def get_subjects():
                 catalog = json.load(f)
 
             years = catalog.get("years", {})
-            for year_key in ["year_1", "year_2", "year_3", "level_1", "level_2"]:
+            for year_key in ["year_1", "year_2", "year_3"]:
                 for subject_info in years.get(year_key, []):
                     name = subject_info.get("name", "").strip()
                     if not name:
@@ -323,15 +270,15 @@ async def get_subjects():
                         continue
                     seen.add(subject_id)
 
+                    is_tvet = is_tvet_subject_slug(slug)
                     subjects_list.append(
                         {
                             "id": subject_id,
                             "name": name,
                             "year": (
-                                f"TVET Level {year_key.split('_')[1]}" if year_key.startswith("level_")
-                                else year_key.replace("_", " ").title()
+                                f"TVET Year {year_key.split('_')[1]}" if is_tvet else year_key.replace("_", " ").title()
                             ),
-                            "academic_level": AcademicLevel.TVET.value if year_key.startswith("level_") else AcademicLevel.SHS.value,
+                            "academic_level": AcademicLevel.TVET.value if is_tvet else AcademicLevel.SHS.value,
                         }
                     )
         except Exception as e:
@@ -400,7 +347,7 @@ async def get_subjects():
                 {
                     "id": subject_id,
                     "name": name,
-                    "year": f"TVET Level {year_key.split('_')[1]}",
+                    "year": f"TVET Year {year_key.split('_')[1]}",
                     "academic_level": AcademicLevel.TVET.value,
                 }
             )
@@ -419,9 +366,7 @@ async def get_resource_status(year: str, subject: str):
     year_key = year.lower().strip().replace(" ", "_")
     if year_key in {"1", "year1"}: year_key = "year_1"
     elif year_key in {"2", "year2"}: year_key = "year_2"
-    elif year_key in {"3", "year3"}: year_key = "year_3"
-    elif year_key in {"level1", "level_1", "nc1", "nc_i"}: year_key = "level_1"
-    elif year_key in {"level2", "level_2", "nc2", "nc_ii", "ncii"}: year_key = "level_2"
+    elif year_key in {"3", "year3", "year_3"}: year_key = "year_3"
     subject_token = subject.lower().strip()
     if ":" in subject_token:
         _, subject_token = subject_token.split(":", 1)
@@ -440,6 +385,106 @@ async def mark_practice(request: PracticeMarkRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+_MAX_FILE_BYTES = 8 * 1024 * 1024   # 8 MB per file
+_MAX_TOTAL_BYTES = 24 * 1024 * 1024  # 24 MB total
+
+
+@router.post("/grade-answers-pdf")
+async def grade_answers_pdf(
+    files: List[UploadFile] = File(...),
+    questions_json: str = Form(...),
+    subject: Optional[str] = Form(None),
+):
+    """Upload answer sheet(s) — PDF or photos — and grade against provided questions."""
+    try:
+        if not questions_json:
+            raise HTTPException(status_code=400, detail="Questions JSON is required")
+        try:
+            questions_data = json.loads(questions_json)
+            questions = questions_data.get('questions', [])
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid questions JSON")
+
+        # Classify each file
+        pdf_files: List[UploadFile] = []
+        image_files: List[UploadFile] = []
+        for f in files:
+            name_lower = (f.filename or "").lower()
+            ext = "." + name_lower.rsplit(".", 1)[-1] if "." in name_lower else ""
+            ct = (f.content_type or "").lower().split(";")[0].strip()
+            if ext == ".pdf" or ct == "application/pdf":
+                pdf_files.append(f)
+            elif ct in _IMAGE_MIMES or ext in _IMAGE_EXTS:
+                image_files.append(f)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported file type: {f.filename}. Use PDF, JPEG, PNG, or WEBP."
+                )
+
+        if pdf_files and image_files:
+            raise HTTPException(status_code=400, detail="Please upload either PDF(s) or image(s), not both together.")
+
+        # ── Image path: vision LLM ────────────────────────────────────────
+        if image_files:
+            import base64
+            images = []
+            total_bytes = 0
+            for f in image_files:
+                content = await f.read()
+                if len(content) > _MAX_FILE_BYTES:
+                    raise HTTPException(status_code=400, detail=f"{f.filename} exceeds 8 MB limit.")
+                total_bytes += len(content)
+                if total_bytes > _MAX_TOTAL_BYTES:
+                    raise HTTPException(status_code=400, detail="Total upload size exceeds 24 MB.")
+                ct = (f.content_type or "image/jpeg").lower().split(";")[0].strip()
+                data_uri = f"data:{ct};base64,{base64.b64encode(content).decode()}"
+                images.append({"data_uri": data_uri, "filename": f.filename})
+
+            grading_result = await generator.grade_uploaded_answer_images(questions, images)
+            return {
+                "filename": ", ".join(f.filename for f in image_files),
+                "extracted_text": f"Graded {len(image_files)} image(s) via vision AI.",
+                "grading_result": grading_result,
+            }
+
+        # ── PDF path: text extraction ────────────────────────────────────
+        if not pdf_files:
+            raise HTTPException(status_code=400, detail="No files provided.")
+
+        import tempfile
+        import os
+        combined_text = ""
+        for f in pdf_files:
+            content = await f.read()
+            if len(content) > _MAX_FILE_BYTES:
+                raise HTTPException(status_code=400, detail=f"{f.filename} exceeds 8 MB limit.")
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            try:
+                from app.services.pdf_processor import PDFProcessor
+                result = await PDFProcessor().process_pdf(tmp_path, "answer_sheet", subject)
+                combined_text += result.get("text", "") + "\n"
+            finally:
+                os.unlink(tmp_path)
+
+        grading_result = await generator.grade_uploaded_answers(questions, combined_text)
+        return {
+            "filename": ", ".join(f.filename for f in pdf_files),
+            "extracted_text": combined_text[:500] + "..." if len(combined_text) > 500 else combined_text,
+            "grading_result": grading_result,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error grading uploaded answers: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/quiz/create", response_model=LiveQuizCreateResponse)
 async def create_live_quiz(request: LiveQuizCreateRequest):
     player = request.player_name.strip()
@@ -453,8 +498,6 @@ async def create_live_quiz(request: LiveQuizCreateRequest):
     if year_key in {"1", "year1"}: year_key = "year_1"
     elif year_key in {"2", "year2"}: year_key = "year_2"
     elif year_key in {"3", "year3", "year_3"}: year_key = "year_3"
-    elif year_key in {"level1", "level_1", "nc1", "nc_i"}: year_key = "level_1"
-    elif year_key in {"level2", "level_2", "nc2", "nc_ii", "ncii"}: year_key = "level_2"
     subject_id = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
 
     from app.services.curriculum_fetcher import CurriculumResourceFetcher
@@ -651,18 +694,20 @@ async def generate_professional_mock(
         subject_slug = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
         subject_label = _resolve_subject_label(year_key if year_key != "year_3" else "year_1", subject_slug)
 
-        from app.services.curriculum_fetcher import CurriculumResourceFetcher
-        fetcher = CurriculumResourceFetcher()
-        try:
-            if year_key == "year_3":
-                await asyncio.gather(
-                    fetcher.ensure_subject_resources(year_key="year_1", subject_slug=subject_slug, resource_types=["textbooks"]),
-                    fetcher.ensure_subject_resources(year_key="year_2", subject_slug=subject_slug, resource_types=["textbooks"]),
-                )
-            else:
-                await fetcher.ensure_subject_resources(year_key=year_key, subject_slug=subject_slug, resource_types=["textbooks"])
-        except Exception as fetch_err:
-            logger.warning(f"Textbook fetch failed for {subject_slug} ({year_key}): {fetch_err}. Proceeding with whatever is cached.")
+        # TVET subjects use locally uploaded textbooks — no SHS curriculum fetcher needed
+        if not is_tvet_subject_slug(subject_slug):
+            from app.services.curriculum_fetcher import CurriculumResourceFetcher
+            fetcher = CurriculumResourceFetcher()
+            try:
+                if year_key == "year_3":
+                    await asyncio.gather(
+                        fetcher.ensure_subject_resources(year_key="year_1", subject_slug=subject_slug, resource_types=["textbooks"]),
+                        fetcher.ensure_subject_resources(year_key="year_2", subject_slug=subject_slug, resource_types=["textbooks"]),
+                    )
+                else:
+                    await fetcher.ensure_subject_resources(year_key=year_key, subject_slug=subject_slug, resource_types=["textbooks"])
+            except Exception as fetch_err:
+                logger.warning(f"Textbook fetch failed for {subject_slug} ({year_key}): {fetch_err}. Proceeding with whatever is cached.")
 
         exclude_hashes: set[str] = set()
         if current_user:

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import re
@@ -39,17 +39,41 @@ KNOWN_SUBJECTS = {
         ],
     },
     AcademicLevel.TVET.value: {
-        "level_1": [
-            "Electrical Installation and Maintenance", "Welding and Fabrication", "Motor Vehicle Mechanics",
-            "Carpentry and Joinery", "Plumbing and Pipefitting", "Hospitality Services", "Food Production",
-            "Information and Communication Technology", "Business Management", "Agriculture", "Fashion Design",
-            "Graphic Design", "Refrigeration and Air Conditioning", "Sheet Metal Work", "Bricklaying",
+        "year_1": [
+            "Automotive Engineering", "Electrical Engineering", "Mechanical Engineering",
+            "Welding and Fabrication", "Electronics Engineering", "Mechatronics", "Industrial Mechanics",
+            "Plumbing and Gas Technology", "Building Construction", "Wood Technology", "Furniture Technology",
+            "Architectural Draughtmanship", "Catering and Hospitality", "Fashion Design Technology", "Textiles",
+            "Beauty Therapy", "Hair Technology", "Graphic Design", "Multimedia Technology", "Painting",
+            "Tourism Management", "Computer Hardware and Software", "Agric Mechanization", "Small Engines",
+            "Heavy Duty Mechanics", "Heavy Duty Operation Forklift", "Autobody Repairs",
+            "Refrideration and Air Conditioning", "Jewellry", "Leather Work",
+            "English Language", "Maths", "Science", "Social Studies", "Technical Drawing",
+            "Entrepreneurship", "ICT",
         ],
-        "level_2": [
-            "Advanced Electrical Installation", "Advanced Welding and Fabrication", "Automotive Repair",
-            "Advanced Carpentry and Joinery", "Advanced Plumbing", "Hospitality Management", "Food and Beverage Services",
-            "ICT Support and Networking", "Entrepreneurship", "Crop Production", "Fashion Design and Textiles",
-            "Environmental Health", "Refrigeration Systems", "Civil Engineering Technology", "Metal Fabrication",
+        "year_2": [
+            "Automotive Engineering", "Electrical Engineering", "Mechanical Engineering",
+            "Welding and Fabrication", "Electronics Engineering", "Mechatronics", "Industrial Mechanics",
+            "Plumbing and Gas Technology", "Building Construction", "Wood Technology", "Furniture Technology",
+            "Architectural Draughtmanship", "Catering and Hospitality", "Fashion Design Technology", "Textiles",
+            "Beauty Therapy", "Hair Technology", "Graphic Design", "Multimedia Technology", "Painting",
+            "Tourism Management", "Computer Hardware and Software", "Agric Mechanization", "Small Engines",
+            "Heavy Duty Mechanics", "Heavy Duty Operation Forklift", "Autobody Repairs",
+            "Refrideration and Air Conditioning", "Jewellry", "Leather Work",
+            "English Language", "Maths", "Science", "Social Studies", "Technical Drawing",
+            "Entrepreneurship", "ICT",
+        ],
+        "year_3": [
+            "Automotive Engineering", "Electrical Engineering", "Mechanical Engineering",
+            "Welding and Fabrication", "Electronics Engineering", "Mechatronics", "Industrial Mechanics",
+            "Plumbing and Gas Technology", "Building Construction", "Wood Technology", "Furniture Technology",
+            "Architectural Draughtmanship", "Catering and Hospitality", "Fashion Design Technology", "Textiles",
+            "Beauty Therapy", "Hair Technology", "Graphic Design", "Multimedia Technology", "Painting",
+            "Tourism Management", "Computer Hardware and Software", "Agric Mechanization", "Small Engines",
+            "Heavy Duty Mechanics", "Heavy Duty Operation Forklift", "Autobody Repairs",
+            "Refrideration and Air Conditioning", "Jewellry", "Leather Work",
+            "English Language", "Maths", "Science", "Social Studies", "Technical Drawing",
+            "Entrepreneurship", "ICT",
         ],
     },
 }
@@ -65,17 +89,20 @@ YEAR_ALIASES = {
     "2": "year_2",
     "shs2": "year_2",
     "shs_year_2": "year_2",
-    "level_1": "level_1",
-    "level1": "level_1",
-    "1st_level": "level_1",
-    "nc1": "level_1",
-    "nc_i": "level_1",
-    "level_2": "level_2",
-    "level2": "level_2",
-    "2nd_level": "level_2",
-    "nc2": "level_2",
-    "nc_ii": "level_2",
-    "ncii": "level_2",
+    "year_3": "year_3",
+    "year3": "year_3",
+    "3": "year_3",
+    "level_1": "year_1",
+    "level1": "year_1",
+    "1st_level": "year_1",
+    "nc1": "year_1",
+    "nc_i": "year_1",
+    "level_2": "year_2",
+    "level2": "year_2",
+    "2nd_level": "year_2",
+    "nc2": "year_2",
+    "nc_ii": "year_2",
+    "ncii": "year_2",
 }
 
 
@@ -93,6 +120,15 @@ def slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", (value or "").strip().lower()).strip("_") or "general_studies"
 
 
+def is_tvet_subject_slug(subject_slug: str) -> bool:
+    normalized_slug = slugify(subject_slug)
+    for year_subjects in KNOWN_SUBJECTS.get(AcademicLevel.TVET.value, {}).values():
+        for name in year_subjects:
+            if slugify(name) == normalized_slug:
+                return True
+    return False
+
+
 def normalize_academic_level(value: str | AcademicLevel | None = None) -> str:
     normalized = normalize_academic_level_value(value)
     if isinstance(normalized, AcademicLevel):
@@ -107,21 +143,21 @@ def normalize_year_key(value: str | None = None, academic_level: str | AcademicL
     normalized = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
     if normalized in YEAR_ALIASES:
         return YEAR_ALIASES[normalized]
-    return "level_2" if level == AcademicLevel.TVET.value else "year_1"
+    return "year_2" if level == AcademicLevel.TVET.value else "year_1"
 
 
 def infer_academic_level_from_year(year_key: str, academic_level: str | AcademicLevel | None = None) -> str:
-    if year_key.startswith("level_"):
-        return AcademicLevel.TVET.value
     return normalize_academic_level(academic_level)
 
 
 def format_year_label(academic_level: str | AcademicLevel, year_key: str) -> str:
     level = normalize_academic_level(academic_level)
     if level == AcademicLevel.TVET.value:
-        return year_key.replace("level_", "TVET Level ").upper()
+        return year_key.replace("year_", "TVET Year ").title()
     if year_key == "year_2":
         return "SHS Year 2"
+    if year_key == "year_3":
+        return "SHS Year 3"
     return "SHS Year 1"
 
 

@@ -93,6 +93,19 @@ export interface GeneratedQuestions {
   organized_papers?: Record<string, Question[]>
 }
 
+export interface GenerationJob {
+  id: number
+  job_id: string
+  user_id: number | null
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  request_data: any
+  result_data: GeneratedQuestions | null
+  error_message: string | null
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
 export interface DocumentStatus {
   status: 'loaded' | 'not_loaded' | 'loading' | string
   documents?: Record<string, any>

@@ -17,6 +17,8 @@ from PyPDF2 import PdfReader
 
 from app.config import settings
 from app.models import Question, QuestionType, Subject, SUBJECT_ALIASES
+from app.services.academic_catalog import is_tvet_subject_slug
+from app.services.wassce_intelligence import WassceIntelligenceService
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,7 @@ class LikelyWASSCEGenerator:
         self._exclude_hashes: Set[str] = set()
         self._topic_cache: Dict[str, List[str]] = {}
         self._textbook_excerpt_cache: Dict[str, str] = {}
+        self._intel = WassceIntelligenceService()
 
     @staticmethod
     def hash_question(question_text: str) -> str:
@@ -86,6 +89,11 @@ class LikelyWASSCEGenerator:
         exclude_hashes: Optional[Set[str]] = None,
     ) -> Dict[str, Any]:
         self._exclude_hashes = set(exclude_hashes or ())
+
+        # TVET (NAPTEX/NABPTEX) path — uses uploaded textbooks + syllabi directly
+        if is_tvet_subject_slug(subject_slug):
+            return await self._generate_tvet_exam(subject_slug, subject_label, year_key)
+
         archive_path = self._find_subject_archive(subject_slug)
         if year_key == "year_3":
             return await self._generate_year_3_exam(subject_slug, subject_label, archive_path)
@@ -231,6 +239,148 @@ class LikelyWASSCEGenerator:
             "year_mode": "year_3",
             "generation_mode": "exam_structured",
         }
+
+    async def _generate_tvet_exam(
+        self,
+        subject_slug: str,
+        subject_label: str,
+        year_key: str,
+    ) -> Dict[str, Any]:
+        """Generate a NAPTEX/NABPTEX-style exam from the uploaded TVET textbooks and syllabi."""
+        topics = self._extract_tvet_topics(subject_slug)
+        # Pre-load content into excerpt cache so _build_generation_prompt picks it up
+        excerpts = self._load_tvet_excerpts(subject_slug)
+        if excerpts:
+            self._textbook_excerpt_cache[f"{year_key}:{subject_slug}"] = excerpts
+
+        blueprint = self._build_tvet_blueprint(subject_slug)
+        subject_enum = self._subject_enum(subject_slug)
+        organized: Dict[str, List[Question]] = {"paper_1": [], "paper_2": [], "paper_3": []}
+
+        async def process_section(section: SectionBlueprint) -> tuple[str, List[Question]]:
+            generated = await self._generate_missing_questions(
+                subject_slug=subject_slug,
+                subject_label=subject_label,
+                year_key=year_key,
+                section=section,
+                topics=topics,
+                missing_count=section.expected_count,
+                subject_enum=subject_enum,
+            )
+            standardized = await self._ensure_section_standard(
+                section_questions=generated,
+                subject_slug=subject_slug,
+                subject_label=subject_label,
+                year_key=year_key,
+                section=section,
+                topics=topics,
+                subject_enum=subject_enum,
+            )
+            return section.paper_key, standardized[: section.expected_count]
+
+        results = await asyncio.gather(*[process_section(s) for s in blueprint])
+        for paper_key, questions in results:
+            organized[paper_key].extend(questions)
+
+        return {
+            "organized_papers": {k: v for k, v in organized.items() if v},
+            "topics": topics,
+            "paper_structure": self._serialize_blueprint(blueprint),
+            "year_mode": year_key,
+            "generation_mode": "tvet_guided",
+        }
+
+    def _extract_tvet_topics(self, subject_slug: str) -> List[str]:
+        """Get unit topics from uploaded TVET textbook filenames."""
+        cache_key = f"tvet:{subject_slug}"
+        if cache_key in self._topic_cache:
+            return self._topic_cache[cache_key]
+        tvet_dir = self._intel.find_tvet_textbook_dir(subject_slug)
+        topics = self._intel._topics_from_tvet_dir(tvet_dir) if tvet_dir else []
+        # Fall back to syllabus titles if textbook has no units
+        if not topics:
+            syl_dir = self._intel.find_tvet_syllabus_dir(subject_slug)
+            topics = self._intel._topics_from_tvet_dir(syl_dir) if syl_dir else []
+        self._topic_cache[cache_key] = topics
+        return topics
+
+    # Common/academic TVET subjects that don't have trade practical tests
+    _TVET_COMMON_SUBJECT_TERMS = {"english_language", "maths", "mathematics", "social_studies", "technical_drawing", "entrepreneurship"}
+
+    def _build_tvet_blueprint(self, subject_slug: str) -> List[SectionBlueprint]:
+        """NAPTEX exam structure: Paper 1 (40 MCQ) + Paper 2 (8 Theory) + Paper 3 for trade subjects."""
+        blueprint = [
+            SectionBlueprint(
+                paper_key="paper_1",
+                section_key="section_a",
+                title="Paper 1: Objective Test (NAPTEX)",
+                question_type=QuestionType.MULTIPLE_CHOICE,
+                expected_count=40,
+            ),
+            SectionBlueprint(
+                paper_key="paper_2",
+                section_key="section_a",
+                title="Paper 2: Theory and Practical Knowledge",
+                question_type=QuestionType.ESSAY,
+                expected_count=8,
+            ),
+        ]
+        # Add practical paper for trade subjects (everything except academic common subjects)
+        is_common = any(term in subject_slug.lower() for term in self._TVET_COMMON_SUBJECT_TERMS)
+        if not is_common:
+            blueprint.append(
+                SectionBlueprint(
+                    paper_key="paper_3",
+                    section_key="section_a",
+                    title="Paper 3: Practical / Trade Test",
+                    question_type=QuestionType.SHORT_ANSWER,
+                    expected_count=3,
+                )
+            )
+        return blueprint
+
+    def _load_tvet_excerpts(self, subject_slug: str, max_units: int = 5, max_chars: int = 900) -> str:
+        """Read DOCX content from uploaded TVET textbooks + syllabi for LLM context."""
+        snippets: List[str] = []
+
+        def _read_docx(path: Path) -> str:
+            try:
+                import zipfile as zf
+                with zf.ZipFile(path, 'r') as zp:
+                    if 'word/document.xml' not in zp.namelist():
+                        return ""
+                    xml_bytes = zp.read('word/document.xml')
+                import re as _re
+                xml_text = xml_bytes.decode('utf-8', errors='replace')
+                texts = _re.findall(r'<w:t[^>]*>([^<]+)</w:t>', xml_text)
+                full = ' '.join(texts)
+                full = _re.sub(r'\s+', ' ', full).strip()
+                return full[:max_chars]
+            except Exception:
+                return ""
+
+        # Sample spread of textbook units
+        tvet_dir = self._intel.find_tvet_textbook_dir(subject_slug)
+        if tvet_dir:
+            files = sorted(tvet_dir.glob("*.docx"))
+            step = max(1, len(files) // max_units)
+            samples = [files[i * step] for i in range(max_units) if i * step < len(files)]
+            for f in samples:
+                text = _read_docx(f)
+                if text:
+                    label = re.sub(r'^(?:LM_[^_]+_[^_]+_)?UNIT\s+\d+\s*[-:]\s*', '', f.stem, flags=re.I).strip() or f.stem
+                    snippets.append(f"[Textbook: {label}]\n{text}")
+
+        # Sample a few syllabi units for learning objectives context
+        syl_dir = self._intel.find_tvet_syllabus_dir(subject_slug)
+        if syl_dir:
+            syl_files = sorted(syl_dir.glob("*.docx"))
+            for f in syl_files[:3]:
+                text = _read_docx(f)
+                if text:
+                    snippets.append(f"[Syllabus: {f.stem}]\n{text}")
+
+        return "\n\n".join(snippets)
 
     def extract_topics_from_textbooks(self, year_key: str, subject_slug: str) -> List[str]:
         cache_key = f"{year_key}:{subject_slug}"
@@ -978,8 +1128,18 @@ class LikelyWASSCEGenerator:
             ["topic rotation", "novel scenario building", "fresh numeric variation", "mixed-skill sequencing"]
         )
 
+        is_tvet = is_tvet_subject_slug(subject_slug)
+        exam_body = "NABPTEX/NAPTEX" if is_tvet else "WAEC"
+        exam_name = "NAPTEX" if is_tvet else "WASSCE"
+        curriculum_body = "Ghana TVET (NABPTEX)" if is_tvet else "Ghana SHS"
+
         # ---- Source mode instruction ----
-        if not section.source_file:
+        if is_tvet:
+            source_mode = (
+                "Use the uploaded TVET textbook and syllabus excerpts as the authoritative source. "
+                "Questions must be trade-relevant and match the cognitive level of the NAPTEX trade test."
+            )
+        elif not section.source_file:
             source_mode = (
                 "No verified past-paper archive exists for this subject. "
                 "Use the scanned textbook excerpts and official Ghana SHS syllabus as the sole source."
@@ -1006,6 +1166,8 @@ class LikelyWASSCEGenerator:
             )
         elif section.source_file:
             pattern_block = "Match the structure, difficulty, and style of the representative past paper exactly."
+        elif is_tvet:
+            pattern_block = f"Write to the standard of official Ghana {exam_body} trade examination questions."
         else:
             pattern_block = "Write to the standard of official Ghana WASSCE examination questions."
 
@@ -1021,7 +1183,7 @@ class LikelyWASSCEGenerator:
         else:
             multi_year_block = ""
 
-        return f"""You are a Ghana WASSCE exam setter for BroxStudies.
+        return f"""You are a Ghana {exam_name} exam setter for BroxStudies ({curriculum_body}).
 
 Generate exactly {missing_count} new questions for:
   Subject  : {subject_label}
@@ -1222,6 +1384,18 @@ JSON format:
     def _find_textbook_sources(self, year_key: str, subject_slug: str) -> List[Path]:
         sources: List[Path] = []
 
+        # TVET: load DOCX files from the uploaded tvet/textbooks directory
+        if is_tvet_subject_slug(subject_slug):
+            tvet_dir = self._intel.find_tvet_textbook_dir(subject_slug)
+            if tvet_dir:
+                docx_files = sorted(tvet_dir.glob("*.docx"))
+                # Spread sampling across early, mid, late units
+                n = min(6, len(docx_files))
+                if n > 0:
+                    step = max(1, len(docx_files) // n)
+                    sources = [docx_files[i * step] for i in range(n) if i * step < len(docx_files)]
+            return sources
+
         site_dir = self.textbook_root / year_key / subject_slug
         if site_dir.exists():
             sources.extend(sorted(site_dir.glob("*.pdf")))
@@ -1265,6 +1439,15 @@ JSON format:
                 reader = PdfReader(str(path))
                 parts = [(page.extract_text() or "").strip() for page in reader.pages[:5]]
                 return " ".join(part for part in parts if part)[:max_chars]
+            if path.suffix.lower() == ".docx":
+                with zipfile.ZipFile(path, "r") as zp:
+                    if "word/document.xml" not in zp.namelist():
+                        return ""
+                    xml_bytes = zp.read("word/document.xml")
+                xml_text = xml_bytes.decode("utf-8", errors="replace")
+                texts = re.findall(r"<w:t[^>]*>([^<]+)</w:t>", xml_text)
+                full = re.sub(r"\s+", " ", " ".join(texts)).strip()
+                return full[:max_chars]
             if path.suffix.lower() == ".zip":
                 with zipfile.ZipFile(path, "r") as archive:
                     members = [name for name in archive.namelist() if name.lower().endswith(".pdf")]

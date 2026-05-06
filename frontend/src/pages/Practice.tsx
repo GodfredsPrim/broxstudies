@@ -3,15 +3,22 @@ import {
   BookOpen, Loader2, CheckCircle2, XCircle,
   RotateCcw, Trophy, ChevronRight, BookMarked, GraduationCap,
   FileText, ClipboardList, ScrollText, Download, Share2,
+  Upload, FileUp,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
+import { analysisApi } from '@/api/endpoints'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { useGeneration } from '@/hooks/useGeneration'
+import { useToast } from '@/hooks/useToast'
+import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
-import type { Question, Subject } from '@/api/types'
+import { Combobox } from '@/components/ui/Combobox'
+import { ToastContainer } from '@/components/ui/Toast'
+import type { Question, Subject, GenerationJob } from '@/api/types'
 import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
 
 const SHS_YEARS = ['Year 1', 'Year 2', 'Year 3']
-const TVET_LEVELS = ['Level 1', 'Level 2']
+const TVET_YEARS = ['Year 1', 'Year 2', 'Year 3']
 
 type Phase = 'setup' | 'practice' | 'results'
 
@@ -47,7 +54,11 @@ export function PracticePage() {
   const [selectedYear, setSelectedYear] = useState('')
   const [numQuestions, setNumQuestions] = useState(10)
   const [genError, setGenError] = useState('')
-  const [generating, setGenerating] = useState(false)
+
+  // topics
+  const [availableTopics, setAvailableTopics] = useState<string[]>([])
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([])
+  const [loadingTopics, setLoadingTopics] = useState(false)
 
   // practice
   const [questions, setQuestions] = useState<Question[]>([])
@@ -62,6 +73,32 @@ export function PracticePage() {
   const [score, setScore] = useState(0)
   const [percentage, setPercentage] = useState(0)
   const [markResults, setMarkResults] = useState<MarkResult[]>([])
+
+  // upload answers
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadResults, setUploadResults] = useState<any>(null)
+
+  // Offline history persistence
+  const { saveLocal } = useOfflineHistory()
+
+  // Generation and notifications
+  const { toasts, removeToast, success, error, info } = useToast()
+  const { startGeneration, activeJobs } = useGeneration({
+    onComplete: (job: GenerationJob) => {
+      if (job.result_data) {
+        setQuestions(job.result_data.questions)
+        setSourceUsed(job.result_data.source_used || '')
+        setPhase('practice')
+        success('Questions generated successfully!')
+      }
+    },
+    onError: (job: GenerationJob) => {
+      setGenError(job.error_message || 'Failed to generate questions')
+      error('Failed to generate questions')
+    },
+  })
 
   useEffect(() => {
     questionsApi.subjects()
@@ -96,10 +133,10 @@ export function PracticePage() {
     [filteredSubjects],
   )
 
-  const yearLabel = selectedTrack === 'tvet' ? 'TVET Level' : 'SHS Year'
-  const yearHint = selectedTrack === 'tvet' ? 'Choose the TVET level you want to practice.' : 'Choose your SHS year.'
+  const yearLabel = selectedTrack === 'tvet' ? 'TVET Year' : 'SHS Year'
+  const yearHint = selectedTrack === 'tvet' ? 'Choose the TVET year you want to practice.' : 'Choose your SHS year.'
 
-  const availableYears: string[] = selectedTrack === 'tvet' ? TVET_LEVELS : SHS_YEARS
+  const availableYears: string[] = selectedTrack === 'tvet' ? TVET_YEARS : SHS_YEARS
 
   useEffect(() => {
     if (uniqueNames.length && !uniqueNames.includes(selectedName)) {
@@ -119,6 +156,34 @@ export function PracticePage() {
     [subjects, selectedName],
   )
 
+  // Load topics when subject changes
+  useEffect(() => {
+    const loadTopics = async () => {
+      if (!subjectEntry || !selectedYear) {
+        setAvailableTopics([])
+        setSelectedTopics([])
+        return
+      }
+
+      setLoadingTopics(true)
+      try {
+        const slug = subjectEntry.id.includes(':') ? subjectEntry.id.split(':')[1] : subjectEntry.id
+        const response = await analysisApi.topics(slug, selectedYear)
+        const topics = response.topics || []
+        setAvailableTopics(topics)
+        setSelectedTopics([]) // Reset selected topics when subject or year changes
+      } catch (error) {
+        console.warn('Could not load topics:', error)
+        setAvailableTopics([])
+        setSelectedTopics([])
+      } finally {
+        setLoadingTopics(false)
+      }
+    }
+
+    loadTopics()
+  }, [subjectEntry, selectedYear])
+
   // Construct the subject ID for the chosen year: e.g. "year_1:mathematics"
   const subjectId = useMemo(() => {
     if (!subjectEntry || !selectedYear) return null
@@ -135,27 +200,21 @@ export function PracticePage() {
     e.preventDefault()
     if (!subjectId) return
     setGenError('')
-    setGenerating(true)
+    
     try {
-      const result = await questionsApi.generate({
+      await startGeneration({
         subject: subjectId,
         year: selectedYear,
         question_type: 'multiple_choice',
         num_questions: numQuestions,
         difficulty_level: 'medium',
+        topics: selectedTopics.length > 0 ? selectedTopics : undefined,
       })
-      if (!result.questions.length) {
-        setGenError('No questions were returned. Try a different subject or lower the count.')
-        return
-      }
-      setQuestions(result.questions)
-      setAnswers({})
-      setSourceUsed(result.source_used || '')
-      setPhase('practice')
+      
+      info('Generation started! You can navigate to other tabs while it processes.')
     } catch {
-      setGenError('Failed to generate questions. Please try again.')
-    } finally {
-      setGenerating(false)
+      setGenError('Failed to start generation. Please try again.')
+      error('Failed to start generation')
     }
   }
 
@@ -178,6 +237,20 @@ export function PracticePage() {
       setPercentage(res.percentage)
       setMarkResults((res.results as unknown as MarkResult[]) || [])
       setPhase('results')
+
+      // Save result locally (offline-safe) and sync to server
+      const histEntry = {
+        exam_type: 'Practice',
+        subject: selectedName,
+        score_obtained: res.score_obtained,
+        total_questions: questions.length,
+        percentage: res.percentage,
+        created_at: new Date().toISOString(),
+      }
+      saveLocal(histEntry)
+      questionsApi.saveExamHistory(histEntry)
+        .then(() => {/* synced */})
+        .catch(() => {/* stays local */})
     } catch {
       setSubmitError('Failed to submit answers. Please try again.')
     } finally {
@@ -195,6 +268,40 @@ export function PracticePage() {
     setGenError('')
     setSubmitError('')
     setSourceUsed('')
+    setSelectedTopics([])
+    setUploadedFile(null)
+    setUploadResults(null)
+    setUploadError('')
+  }
+
+  const handleUploadAnswers = async () => {
+    if (!uploadedFile) return
+    setUploadError('')
+    setUploading(true)
+    try {
+      const result = await questionsApi.gradeAnswersPDF(
+        uploadedFile,
+        { questions },
+        selectedName
+      )
+      setUploadResults(result.grading_result)
+      setPhase('results')
+    } catch {
+      setUploadError('Failed to grade uploaded answers. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type === 'application/pdf') {
+      setUploadedFile(file)
+      setUploadError('')
+    } else {
+      setUploadError('Please select a PDF file.')
+      setUploadedFile(null)
+    }
   }
 
   const handleDownload = () => {
@@ -217,17 +324,16 @@ export function PracticePage() {
   }
 
   /* ── Setup ── */
-  if (phase === 'setup') {
-    return (
-      <div className="mx-auto w-full max-w-xl px-4 pb-16 sm:px-8">
-        <div className="mt-8">
-          <h1 className="text-3xl font-black text-foreground">Practice Questions</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Choose your subject and {selectedTrack === 'tvet' ? 'TVET level' : 'SHS year'}, set how many questions you want, then start a personalised practice session.
-          </p>
-        </div>
+  const renderSetup = () => (
+    <div className="mx-auto w-full max-w-xl px-4 pb-16 sm:px-8">
+      <div className="mt-8">
+        <h1 className="text-3xl font-black text-foreground">Practice Questions</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Choose your subject and {selectedTrack === 'tvet' ? 'TVET year' : 'SHS year'}, set how many questions you want, then start a personalised practice session.
+        </p>
+      </div>
 
-        {/* Source legend */}
+      {/* Source legend */}
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {SOURCES.map(({ Icon, label, color, bg }) => (
             <div key={label} className={`rounded-2xl border border-transparent ${bg} px-3 py-3 text-center`}>
@@ -244,15 +350,13 @@ export function PracticePage() {
           {/* Subject */}
           <div>
             <label className="text-sm font-semibold text-foreground">Subject</label>
-            <select
+            <Combobox
+              options={uniqueNames.map(name => ({ value: name, label: name }))}
               value={selectedName}
-              onChange={e => handleNameChange(e.target.value)}
-              className="mt-2 block w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
-            >
-              {uniqueNames.length === 0 && <option value="">Loading subjects…</option>}
-              {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
+              onChange={handleNameChange}
+              placeholder="Type to search subjects..."
+              className="mt-2"
+            />
           </div>
 
           {/* SHS Year */}
@@ -283,6 +387,59 @@ export function PracticePage() {
             </div>
           </div>
 
+          {/* Topics */}
+          {selectedName && (
+            <div>
+              <label className="text-sm font-semibold text-foreground">
+                Topics (Optional)
+                {loadingTopics && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Select specific topics to focus questions on. Leave empty to include all topics.
+              </p>
+              {availableTopics.length > 0 ? (
+                <div className="mt-2 max-h-40 overflow-y-auto rounded-2xl border border-input bg-background p-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {availableTopics.map((topic) => (
+                      <label key={topic} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedTopics.includes(topic)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTopics(prev => [...prev, topic])
+                            } else {
+                              setSelectedTopics(prev => prev.filter(t => t !== topic))
+                            }
+                          }}
+                          className="rounded border-input text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="text-foreground">{topic}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedTopics.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      <span className="text-xs text-muted-foreground">Selected:</span>
+                      {selectedTopics.map((topic) => (
+                        <span
+                          key={topic}
+                          className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : !loadingTopics ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  No topics available for this subject. Questions will cover all topics.
+                </p>
+              ) : null}
+            </div>
+          )}
+
           {/* Number of questions */}
           <div>
             <label className="text-sm font-semibold text-foreground">
@@ -308,19 +465,18 @@ export function PracticePage() {
 
           <button
             type="submit"
-            disabled={generating || !subjectId}
+            disabled={!subjectId || activeJobs.length > 0}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight size={16} />}
-            {generating ? 'Generating questions…' : 'Start practice session'}
+            {activeJobs.length > 0 ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight size={16} />}
+            {activeJobs.length > 0 ? 'Generating questions…' : 'Start practice session'}
           </button>
         </form>
       </div>
     )
-  }
 
   /* ── Practice ── */
-  if (phase === 'practice') {
+  const renderPractice = () => {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
         <div className="mt-8 flex flex-wrap items-start justify-between gap-3">
@@ -391,7 +547,9 @@ export function PracticePage() {
                           : q.difficulty_level === 'standard'
                             ? 'bg-blue-100 text-blue-700'
                             : 'bg-yellow-100 text-yellow-700'
-                    }`}>{q.difficulty_level}</span>
+                    }`}>
+                      {q.difficulty_level}
+                    </span>
                   )}
                 </div>
 
@@ -409,11 +567,11 @@ export function PracticePage() {
                           key={oi}
                           type="button"
                           onClick={() => setAnswers(prev => ({ ...prev, [i]: opt }))}
-                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition
-                            ${isSelected
+                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition ${
+                            isSelected
                               ? 'border-emerald-500 bg-emerald-50 font-semibold text-emerald-900'
                               : 'border-input bg-background text-foreground hover:border-emerald-300 hover:bg-emerald-50/40'
-                            }`}
+                          }`}
                         >
                           <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                             isSelected ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground'
@@ -461,33 +619,49 @@ export function PracticePage() {
   }
 
   /* ── Results ── */
-  const grade =
-    percentage >= 80 ? 'Excellent' :
-    percentage >= 65 ? 'Good' :
-    percentage >= 50 ? 'Fair' : 'Needs Work'
-  const gradeColor =
-    percentage >= 80 ? 'text-emerald-700' :
-    percentage >= 65 ? 'text-blue-700' :
-    percentage >= 50 ? 'text-yellow-700' : 'text-red-700'
-  const gradeBg =
-    percentage >= 80 ? 'bg-emerald-50 border-emerald-200' :
-    percentage >= 65 ? 'bg-blue-50 border-blue-200' :
-    percentage >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+  const renderResults = () => {
+    const currentResults = uploadResults || {
+      score_obtained: score,
+      percentage,
+      results: markResults,
+      total_questions: questions.length
+    }
+    const displayScore = currentResults.score_obtained
+    const displayPercentage = currentResults.percentage
+    const displayResults = currentResults.results || []
+
+    const grade =
+      displayPercentage >= 80 ? 'Excellent' :
+      displayPercentage >= 65 ? 'Good' :
+      displayPercentage >= 50 ? 'Fair' : 'Needs Work'
+
+    const gradeColor =
+      displayPercentage >= 80 ? 'text-emerald-700' :
+      displayPercentage >= 65 ? 'text-blue-700' :
+      displayPercentage >= 50 ? 'text-yellow-700' : 'text-red-700'
+
+    const gradeBg =
+      displayPercentage >= 80 ? 'bg-emerald-50 border-emerald-200' :
+      displayPercentage >= 65 ? 'bg-blue-50 border-blue-200' :
+      displayPercentage >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
       <div className="mt-8">
         <h1 className="text-2xl font-black text-foreground">Results</h1>
-        <p className="text-sm text-muted-foreground">{selectedName} · {selectedYear}</p>
+        <p className="text-sm text-muted-foreground">
+          {selectedName} · {selectedYear}
+          {uploadResults && ' · Uploaded Answers'}
+        </p>
       </div>
 
       {/* Score card */}
       <div className={`mt-6 rounded-3xl border p-8 text-center ${gradeBg}`}>
         <GraduationCap className={`mx-auto mb-3 h-10 w-10 ${gradeColor}`} />
-        <div className={`text-5xl font-black ${gradeColor}`}>{Math.round(percentage)}%</div>
+        <div className={`text-5xl font-black ${gradeColor}`}>{Math.round(displayPercentage)}%</div>
         <div className="mt-1 text-base font-semibold text-muted-foreground">{grade}</div>
         <div className="mt-2 text-sm text-muted-foreground">
-          {Math.round(score)} of {questions.length} correct
+          {Math.round(displayScore)} of {questions.length} correct
         </div>
       </div>
 
@@ -495,9 +669,9 @@ export function PracticePage() {
       <h2 className="mt-8 text-lg font-bold text-foreground">Question breakdown</h2>
       <div className="mt-4 space-y-4">
         {questions.map((q, i) => {
-          const r = markResults[i]
+          const r = displayResults[i]
           const isCorrect = r?.is_correct ?? false
-          const myAnswer = answers[i] || '(no answer)'
+          const myAnswer = uploadResults ? r?.student_answer || '(no answer)' : answers[i] || '(no answer)'
           return (
             <article
               key={i}
@@ -546,6 +720,69 @@ export function PracticePage() {
         <RotateCcw size={14} />
         New practice session
       </button>
+
+      {/* Upload answers option */}
+      <div className="mt-6 rounded-3xl border border-dashed border-emerald-300 bg-emerald-50/50 p-6">
+        <div className="text-center">
+          <FileUp className="mx-auto mb-3 h-8 w-8 text-emerald-600" />
+          <h3 className="text-lg font-semibold text-foreground">Upload Answer Sheet</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Have a PDF of answers? Upload it to get AI grading and detailed feedback.
+          </p>
+          <div className="mt-4">
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileChange}
+              className="hidden"
+              id="answer-upload"
+            />
+            <label
+              htmlFor="answer-upload"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+            >
+              <Upload size={14} />
+              Choose PDF
+            </label>
+            {uploadedFile && (
+              <p className="mt-2 text-sm text-emerald-700">
+                Selected: {uploadedFile.name}
+              </p>
+            )}
+          </div>
+          {uploadError && (
+            <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+          )}
+          <button
+            type="button"
+            onClick={handleUploadAnswers}
+            disabled={!uploadedFile || uploading}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp size={16} />}
+            {uploading ? 'Grading answers…' : 'Grade uploaded answers'}
+          </button>
+        </div>
+      </div>
     </div>
+  )
+  }
+
+  const renderContent = () => {
+    if (phase === 'setup') {
+      return renderSetup()
+    } else if (phase === 'practice') {
+      return renderPractice()
+    } else if (phase === 'results') {
+      return renderResults()
+    }
+    return null
+  }
+
+  return (
+    <>
+      {renderContent()}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </>
   )
 }

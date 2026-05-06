@@ -255,7 +255,7 @@ class ExamHistorySaveRequest(BaseModel):
     score_obtained: float
     total_questions: int
     percentage: float
-    details_json: str
+    details_json: str = '{}'
 
 class ExamHistoryResponse(BaseModel):
     id: int

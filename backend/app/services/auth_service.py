@@ -4,6 +4,7 @@ import logging
 import secrets
 import sqlite3
 import os
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
@@ -265,6 +266,26 @@ class AuthService:
                 """
             )
             self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_rgq_user_subj_time ON recent_generated_questions (user_id, subject_slug, created_at)")
+
+            # ── Generation jobs (async question generation) ──────────────────
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS generation_jobs (
+                    id {id_type},
+                    job_id TEXT NOT NULL UNIQUE,
+                    user_id INTEGER,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    request_data TEXT NOT NULL,
+                    result_data TEXT,
+                    error_message TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    completed_at TEXT
+                )
+                """
+            )
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_gen_jobs_user_status ON generation_jobs (user_id, status)")
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_gen_jobs_job_id ON generation_jobs (job_id)")
 
             if not self.is_postgres:
                 conn.commit()
@@ -1068,3 +1089,91 @@ class AuthService:
         with self._connect() as conn:
             cursor = self._execute(conn, "UPDATE users SET is_admin = ? WHERE email = ?", (1 if is_admin else 0, email))
             return cursor.rowcount > 0
+
+    # ── Generation job methods ────────────────────────────────────────────────
+
+    def create_generation_job(self, user_id: Optional[int], request_data: dict) -> str:
+        """Create a new generation job and return the job ID."""
+        import uuid
+        job_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        
+        with self._connect() as conn:
+            self._execute(conn,
+                """
+                INSERT INTO generation_jobs (job_id, user_id, status, request_data, created_at, updated_at)
+                VALUES (?, ?, 'pending', ?, ?, ?)
+                """,
+                (job_id, user_id, json.dumps(request_data), now, now),
+            )
+        
+        return job_id
+
+    def update_generation_job_status(self, job_id: str, status: str, result_data: Optional[dict] = None, error_message: Optional[str] = None) -> bool:
+        """Update the status of a generation job."""
+        now = datetime.now(timezone.utc).isoformat()
+        completed_at = now if status in ['completed', 'failed'] else None
+        
+        with self._connect() as conn:
+            cursor = self._execute(conn,
+                """
+                UPDATE generation_jobs 
+                SET status = ?, result_data = ?, error_message = ?, updated_at = ?, completed_at = ?
+                WHERE job_id = ?
+                """,
+                (status, json.dumps(result_data) if result_data else None, error_message, now, completed_at, job_id),
+            )
+            return cursor.rowcount > 0
+
+    def get_generation_job(self, job_id: str) -> Optional[dict]:
+        """Get a generation job by ID."""
+        with self._connect() as conn:
+            row = self._execute(conn,
+                "SELECT * FROM generation_jobs WHERE job_id = ?",
+                (job_id,),
+            ).fetchone()
+            
+            if not row:
+                return None
+                
+            return {
+                'id': row['id'],
+                'job_id': row['job_id'],
+                'user_id': row['user_id'],
+                'status': row['status'],
+                'request_data': json.loads(row['request_data']) if row['request_data'] else None,
+                'result_data': json.loads(row['result_data']) if row['result_data'] else None,
+                'error_message': row['error_message'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at'],
+                'completed_at': row['completed_at'],
+            }
+
+    def get_user_generation_jobs(self, user_id: Optional[int], limit: int = 50) -> list[dict]:
+        """Get generation jobs for a user."""
+        with self._connect() as conn:
+            rows = self._execute(conn,
+                """
+                SELECT * FROM generation_jobs 
+                WHERE user_id IS ? OR user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (user_id, user_id, limit),
+            ).fetchall()
+            
+            return [
+                {
+                    'id': r['id'],
+                    'job_id': r['job_id'],
+                    'user_id': r['user_id'],
+                    'status': r['status'],
+                    'request_data': json.loads(r['request_data']) if r['request_data'] else None,
+                    'result_data': json.loads(r['result_data']) if r['result_data'] else None,
+                    'error_message': r['error_message'],
+                    'created_at': r['created_at'],
+                    'updated_at': r['updated_at'],
+                    'completed_at': r['completed_at'],
+                }
+                for r in rows
+            ]

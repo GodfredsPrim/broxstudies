@@ -12,7 +12,7 @@ from PyPDF2 import PdfReader
 
 from app.config import settings
 from app.models import Question, QuestionType, Subject, PracticeMarkItem
-from app.services.academic_catalog import KNOWN_SUBJECTS
+from app.services.academic_catalog import KNOWN_SUBJECTS, is_tvet_subject_slug
 from app.services.wassce_intelligence import WassceIntelligenceService
 
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ Requirements:
 4. YEAR 3 RULE: Questions must cover the entire SHS 1 - SHS 3 curriculum.
 5. ANSWERS: For MCQs, provide the correct option. For Theory, provide a detailed marking guide or full step-by-step solution.
 6. SEQUENCING: Return the questions in a logical, sequential order typical of an exam (e.g. from fundamental to complex topics).
-7. MATH FORMATTING: You MUST use standard LaTeX delimiters for all mathematical symbols, equations, and formulas. Use $ .. $ for inline math and $$ .. $$ for large block equations. Never use plain text for math symbols (e.g. use $\pi$ instead of pi).
+7. MATH FORMATTING: You MUST use standard LaTeX delimiters for all mathematical symbols, equations, and formulas. Use $ .. $ for inline math and $$ .. $$ for large block equations. Never use plain text for math symbols (e.g. use $\\pi$ instead of pi).
 
 Return valid JSON array of {num_questions} objects:
 [
@@ -293,18 +293,33 @@ You MUST generate purely quantitative, computational problems. Do NOT generate g
         elif semester == "semester_2":
             semester_context = "\nFOCUS: Second Semester (Sem 2) curriculum topics and final exam preparation topics."
 
+        is_tvet = is_tvet_subject_slug(subject_slug)
+        exam_body = "NABPTEX/NVTI" if is_tvet else "WAEC/WASSCE"
+        school_level = "TVET/vocational training" if is_tvet else "Ghanaian SHS"
+        tvet_source_rule = (
+            "The Textbook Excerpts below are the AUTHORITATIVE source — they are scanned directly "
+            "from the uploaded TVET learning materials for this subject. "
+            "ALL questions MUST be grounded in those excerpts. "
+            "Do NOT rely on generic knowledge; use only what the materials cover."
+        ) if is_tvet else (
+            "SOURCE PRIORITY ORDER: (a) Past exam questions first — use their exact style, structure, "
+            "and difficulty. (b) Chief examiner's report — emphasise commonly tested areas, common errors, "
+            "and high-weightage topics. (c) Textbooks/Books — use for topical coverage when past questions "
+            "are unavailable. (d) Syllabus — align question scope to curriculum objectives."
+        )
+
         return f"""Generate {num_questions} distinct {difficulty} level {question_type.value.replace('_', ' ')} questions for BroxStudies {display_subject} ({year_key.replace('_', ' ').title()}){semester_context}.
 
 Requirements:
-1. Follow the pattern and style of typical WAEC/WASSCE exam questions for Ghanaian SHS.
-2. Be appropriate for secondary school students.
+1. Follow the pattern and style of typical {exam_body} exam questions for {school_level}.
+2. Be appropriate for the level of the students.
 3. Have a clear, single correct answer or highly robust explanation marking guide.
 4. Include a detailed explanation marking guide to allow accurate automated grading.
 5. Cover these topics when relevant: {topic_text}.
-6. SOURCE PRIORITY ORDER: (a) Past exam questions first — use their exact style, structure, and difficulty. (b) Chief examiner's report — emphasise commonly tested areas, common errors, and high-weightage topics. (c) Textbooks/Books — use for topical coverage when past questions are unavailable. (d) Syllabus — align question scope to curriculum objectives.
+6. {tvet_source_rule}
 7. If past-question excerpts are provided below, derive ALL questions from those patterns; do NOT mix in textbook content.
 8. If the chief examiner's report is provided, weight questions towards topics flagged as commonly tested or commonly misunderstood.
-9. If no excerpts are available below, generate high-quality questions from your internal WAEC/Ghanaian curriculum knowledge.
+9. If no excerpts are available below, generate high-quality questions from your internal {exam_body}/Ghanaian curriculum knowledge.
 10. MATH FORMATTING: You MUST use standard LaTeX delimiters ($ .. $ for inline, $$ .. $$ for blocks) for ALL mathematical symbols, equations, arithmetic, and formulas. NEVER use plain text for symbols like pi, theta, or fractions.
 
 *** CRITICAL SUBJECT EXCLUSIVITY RULE ***
@@ -357,15 +372,19 @@ Return valid JSON only as an array of exactly {num_questions} objects with this 
 Only include "options" for multiple choice questions (omit for essay). Each question must be distinct and follow a strictly randomized selection of topics from the sources provided. Do not include markdown or extra commentary. Produce valid JSON only."""
 
     def _load_resource_context(self, year_key: str, subject_slug: str) -> tuple[str, str, str, str]:
-        """Load context from all four sources: past questions, textbooks, syllabi, chief examiners' report."""
-        years_to_check = [year_key]
-        if year_key == "year_3":
+        """Load context from all sources: past questions, textbooks, syllabi, chief examiners' report."""
+        is_tvet = is_tvet_subject_slug(subject_slug)
+        if year_key == "year_3" and is_tvet:
+            years_to_check = ["year_1", "year_2"]
+        elif year_key == "year_3":
             years_to_check = ["year_1", "year_2", "year_3"]
+        else:
+            years_to_check = [year_key]
 
-        past_snippets = []
-        textbook_snippets = []
-        teacher_snippets = []
-        syllabi_snippets = []
+        past_snippets: list[str] = []
+        textbook_snippets: list[str] = []
+        teacher_snippets: list[str] = []
+        syllabi_snippets: list[str] = []
 
         for yk in years_to_check:
             textbooks_dir = settings.SITE_RESOURCE_DIR / "textbooks" / yk / subject_slug
@@ -376,7 +395,6 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
             past_context = self._extract_excerpts_from_directory(past_dir, max_docs=2)
             if not past_context:
                 past_context = self._extract_excerpts_from_legacy_past_questions(subject_slug, max_docs=1)
-
             if past_context:
                 past_snippets.append(f"--- {yk.replace('_', ' ').title()} Past Questions ---\n{past_context}")
 
@@ -392,6 +410,19 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
             if syllabi_context:
                 syllabi_snippets.append(f"--- {yk.replace('_', ' ').title()} Syllabus ---\n{syllabi_context}")
 
+        # TVET: scan uploaded docx textbook units and syllabi as primary source
+        if is_tvet_subject_slug(subject_slug):
+            tvet_ctx = self._extract_excerpts_from_tvet_docx(subject_slug)
+            if tvet_ctx:
+                textbook_snippets.insert(
+                    0, f"--- TVET Uploaded Learning Materials (authoritative source) ---\n{tvet_ctx}"
+                )
+            tvet_syl_ctx = self._extract_excerpts_from_tvet_syllabi(subject_slug)
+            if tvet_syl_ctx:
+                syllabi_snippets.insert(
+                    0, f"--- TVET Syllabi / Learning Objectives ---\n{tvet_syl_ctx}"
+                )
+
         # Chief examiners' report (global pool, not year-specific)
         chief_snippets: list[str] = []
         cer_dir = settings.DATA_DIR / "chief_examiners_report"
@@ -402,7 +433,6 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
                 key = re.sub(r"[^a-z0-9]+", "_", pdf.stem.lower()).strip("_")
                 if any(t in key for t in terms):
                     matched.append(pdf)
-            # fallback: first pdf in the dir
             all_pdfs = list(cer_dir.glob("*.pdf"))
             candidates = matched[:2] if matched else all_pdfs[:1]
             for pdf in candidates:
@@ -416,6 +446,73 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
             "\n\n".join(teacher_snippets + syllabi_snippets) if (teacher_snippets or syllabi_snippets) else "",
             "\n\n".join(chief_snippets) if chief_snippets else "",
         )
+
+    def _read_docx_excerpt(self, docx_path: Path, max_chars: int = 900) -> str:
+        """Extract text from a .docx file using zipfile + XML (no extra dependency needed)."""
+        try:
+            with zipfile.ZipFile(docx_path, 'r') as zp:
+                if 'word/document.xml' not in zp.namelist():
+                    return ""
+                xml_bytes = zp.read('word/document.xml')
+            xml_text = xml_bytes.decode('utf-8', errors='replace')
+            texts = re.findall(r'<w:t[^>]*>([^<]+)</w:t>', xml_text)
+            full_text = ' '.join(texts)
+            full_text = re.sub(r'\s+', ' ', full_text).strip()
+            return full_text[:max_chars]
+        except Exception:
+            return ""
+
+    def _extract_excerpts_from_tvet_docx(
+        self, subject_slug: str, max_units: int = 4, max_chars_per: int = 900
+    ) -> str:
+        """Read content from TVET uploaded docx units for LLM context."""
+        tvet_dir = self.intel.find_tvet_textbook_dir(subject_slug)
+        if not tvet_dir:
+            return ""
+        docx_files = sorted(tvet_dir.glob("*.docx"))
+        if not docx_files:
+            return ""
+
+        # Spread samples across early, middle, and late units
+        if len(docx_files) > max_units:
+            step = max(1, len(docx_files) // max_units)
+            samples = [docx_files[i * step] for i in range(max_units) if i * step < len(docx_files)]
+        else:
+            samples = docx_files
+
+        snippets = []
+        for docx_path in samples:
+            text = self._read_docx_excerpt(docx_path, max_chars=max_chars_per)
+            if text:
+                # Use filename as unit label (strip "UNIT N -" prefix for readability)
+                unit_label = re.sub(
+                    r'^(?:LM_[^_]+_[^_]+_)?UNIT\s+\d+\s*[-:]\s*', '', docx_path.stem, flags=re.I
+                ).strip() or docx_path.stem
+                snippets.append(f"[{unit_label}]\n{text}")
+
+        return "\n\n".join(snippets)
+
+    def _extract_excerpts_from_tvet_syllabi(
+        self, subject_slug: str, max_units: int = 3, max_chars_per: int = 700
+    ) -> str:
+        """Read content from TVET uploaded syllabus docx files for LLM context."""
+        syl_dir = self.intel.find_tvet_syllabus_dir(subject_slug)
+        if not syl_dir:
+            return ""
+        docx_files = sorted(syl_dir.glob("*.docx"))
+        if not docx_files:
+            return ""
+
+        step = max(1, len(docx_files) // max_units)
+        samples = [docx_files[i * step] for i in range(max_units) if i * step < len(docx_files)]
+
+        snippets = []
+        for docx_path in samples:
+            text = self._read_docx_excerpt(docx_path, max_chars=max_chars_per)
+            if text:
+                snippets.append(f"[{docx_path.stem}]\n{text}")
+
+        return "\n\n".join(snippets)
 
     def get_source_status(self, year_key: str, subject_slug: str) -> dict:
         """Return which resource source is available for generation."""
@@ -696,7 +793,26 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
             llm_response = await asyncio.wait_for(self._call_llm(prompt), timeout=90.0)
             start = llm_response.find("[")
             end = llm_response.rfind("]") + 1
-            parsed = json.loads(llm_response[start:end])
+            if start == -1 or end == 0:
+                raise ValueError("No JSON array found in response")
+            
+            json_str = llm_response[start:end]
+            # Try to parse as-is first
+            try:
+                parsed = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                # Try fixing unescaped backslashes by using a regex pattern
+                import re
+                # Replace backslashes that aren't already escaped (not preceded by another backslash)
+                fixed_json = re.sub(r'(?<!\\)\\(?!["\\/bfnrtu])', r'\\\\', json_str)
+                try:
+                    parsed = json.loads(fixed_json)
+                except json.JSONDecodeError:
+                    # Last resort: log the problematic JSON and raise the original error
+                    logger.error(f"Failed to parse JSON. Original error: {str(e)}")
+                    logger.error(f"Attempted JSON (first 1000 chars): {json_str[:1000]}")
+                    raise ValueError(f"Error parsing LLM response: {str(e)}")
+            
             graded = []
             by_idx = {idx: item for idx, item in open_items}
             for item in parsed:
@@ -738,6 +854,213 @@ Only include "options" for multiple choice questions (omit for essay). Each ques
                 }
             )
         return fallback
+
+    async def grade_uploaded_answers(self, questions: list[dict], extracted_text: str) -> dict:
+        """Grade answers extracted from an uploaded PDF against the provided questions."""
+        if not questions:
+            return {"total_questions": 0, "score_obtained": 0.0, "percentage": 0.0, "results": []}
+
+        # Create a prompt to extract and grade answers from the uploaded text
+        questions_text = "\n".join([
+            f"Q{i+1}: {q.get('question_text', '')}"
+            for i, q in enumerate(questions)
+        ])
+
+        prompt = f"""
+You are grading student answers from an uploaded answer sheet PDF. The extracted text from the PDF is:
+
+{extracted_text}
+
+The questions being answered are:
+{questions_text}
+
+Your task is to:
+1. Extract the student's answers for each question from the PDF text
+2. Grade each answer against the correct answer
+3. Return a JSON array with grading results
+
+For each question, provide:
+- index: question number (0-based)
+- extracted_answer: the answer extracted from the PDF text
+- score: 0.0 to 1.0 (1.0 for correct, 0.0 for incorrect)
+- is_correct: boolean
+- feedback: brief explanation
+
+Return only valid JSON array.
+Format: [{{"index":0,"extracted_answer":"...","score":1.0,"is_correct":true,"feedback":"..."}}]
+"""
+
+        try:
+            llm_response = await asyncio.wait_for(self._call_llm(prompt), timeout=120.0)
+            start = llm_response.find("[")
+            end = llm_response.rfind("]") + 1
+            parsed = json.loads(llm_response[start:end])
+
+            results = []
+            for item in parsed:
+                idx = int(item.get("index", 0))
+                if idx < len(questions):
+                    question = questions[idx]
+                    results.append({
+                        "index": idx,
+                        "score": float(item.get("score", 0.0)),
+                        "is_correct": bool(item.get("is_correct", False)),
+                        "feedback": str(item.get("feedback", "Graded by AI.")),
+                        "expected_answer": question.get("correct_answer", ""),
+                        "student_answer": str(item.get("extracted_answer", "")),
+                    })
+
+            # Ensure we have results for all questions
+            if len(results) < len(questions):
+                for i in range(len(questions)):
+                    if not any(r["index"] == i for r in results):
+                        results.append({
+                            "index": i,
+                            "score": 0.0,
+                            "is_correct": False,
+                            "feedback": "Answer not found in uploaded PDF.",
+                            "expected_answer": questions[i].get("correct_answer", ""),
+                            "student_answer": "",
+                        })
+
+            results.sort(key=lambda r: r["index"])
+            score_obtained = sum(r["score"] for r in results)
+            total_questions = len(questions)
+            percentage = (score_obtained / total_questions) * 100 if total_questions else 0.0
+
+            return {
+                "total_questions": total_questions,
+                "score_obtained": round(score_obtained, 2),
+                "percentage": round(percentage, 2),
+                "results": results,
+            }
+
+        except Exception as e:
+            logger.error(f"Error grading uploaded answers: {str(e)}")
+            # Fallback: return zero scores
+            results = []
+            for i, question in enumerate(questions):
+                results.append({
+                    "index": i,
+                    "score": 0.0,
+                    "is_correct": False,
+                    "feedback": "Failed to grade uploaded answers.",
+                    "expected_answer": question.get("correct_answer", ""),
+                    "student_answer": "",
+                })
+
+            return {
+                "total_questions": len(questions),
+                "score_obtained": 0.0,
+                "percentage": 0.0,
+                "results": results,
+            }
+
+    async def grade_uploaded_answer_images(self, questions: list[dict], images: list[dict]) -> dict:
+        """Grade handwritten answer images against provided questions using vision LLM."""
+        if not questions or not images:
+            return {"total_questions": len(questions), "score_obtained": 0.0, "percentage": 0.0, "results": []}
+
+        questions_text = "\n".join([
+            f"Q{i+1}: {q.get('question_text', '')}"
+            for i, q in enumerate(questions)
+        ])
+
+        prompt_text = f"""You are grading a student's handwritten exam answers from uploaded photo(s).
+
+The questions being answered are:
+{questions_text}
+
+Your task:
+1. Read the handwriting in each image carefully
+2. Match each visible answer to its question number
+3. Grade each answer (use your subject knowledge if no model answer is shown)
+4. Return a JSON array with one object per question
+
+For each question return:
+- index: question number (0-based)
+- extracted_answer: the student's handwritten answer as text
+- score: 0.0 to 1.0 (1.0 = fully correct)
+- is_correct: boolean (true if score >= 0.7)
+- feedback: brief explanation
+
+Return ONLY a valid JSON array. No preamble, no trailing text.
+Format: [{{"index":0,"extracted_answer":"...","score":1.0,"is_correct":true,"feedback":"..."}}]
+"""
+
+        from langchain_core.messages import HumanMessage, SystemMessage
+        parts: list[dict] = [{"type": "text", "text": prompt_text}]
+        for img in images:
+            parts.append({"type": "image_url", "image_url": {"url": img["data_uri"]}})
+
+        try:
+            llm = self._get_llm(temperature=0.1)
+            message = await asyncio.wait_for(
+                llm.ainvoke([
+                    SystemMessage(content="You are an expert exam grader. Read handwritten answers from images and grade them accurately."),
+                    HumanMessage(content=parts),
+                ]),
+                timeout=180.0,
+            )
+            llm_response = message.content
+            start = llm_response.find("[")
+            end = llm_response.rfind("]") + 1
+            parsed = json.loads(llm_response[start:end])
+
+            results = []
+            for item in parsed:
+                idx = int(item.get("index", 0))
+                if idx < len(questions):
+                    results.append({
+                        "index": idx,
+                        "score": float(item.get("score", 0.0)),
+                        "is_correct": bool(item.get("is_correct", False)),
+                        "feedback": str(item.get("feedback", "Graded by AI.")),
+                        "expected_answer": questions[idx].get("correct_answer", ""),
+                        "student_answer": str(item.get("extracted_answer", "")),
+                    })
+
+            for i in range(len(questions)):
+                if not any(r["index"] == i for r in results):
+                    results.append({
+                        "index": i,
+                        "score": 0.0,
+                        "is_correct": False,
+                        "feedback": "Answer not visible in uploaded images.",
+                        "expected_answer": questions[i].get("correct_answer", ""),
+                        "student_answer": "",
+                    })
+
+            results.sort(key=lambda r: r["index"])
+            score_obtained = sum(r["score"] for r in results)
+            total_questions = len(questions)
+            percentage = (score_obtained / total_questions) * 100 if total_questions else 0.0
+
+            return {
+                "total_questions": total_questions,
+                "score_obtained": round(score_obtained, 2),
+                "percentage": round(percentage, 2),
+                "results": results,
+            }
+
+        except Exception as e:
+            logger.error(f"Error grading uploaded answer images: {str(e)}")
+            return {
+                "total_questions": len(questions),
+                "score_obtained": 0.0,
+                "percentage": 0.0,
+                "results": [
+                    {
+                        "index": i,
+                        "score": 0.0,
+                        "is_correct": False,
+                        "feedback": "Failed to grade uploaded images.",
+                        "expected_answer": questions[i].get("correct_answer", ""),
+                        "student_answer": "",
+                    }
+                    for i in range(len(questions))
+                ],
+            }
 
     def _parse_response(
         self,
