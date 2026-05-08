@@ -287,6 +287,23 @@ class AuthService:
             self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_gen_jobs_user_status ON generation_jobs (user_id, status)")
             self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_gen_jobs_job_id ON generation_jobs (job_id)")
 
+            # ── News articles table ───────────────────────────────────────────
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS news_articles (
+                    id {id_type},
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    category TEXT NOT NULL DEFAULT 'announcement',
+                    image_url TEXT,
+                    author_name TEXT NOT NULL DEFAULT 'BroxStudies',
+                    is_published INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+
             if not self.is_postgres:
                 conn.commit()
 
@@ -1088,6 +1105,50 @@ class AuthService:
     def set_user_admin(self, email: str, is_admin: bool = True) -> bool:
         with self._connect() as conn:
             cursor = self._execute(conn, "UPDATE users SET is_admin = ? WHERE email = ?", (1 if is_admin else 0, email))
+            return cursor.rowcount > 0
+
+    # ── News article methods ──────────────────────────────────────────────────
+
+    def create_news_article(self, title: str, content: str, category: str, author_name: str, image_url: Optional[str] = None, is_published: bool = True) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            query = """
+                INSERT INTO news_articles (title, content, category, image_url, author_name, is_published, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+            cursor = self._execute(conn, query, (title, content, category, image_url, author_name, 1 if is_published else 0, now, now))
+            if self.is_postgres:
+                return cursor.fetchone()["id"]
+            return cursor.lastrowid
+
+    def list_news_articles(self, published_only: bool = True, category: Optional[str] = None, limit: int = 50) -> list[dict]:
+        with self._connect() as conn:
+            conditions = []
+            params: list = []
+            if published_only:
+                conditions.append("is_published = 1")
+            if category and category != "all":
+                conditions.append("category = ?")
+                params.append(category)
+            where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+            params.append(limit)
+            rows = self._execute(conn, f"SELECT * FROM news_articles {where} ORDER BY created_at DESC LIMIT ?", tuple(params)).fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_news_article(self, article_id: int) -> bool:
+        with self._connect() as conn:
+            cursor = self._execute(conn, "DELETE FROM news_articles WHERE id = ?", (article_id,))
+            return cursor.rowcount > 0
+
+    def update_news_article(self, article_id: int, title: str, content: str, category: str, image_url: Optional[str], is_published: bool) -> bool:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            cursor = self._execute(conn,
+                "UPDATE news_articles SET title=?, content=?, category=?, image_url=?, is_published=?, updated_at=? WHERE id=?",
+                (title, content, category, image_url, 1 if is_published else 0, now, article_id),
+            )
             return cursor.rowcount > 0
 
     # ── Generation job methods ────────────────────────────────────────────────

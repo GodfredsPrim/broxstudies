@@ -15,8 +15,10 @@ import {
   Activity,
   Percent,
   FileText,
+  Newspaper,
+  Trash2,
 } from 'lucide-react'
-import { adminApi } from '@/api/endpoints'
+import { adminApi, newsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
@@ -28,17 +30,19 @@ import type {
   AccessCodeRecord,
   AdminAnalytics,
   Competition,
+  NewsArticle,
   PendingPayment,
 } from '@/api/types'
 import { cn } from '@/lib/cn'
 
-type Tab = 'overview' | 'payments' | 'codes' | 'competitions'
+type Tab = 'overview' | 'payments' | 'codes' | 'competitions' | 'news'
 
 const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'overview',     label: 'Overview',     icon: BarChart3 },
   { id: 'payments',     label: 'Payments',     icon: Banknote },
   { id: 'codes',        label: 'Access Codes', icon: Ticket },
   { id: 'competitions', label: 'Competitions', icon: Trophy },
+  { id: 'news',         label: 'News',         icon: Newspaper },
 ]
 
 export function AdminPage() {
@@ -101,6 +105,7 @@ export function AdminPage() {
         {tab === 'payments'     && <PaymentsPanel />}
         {tab === 'codes'        && <CodesPanel />}
         {tab === 'competitions' && <CompetitionsPanel />}
+        {tab === 'news'         && <NewsPanel />}
       </section>
     </div>
   )
@@ -682,6 +687,231 @@ function FileButton({
         onChange={(e) => onPick(e.target.files?.[0] ?? null)}
       />
     </label>
+  )
+}
+
+/* ============================================================
+   NEWS
+   ============================================================ */
+
+const NEWS_CATEGORIES = [
+  { value: 'announcement', label: 'Announcement' },
+  { value: 'motivation',   label: 'Motivation'   },
+  { value: 'health',       label: 'Health'        },
+  { value: 'education',    label: 'Education'     },
+  { value: 'student_life', label: 'Student Life'  },
+]
+
+function NewsPanel() {
+  const [rows, setRows] = useState<NewsArticle[]>([])
+  const { loading, error, reload } = useAsyncLoad(
+    () => newsApi.listAll(),
+    setRows,
+  )
+
+  return (
+    <div className="space-y-5">
+      <PanelHeader
+        title="News & Updates"
+        subtitle="Post articles for students — motivation, health tips, education news, announcements."
+        onRefresh={reload}
+      />
+
+      <NewsCreateForm onCreated={reload} />
+
+      {error && <InlineError message={error} />}
+
+      {loading && rows.length === 0 ? (
+        <LoadingBlock label="Loading articles…" />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={<Newspaper size={20} />}
+          title="No articles yet."
+          body="Write your first article above — it will appear in the News & Updates tab for students."
+        />
+      ) : (
+        <div className="space-y-3">
+          {rows.map(a => (
+            <NewsArticleRow key={a.id} article={a} onChange={reload} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NewsCreateForm({ onCreated }: { onCreated: () => Promise<void> | void }) {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [category, setCategory] = useState('announcement')
+  const [imageUrl, setImageUrl] = useState('')
+  const [authorName, setAuthorName] = useState('BroxStudies')
+  const [isPublished, setIsPublished] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [ok, setOk] = useState(false)
+
+  const valid = title.trim() && content.trim()
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!valid) return
+    setBusy(true)
+    setErr('')
+    setOk(false)
+    try {
+      await newsApi.create({
+        title: title.trim(),
+        content: content.trim(),
+        category,
+        image_url: imageUrl.trim() || null,
+        author_name: authorName.trim() || 'BroxStudies',
+        is_published: isPublished,
+      })
+      setTitle(''); setContent(''); setImageUrl('')
+      setOk(true)
+      await onCreated()
+    } catch (e) {
+      setErr(extractError(e, 'Failed to publish article.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <h3 className="font-display text-lg">Write an article</h3>
+      <form onSubmit={onSubmit} className="mt-4 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <LabeledField label="Title">
+            <Input value={title} onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)} required placeholder="e.g. Tips to stay focused during exams" />
+          </LabeledField>
+          <LabeledField label="Category">
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="v2-input w-full h-10 px-3 text-sm"
+            >
+              {NEWS_CATEGORIES.map(c => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </LabeledField>
+          <LabeledField label="Author name">
+            <Input value={authorName} onChange={(e: ChangeEvent<HTMLInputElement>) => setAuthorName(e.target.value)} placeholder="BroxStudies" />
+          </LabeledField>
+          <LabeledField label="Image URL (optional)">
+            <Input value={imageUrl} onChange={(e: ChangeEvent<HTMLInputElement>) => setImageUrl(e.target.value)} placeholder="https://…" />
+          </LabeledField>
+        </div>
+        <LabeledField label="Content">
+          <Textarea
+            value={content}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+            rows={5}
+            required
+            placeholder="Write your article here…"
+          />
+        </LabeledField>
+        <div className="flex items-center gap-2">
+          <input
+            id="publish-toggle"
+            type="checkbox"
+            checked={isPublished}
+            onChange={e => setIsPublished(e.target.checked)}
+            className="h-4 w-4 rounded border-[var(--line)] text-emerald-600"
+          />
+          <label htmlFor="publish-toggle" className="text-sm text-ink-200">Publish immediately</label>
+        </div>
+        {err && <InlineError message={err} />}
+        {ok && (
+          <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+            <Check size={14} /> Article published.
+          </div>
+        )}
+        <div className="flex justify-end">
+          <Button type="submit" variant="primary" size="md" loading={busy} disabled={!valid} leading={<Plus size={13} />}>
+            Publish
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
+function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange: () => Promise<void> | void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const onDelete = async () => {
+    if (!window.confirm(`Delete "${article.title}"?`)) return
+    setBusy(true)
+    setErr('')
+    try {
+      await newsApi.delete(article.id)
+      await onChange()
+    } catch (e) {
+      setErr(extractError(e, 'Failed to delete.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const togglePublish = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      await newsApi.update(article.id, {
+        title: article.title,
+        content: article.content,
+        category: article.category,
+        image_url: article.image_url,
+        is_published: !article.is_published,
+      })
+      await onChange()
+    } catch (e) {
+      setErr(extractError(e, 'Failed to update.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">{article.category.replace('_', ' ')}</span>
+            {article.is_published
+              ? <Badge tone="accent">Published</Badge>
+              : <Badge>Draft</Badge>}
+          </div>
+          <h4 className="font-display text-base text-ink-0 leading-snug">{article.title}</h4>
+          <p className="mt-1 text-xs text-ink-400 line-clamp-2">{article.content}</p>
+          <p className="mt-1.5 text-[11px] text-ink-500">{formatDate(article.created_at)} · {article.author_name}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={togglePublish}
+            disabled={busy}
+            className="v2-btn v2-btn-subtle !h-8 !px-2.5 !text-[11.5px]"
+          >
+            {article.is_published ? 'Unpublish' : 'Publish'}
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            className="grid h-8 w-8 place-items-center rounded-lg text-ink-400 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+            aria-label="Delete article"
+          >
+            {busy ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          </button>
+        </div>
+      </div>
+      {err && <div className="mt-2 text-xs text-rose-500">{err}</div>}
+    </Card>
   )
 }
 

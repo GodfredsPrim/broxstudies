@@ -19,6 +19,8 @@ import type {
   LiveQuizStateResponse,
   LiveQuizSubmitResponse,
   LoadingProgress,
+  NewsArticle,
+  NewsArticleCreateBody,
   PendingPayment,
   PracticeMarkResponse,
   SubjectsResponse,
@@ -249,6 +251,20 @@ export const adminApi = {
       )
       .then(r => r.data)
   },
+}
+
+/* ------------------------------ NEWS ------------------------------ */
+export const newsApi = {
+  list: (category?: string) =>
+    api.get<NewsArticle[]>('/api/admin/news', { params: category && category !== 'all' ? { category } : {} }).then(r => r.data),
+  listAll: () =>
+    api.get<NewsArticle[]>('/api/admin/news/all').then(r => r.data),
+  create: (body: NewsArticleCreateBody) =>
+    api.post<number>('/api/admin/news', body).then(r => r.data),
+  update: (id: number, body: Partial<NewsArticleCreateBody> & { is_published?: boolean }) =>
+    api.put<{ status: string }>(`/api/admin/news/${id}`, body).then(r => r.data),
+  delete: (id: number) =>
+    api.delete<{ status: string }>(`/api/admin/news/${id}`).then(r => r.data),
 }
 
 /* ------------------------------ UPLOADS ------------------------------ */

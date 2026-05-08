@@ -70,6 +70,44 @@ _SLUG_MAP = {
 }
 
 
+_BASIC_TOPICS = {
+            "mathematics": ["Number Systems", "Algebra", "Geometry", "Statistics", "Calculus", "Trigonometry"],
+            "additional_mathematics": ["Advanced Algebra", "Calculus", "Vectors", "Matrices", "Statistics"],
+            "english": ["Literature", "Comprehension", "Grammar", "Composition", "Vocabulary"],
+            "integrated_science": ["Physics", "Chemistry", "Biology", "Ecology", "Energy"],
+            "physics": ["Mechanics", "Electricity", "Magnetism", "Waves", "Optics", "Modern Physics"],
+            "chemistry": ["Atomic Structure", "Chemical Bonding", "Acids and Bases", "Organic Chemistry", "Electrochemistry"],
+            "biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Evolution"],
+            "social_studies": ["History", "Geography", "Civics", "Economics", "Culture"],
+            "history": ["Ancient Civilizations", "Colonialism", "Independence Movements", "Modern History"],
+            "geography": ["Physical Geography", "Human Geography", "Map Reading", "Environmental Issues"],
+            "government": ["Political Systems", "Constitutions", "International Relations", "Human Rights"],
+            "economics": ["Microeconomics", "Macroeconomics", "Trade", "Development Economics"],
+            "ict": ["Programming", "Database", "Networking", "Web Design", "Hardware"],
+            "computing": ["Algorithms", "Data Structures", "Programming Languages", "Computer Systems",
+                          "Networking And The Internet", "Web Development Basics", "Cybersecurity",
+                          "Artificial Intelligence And Machine Learning", "Operating Systems",
+                          "Human-Computer Interaction"],
+            "business_management": ["Business Environment", "Management Functions", "Marketing", "Finance", "Operations"],
+            "accounting": ["Financial Accounting", "Cost Accounting", "Management Accounting", "Auditing"],
+            "business-studies-accounting": ["Financial Accounting", "Cost Accounting", "Management Accounting", "Business Finance"],
+            "business-studies-business-management": ["Business Environment", "Management Functions", "Marketing", "Operations Management"],
+            "agricultural_science": ["Crop Production", "Animal Husbandry", "Soil Science", "Farm Management"],
+            "food_and_nutrition": ["Nutrition", "Food Science", "Meal Planning", "Food Preservation"],
+            "clothing_and_textiles": ["Textile Fibers", "Fashion Design", "Sewing Techniques", "Textile Production"],
+        }
+
+def _get_fallback_topics(subject: str) -> list:
+    subject_key = subject.lower().replace("-", "_").replace(" ", "_")
+    topics = _BASIC_TOPICS.get(subject_key)
+    if not topics:
+        for key, t in _BASIC_TOPICS.items():
+            if key in subject_key or subject_key in key:
+                topics = t
+                break
+    return topics or []
+
+
 @router.get("/topics/{subject}")
 async def get_topics(subject: str, year: str = "year_1"):
     """Get topics extracted from textbook table of contents, strictly per year."""
@@ -92,56 +130,14 @@ async def get_topics(subject: str, year: str = "year_1"):
             # Year 1, Year 2, Level 1, Level 2 — strictly their own textbooks
             topics = intel.extract_topics_from_textbook(year_key, subject_slug, academic_level)
 
-        # Computing PDFs are image-only — use curriculum-aligned fallback
-        if not topics and 'computing' in subject_slug:
-            topics = [
-                "Problem Solving And Algorithms", "Data Types And Variables",
-                "Control Structures", "Functions And Procedures",
-                "Arrays And Data Structures", "Object-Oriented Programming",
-                "File Handling", "Database Concepts",
-                "Networking And The Internet", "Web Development Basics",
-                "Cybersecurity", "Artificial Intelligence And Machine Learning",
-                "Computer Hardware", "Operating Systems",
-                "Human-Computer Interaction",
-            ]
+        # Fall back to curated list when textbooks are unavailable (e.g. Render cold start)
+        if not topics:
+            topics = _get_fallback_topics(subject)
 
         return {"subject": subject, "year": year_key, "topics": topics}
     except Exception as e:
         logger.error(f"Error getting topics for {subject} ({year}): {str(e)}")
-        basic_topics = {
-            "mathematics": ["Number Systems", "Algebra", "Geometry", "Statistics", "Calculus", "Trigonometry"],
-            "additional_mathematics": ["Advanced Algebra", "Calculus", "Vectors", "Matrices", "Statistics"],
-            "english": ["Literature", "Comprehension", "Grammar", "Composition", "Vocabulary"],
-            "integrated_science": ["Physics", "Chemistry", "Biology", "Ecology", "Energy"],
-            "physics": ["Mechanics", "Electricity", "Magnetism", "Waves", "Optics", "Modern Physics"],
-            "chemistry": ["Atomic Structure", "Chemical Bonding", "Acids and Bases", "Organic Chemistry", "Electrochemistry"],
-            "biology": ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Evolution"],
-            "social_studies": ["History", "Geography", "Civics", "Economics", "Culture"],
-            "history": ["Ancient Civilizations", "Colonialism", "Independence Movements", "Modern History"],
-            "geography": ["Physical Geography", "Human Geography", "Map Reading", "Environmental Issues"],
-            "government": ["Political Systems", "Constitutions", "International Relations", "Human Rights"],
-            "economics": ["Microeconomics", "Macroeconomics", "Trade", "Development Economics"],
-            "ict": ["Programming", "Database", "Networking", "Web Design", "Hardware"],
-            "computing": ["Algorithms", "Data Structures", "Programming Languages", "Computer Systems"],
-            "business_management": ["Business Environment", "Management Functions", "Marketing", "Finance", "Operations"],
-            "accounting": ["Financial Accounting", "Cost Accounting", "Management Accounting", "Auditing"],
-            "business-studies-accounting": ["Financial Accounting", "Cost Accounting", "Management Accounting", "Business Finance"],
-            "business-studies-business-management": ["Business Environment", "Management Functions", "Marketing", "Operations Management"],
-            "agricultural_science": ["Crop Production", "Animal Husbandry", "Soil Science", "Farm Management"],
-            "food_and_nutrition": ["Nutrition", "Food Science", "Meal Planning", "Food Preservation"],
-            "clothing_and_textiles": ["Textile Fibers", "Fashion Design", "Sewing Techniques", "Textile Production"],
-        }
-        # Try to match subject name variations
-        subject_key = subject.lower().replace("-", "_").replace(" ", "_")
-        fallback_topics = basic_topics.get(subject_key)
-        if not fallback_topics:
-            # Try partial matches
-            for key, topics in basic_topics.items():
-                if key in subject_key or subject_key in key:
-                    fallback_topics = topics
-                    break
-        
-        return {"subject": subject, "topics": fallback_topics or ["General Topics"]}
+        return {"subject": subject, "topics": _get_fallback_topics(subject) or ["General Topics"]}
 
 @router.post("/index")
 async def rebuild_index():

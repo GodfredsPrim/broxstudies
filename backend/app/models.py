@@ -449,3 +449,32 @@ class LeaderboardEntry(BaseModel):
     total_points: int
     rank: int
     is_online: bool = False
+
+
+class NewsArticle(BaseModel):
+    id: int
+    title: str
+    content: str
+    category: str
+    image_url: Optional[str] = None
+    author_name: str = "BroxStudies"
+    is_published: bool
+    created_at: str
+    updated_at: str
+
+
+class NewsArticleCreateRequest(BaseModel):
+    title: str
+    content: str
+    category: str = "announcement"
+    image_url: Optional[str] = None
+    author_name: str = "BroxStudies"
+    is_published: bool = True
+
+
+class NewsArticleUpdateRequest(BaseModel):
+    title: str
+    content: str
+    category: str
+    image_url: Optional[str] = None
+    is_published: bool = True

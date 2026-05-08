@@ -9,7 +9,10 @@ from app.models import (
     LeaderboardEntry,
     AuthResponse,
     AdminSecretLoginRequest,
-    AdminStaticLoginRequest
+    AdminStaticLoginRequest,
+    NewsArticle,
+    NewsArticleCreateRequest,
+    NewsArticleUpdateRequest,
 )
 from app.routes.auth import get_current_user
 from app.services.auth_service import AuthService
@@ -167,4 +170,54 @@ async def get_leaderboard():
     data = auth_service.get_global_leaderboard()
     return [LeaderboardEntry(**d) for d in data]
 
-# Removed setup-initial-admin as per request.
+
+# ── News articles ────────────────────────────────────────────────────────────
+
+@router.get("/news", response_model=List[NewsArticle])
+async def list_news(category: str = "all"):
+    """Public: list published news articles, optionally filtered by category."""
+    rows = auth_service.list_news_articles(published_only=True, category=category if category != "all" else None)
+    return [NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1))}) for r in rows]
+
+
+@router.get("/news/all", response_model=List[NewsArticle])
+async def list_all_news(admin: AuthUser = Depends(require_admin)):
+    """Admin: list all articles including drafts."""
+    rows = auth_service.list_news_articles(published_only=False)
+    return [NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1))}) for r in rows]
+
+
+@router.post("/news", response_model=int)
+async def create_news(request: NewsArticleCreateRequest, admin: AuthUser = Depends(require_admin)):
+    article_id = auth_service.create_news_article(
+        title=request.title,
+        content=request.content,
+        category=request.category,
+        author_name=request.author_name,
+        image_url=request.image_url,
+        is_published=request.is_published,
+    )
+    return article_id
+
+
+@router.put("/news/{article_id}")
+async def update_news(article_id: int, request: NewsArticleUpdateRequest, admin: AuthUser = Depends(require_admin)):
+    ok = auth_service.update_news_article(
+        article_id=article_id,
+        title=request.title,
+        content=request.content,
+        category=request.category,
+        image_url=request.image_url,
+        is_published=request.is_published,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Article not found.")
+    return {"status": "success"}
+
+
+@router.delete("/news/{article_id}")
+async def delete_news(article_id: int, admin: AuthUser = Depends(require_admin)):
+    ok = auth_service.delete_news_article(article_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Article not found.")
+    return {"status": "success"}

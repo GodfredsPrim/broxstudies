@@ -236,3 +236,26 @@ export interface CompetitionCreateBody {
   quiz_json?: string | null
   pdf_url?: string | null
 }
+
+export type NewsCategory = 'announcement' | 'motivation' | 'health' | 'education' | 'student_life'
+
+export interface NewsArticle {
+  id: number
+  title: string
+  content: string
+  category: NewsCategory | string
+  image_url?: string | null
+  author_name: string
+  is_published: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface NewsArticleCreateBody {
+  title: string
+  content: string
+  category: NewsCategory | string
+  image_url?: string | null
+  author_name?: string
+  is_published?: boolean
+}
