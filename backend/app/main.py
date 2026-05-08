@@ -85,6 +85,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️  Could not pre-load past questions: {str(e)}")
     
+    # Kick off external news fetch in background (non-blocking)
+    try:
+        from app.services import news_fetcher
+        asyncio.create_task(news_fetcher.get_external_articles())
+        asyncio.create_task(news_fetcher.refresh_loop())
+        logger.info("📰 External news fetcher started in background")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not start news fetcher: {e}")
+
     # Auto-load documents in background if enabled
     if settings.AUTO_LOAD_ON_STARTUP:
         loading_state.is_loading = True

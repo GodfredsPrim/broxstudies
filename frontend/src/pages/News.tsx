@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Megaphone, Sparkles, Heart, GraduationCap, Coffee, Trophy,
-  ChevronDown, ChevronUp, Calendar, User,
+  ChevronDown, ChevronUp, Calendar, User, ExternalLink,
 } from 'lucide-react'
 import { newsApi, competitionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
@@ -81,6 +81,16 @@ function ArticleCard({ article }: { article: NewsArticle }) {
         >
           {expanded ? <><ChevronUp size={13} /> Show less</> : <><ChevronDown size={13} /> Read more</>}
         </button>
+      )}
+      {article.source === 'external' && article.source_url && (
+        <a
+          href={article.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ExternalLink size={11} /> Read original article
+        </a>
       )}
     </article>
   )

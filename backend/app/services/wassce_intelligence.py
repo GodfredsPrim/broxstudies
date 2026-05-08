@@ -292,18 +292,29 @@ class WassceIntelligenceService:
         return None
 
     def _topics_from_tvet_dir(self, tvet_dir: Path) -> List[str]:
-        """Extract topic names from TVET docx unit filenames."""
+        """Extract topic names from TVET docx unit filenames (searches subdirectories too)."""
         topics = []
         seen: set = set()
-        for docx_file in sorted(tvet_dir.glob("*.docx")):
+        for docx_file in sorted(tvet_dir.rglob("*.docx")):
             stem = docx_file.stem
-            # Step 1: Strip "LM_XXX_NC II_" or similar prefix before UNIT
-            title = re.sub(r'^LM_.*?(?=UNIT)', '', stem, flags=re.I)
+            # Skip Word lock files (e.g. ~$filename.docx)
+            if stem.startswith('~$'):
+                continue
+            # Step 1: Strip known prefixes before UNIT keyword
+            # Handles "LM_XXX_NC II_", "QE_LM_XXX_NCII_", "US_NC 2_XXX_" etc.
+            title = re.sub(r'^(?:QE_)?(?:LM|US)_.*?(?=UNIT)', '', stem, flags=re.I)
+            # If no UNIT keyword found after prefix strip, the whole stem is still there;
+            # try stripping any leading WORD_WORD_..._NC?II?_ style prefix generically
+            if title == stem:
+                title = re.sub(r'^(?:[A-Z0-9]+_){2,}(?:NC\s*I{1,3}I?\s*_)', '', stem, flags=re.I)
             # Step 2: Strip "UNIT N (NC I/II)? [-:_ ]" separators
             title = re.sub(
-                r'^UNIT\s+\d+(?:\s+NC\s+I{1,3}[Ii]?)?\s*[-:_\s]\s*', '', title, flags=re.I
+                r'^UNIT\s*[-]?\s*\d+(?:\s+NC\s+I{1,3}[Ii]?)?\s*[-:_\s]\s*', '', title, flags=re.I
             ).strip()
-            # Step 3: Remaining cleanup
+            # Step 3: Strip trailing year/version noise like " 2222" or " (2016)"
+            title = re.sub(r'\s+\d{4}$', '', title)
+            title = re.sub(r'\s*\(\d{4}\)\s*$', '', title)
+            # Step 4: Remaining cleanup
             title = re.sub(r'\s*\(\d+\)\s*$', '', title)     # trailing " (1)"
             title = re.sub(r'[-_]+$', '', title)              # trailing dashes/underscores
             title = re.sub(r'\s+[Ss]ub\s*$', '', title)      # trailing " Sub"
@@ -482,7 +493,7 @@ class WassceIntelligenceService:
             if tvet_dir.stat().st_mtime > cache_mtime:
                 return False
             # Individual file modifications (e.g. in-place replace)
-            return not any(f.stat().st_mtime > cache_mtime for f in tvet_dir.glob("*.docx"))
+            return not any(f.stat().st_mtime > cache_mtime for f in tvet_dir.rglob("*.docx"))
         except Exception:
             return False
 
@@ -514,11 +525,11 @@ class WassceIntelligenceService:
             return topics
 
         # ── SHS: parse TOC from ZIP ──────────────────────────────────────────
-        # Honor non-empty cache for SHS (ZIP sources rarely change)
+        # Honor non-empty cache for SHS, but re-extract if it has too few topics (stale/truncated)
         if cache_file.exists():
             try:
                 cached = json.loads(cache_file.read_text(encoding='utf-8'))
-                if cached:
+                if cached and len(cached) >= 5:
                     return cached
             except Exception:
                 pass
@@ -536,7 +547,7 @@ class WassceIntelligenceService:
                 with zp.open(pdf_files[0]) as pdf_f:
                     reader = PdfReader(io.BytesIO(pdf_f.read()))
                     full_text = ""
-                    for i in range(min(15, len(reader.pages))):
+                    for i in range(min(30, len(reader.pages))):
                         try:
                             full_text += reader.pages[i].extract_text() or ""
                         except Exception:

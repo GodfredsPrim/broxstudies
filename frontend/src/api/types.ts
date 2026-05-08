@@ -249,6 +249,8 @@ export interface NewsArticle {
   is_published: boolean
   created_at: string
   updated_at: string
+  source?: 'admin' | 'external'
+  source_url?: string | null
 }
 
 export interface NewsArticleCreateBody {

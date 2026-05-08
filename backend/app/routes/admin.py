@@ -175,9 +175,29 @@ async def get_leaderboard():
 
 @router.get("/news", response_model=List[NewsArticle])
 async def list_news(category: str = "all"):
-    """Public: list published news articles, optionally filtered by category."""
-    rows = auth_service.list_news_articles(published_only=True, category=category if category != "all" else None)
-    return [NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1))}) for r in rows]
+    """Public: list published news articles merged with external news and motivation feeds."""
+    from app.services.news_fetcher import get_external_articles
+    cat_filter = category if category != "all" else None
+
+    # Admin-posted articles
+    rows = auth_service.list_news_articles(published_only=True, category=cat_filter)
+    admin_articles = [
+        NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1)), "source": "admin"})
+        for r in rows
+    ]
+
+    # External articles (cached, non-blocking on failure)
+    try:
+        ext_raw = await get_external_articles()
+        if cat_filter:
+            ext_raw = [a for a in ext_raw if a.get("category") == cat_filter]
+        ext_articles = [NewsArticle(**a) for a in ext_raw]
+    except Exception:
+        ext_articles = []
+
+    combined = admin_articles + ext_articles
+    combined.sort(key=lambda a: a.created_at, reverse=True)
+    return combined
 
 
 @router.get("/news/all", response_model=List[NewsArticle])

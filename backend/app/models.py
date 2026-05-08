@@ -461,6 +461,8 @@ class NewsArticle(BaseModel):
     is_published: bool
     created_at: str
     updated_at: str
+    source: str = "admin"
+    source_url: Optional[str] = None
 
 
 class NewsArticleCreateRequest(BaseModel):
