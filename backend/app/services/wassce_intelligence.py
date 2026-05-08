@@ -497,6 +497,78 @@ class WassceIntelligenceService:
         except Exception:
             return False
 
+    _SKIP_UTIL_PDF = re.compile(r'guidelines|user.guide|platform|tablet', re.I)
+    _SKIP_COVER_LINE = re.compile(
+        r'^(Year\s*\d|Additional|Section|Ghana|National|Ministry|Curriculum|SHS|Senior|High|School|Page|\d+)$',
+        re.I,
+    )
+
+    _TITLE_STOP = re.compile(
+        r'^(SECTION\s*\d|Year\s*\d|\d+\s*$|Ghana|National|Ministry|Curriculum|SHS|Senior|High\s*School|Page\s*\d)',
+        re.I,
+    )
+
+    def _extract_topics_from_section_pdfs(self, pdf_dir: Path) -> List[str]:
+        """Extract topic names from individual section PDFs (page-1 title extraction)."""
+        topics: List[str] = []
+        seen: set = set()
+        for pdf_file in sorted(pdf_dir.glob("*.pdf")):
+            if self._SKIP_UTIL_PDF.search(pdf_file.name):
+                continue
+            try:
+                reader = PdfReader(str(pdf_file))
+                if not reader.pages:
+                    continue
+                lines = [l.strip() for l in (reader.pages[0].extract_text() or "").split('\n') if l.strip()]
+                parts: List[str] = []
+                collecting = False
+
+                for line in lines:
+                    # "SECTION1 TITLE" or "SECTION 1 TITLE"
+                    m = re.match(r'^SECTION\s*\d+\s+(.+)$', line, re.I)
+                    if m:
+                        first = re.sub(r'SECTION\s*\d*\s*$', '', m.group(1), flags=re.I).strip()
+                        parts = [first] if first else []
+                        collecting = True
+                        continue
+
+                    # "TITLESECTION N" — title ran into decoration
+                    m2 = re.match(r'^([A-Z][A-Z0-9\s,&/()\'./-]{4,})SECTION\s*\d*', line)
+                    if m2 and not collecting:
+                        parts = [m2.group(1).strip()]
+                        break  # single-word title; stop here
+
+                    if collecting:
+                        # Stop collecting at noise lines or lines that start the repetition
+                        if self._TITLE_STOP.match(line) or (parts and line.upper().startswith(parts[0].upper()[:6])):
+                            break
+                        # Only collect lines that look like continuation of a title (ALL-CAPS words)
+                        if re.match(r'^[A-Z][A-Z0-9\s,&/()\'./-]{2,}$', line):
+                            # Strip any trailing SECTION marker that leaked in from the layout
+                            cleaned = re.sub(r'SECTION\s*\d*\s*$', '', line, flags=re.I).strip()
+                            if cleaned:
+                                parts.append(cleaned)
+                            if len(' '.join(parts).split()) >= 12:
+                                break
+                        else:
+                            break
+                        continue
+
+                    # Standalone ALL-CAPS heading (no SECTION prefix found yet)
+                    if not collecting and re.match(r'^[A-Z][A-Z0-9\s,&/()\'./-]{5,70}$', line) and not self._SKIP_COVER_LINE.match(line):
+                        parts = [line]
+                        collecting = True
+
+                raw = ' '.join(parts)
+                title = self._proper_title(re.sub(r'\s+', ' ', raw).strip())
+                key = title.upper()
+                if title and len(title) >= 4 and key not in seen:
+                    topics.append(title)
+                    seen.add(key)
+            except Exception:
+                continue
+        return topics
+
     def extract_topics_from_textbook(self, year: str, subject_slug: str, academic_level: str = "SHS") -> List[str]:
         """Extract topics from uploaded textbook materials."""
         cache_dir = self.tvet_cache_dir if academic_level == "TVET" else self.cache_dir
@@ -536,7 +608,15 @@ class WassceIntelligenceService:
 
         zip_path = self._find_textbook_zip(year, subject_slug, academic_level)
         if not zip_path:
-            logger.warning(f"No textbook ZIP found for {subject_slug} ({year})")
+            # Fallback: individual section PDFs downloaded by the curriculum fetcher
+            site_dir = settings.SITE_RESOURCE_DIR / "textbooks" / year / subject_slug
+            if site_dir.exists() and any(site_dir.glob("*.pdf")):
+                topics = self._extract_topics_from_section_pdfs(site_dir)
+                if topics:
+                    cache_file.write_text(json.dumps(topics), encoding='utf-8')
+                    logger.info(f"Extracted {len(topics)} topics from site_resources for {subject_slug} ({year})")
+                return topics
+            logger.warning(f"No textbook found for {subject_slug} ({year})")
             return []
 
         try:

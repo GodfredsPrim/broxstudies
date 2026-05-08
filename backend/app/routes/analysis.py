@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 from app.models import Subject, AnalysisResult
 from app.services.academic_catalog import is_tvet_subject_slug
@@ -70,6 +72,47 @@ _SLUG_MAP = {
 }
 
 
+_TVET_TOPICS = {
+    # Common academic subjects
+    "ict": ["MS Word Processing", "MS Excel Spreadsheets", "MS PowerPoint Presentations", "Internet Connectivity and Emerging Technologies"],
+    "computer_hardware_and_software": ["MS Word Processing", "MS Excel Spreadsheets", "MS PowerPoint Presentations", "Internet Connectivity and Emerging Technologies"],
+    "maths": ["Plane Geometry and Construction", "Mensuration and Trigonometry", "Surds Indices and Logarithm", "Statistics and Probability", "Sequence and Series", "Matrices and Calculus"],
+    "english_language": ["Reading Comprehension", "Writing Skills", "Grammar and Language Use", "Oral Communication and Presentation", "Literature and Creative Writing", "Business English"],
+    "science": ["Matter and Its Properties", "Forces and Motion", "Heat and Temperature", "Electricity and Magnetism", "Chemical Reactions", "Living Things and Their Environment", "Ecology and Environmental Science"],
+    "social_studies": ["Ghana and Its History", "Government and Citizenship", "Ghana's Natural Resources", "Economic Development", "Population and Development", "Social Issues and Values", "Africa and the World"],
+    "technical_drawing": ["Drawing Instruments and Materials", "Plane Geometry", "Solid Geometry", "Orthographic Projection", "Isometric Drawing", "Building Drawing", "Electrical and Electronics Drawing"],
+    "entrepreneurship": ["Introduction to Entrepreneurship", "Business Planning and Development", "Marketing and Sales", "Financial Management", "Business Operations and Management", "Legal Aspects of Business", "ICT in Business"],
+    # Trade subjects
+    "agric_mechanization": ["Introduction to Agricultural Mechanization", "Operation and Maintenance of Primary Tillage Equipment", "Operation and Maintenance of Secondary Tillage Equipment", "Operation and Maintenance of Planting Equipment", "Crop Protection Operations", "Harvesting Operations", "Post-Harvest Processing Equipment", "Surface Irrigation Installation", "Sprinkler Irrigation Installation", "Drip Irrigation Installation", "Occupational Safety", "ICT in Agricultural Mechanization", "Fabrication of Basic Parts"],
+    "architectural_draughtmanship": ["History of Architecture and Pioneers", "Introduction to Architectural Drawing", "Geometric Drawing Techniques", "Orthographic Projections", "Building Drawing", "Measured Drawings", "Services Green Buildings and Intelligent Buildings", "Physical Modelling", "Basic Programming for Architectural Draughting"],
+    "automotive_engineering": ["Engine Systems and Operation", "Fuel and Exhaust Systems", "Transmission and Drivetrain Systems", "Braking and Steering Systems", "Automotive Electrical and Electronic Systems", "Vehicle Maintenance and Safety"],
+    "electrical_engineering": ["Basic Electrical Concepts and Units", "Electrical Wiring Systems", "Electrical Installation and Testing", "Electronic Components and Circuits", "Motor Control Systems", "Electrical Safety Practices"],
+    "mechanical_engineering": ["Engineering Materials and Properties", "Workshop Technology", "Mechanical Principles", "Machine Elements and Components", "Hydraulics and Pneumatics", "Engineering Drawing and Interpretation"],
+    "welding_and_fabrication": ["Welding Safety and Protective Equipment", "Welding Processes and Equipment", "Welded Joints and Positions", "Metal Cutting and Fabrication", "Blueprint Reading and Interpretation", "Weld Quality Inspection"],
+    "electronics_engineering": ["Electronic Components and Circuits", "Direct Current and Alternating Current", "Digital Electronics", "Microprocessors and Microcontrollers", "PCB Design and Assembly", "Fault Finding and Troubleshooting"],
+    "mechatronics": ["Mechanical Systems", "Electronic Control Systems", "Programmable Logic Controllers", "Sensors and Actuators", "Robotics and Automation", "System Integration and Testing"],
+    "industrial_mechanics": ["Machine Components and Maintenance", "Hydraulic Systems", "Pneumatic Systems", "Electrical Maintenance", "Technical Documentation", "Workshop Safety"],
+    "plumbing_and_gas_technology": ["Plumbing Systems and Components", "Pipe Fitting and Jointing", "Water Supply Installation", "Drainage and Sanitation Systems", "Gas Installation and Safety", "Safety Regulations and Standards"],
+    "catering_and_hospitality": ["Kitchen Safety and Hygiene", "Nutrition and Food Science", "Cooking Methods and Techniques", "Pastry and Bakery Production", "Food and Beverage Service", "Hospitality Management"],
+    "fashion_design_technology": ["Fabric Types and Properties", "Pattern Making and Drafting", "Cutting and Sewing Techniques", "Fashion Design Principles", "Garment Construction and Finishing", "Clothing Care and Business Skills"],
+    "beauty_therapy": ["Skin Structure and Analysis", "Facial Treatments and Skincare", "Hair Removal Techniques", "Manicure and Pedicure", "Makeup Application and Techniques", "Salon Management and Safety"],
+    "hair_technology": ["Hair and Scalp Analysis", "Cutting and Trimming Techniques", "Chemical Services", "Hair Styling Techniques", "Salon Management", "Health and Safety in Salon"],
+    "building_construction": ["Bricklaying and Blockwork", "Concrete Work and Formwork", "Roofing Systems", "Plastering and Rendering", "Drainage Systems", "Safety on Construction Sites"],
+    "wood_technology": ["Wood Properties and Classification", "Woodworking Tools and Equipment", "Joinery Techniques", "Furniture and Cabinet Making", "Wood Finishing", "Workshop Safety"],
+    "furniture_technology": ["Design Principles and Materials", "Woodworking Joints and Connections", "Cabinet Making", "Upholstery and Padding", "Surface Finishing", "Workshop Safety"],
+    "graphic_design": ["Design Principles and Elements", "Typography and Layout", "Colour Theory and Application", "Digital Design Software", "Print Production", "Brand Identity and Packaging"],
+    "multimedia_technology": ["Digital Photography", "Video Production and Editing", "Audio Recording and Mixing", "Computer Animation", "Web Content Creation", "Post-Production Techniques"],
+    "painting": ["Surface Preparation", "Paint Types and Properties", "Brush and Roller Techniques", "Spray Painting", "Decorative Finishes", "Health and Safety in Painting"],
+    "tourism_management": ["Introduction to Tourism and Hospitality", "Customer Service and Communication", "Tour Operations and Planning", "Hospitality Services", "Tourism Marketing", "Ghana's Tourism Resources"],
+    "small_engines": ["Engine Principles and Components", "Fuel Systems and Carburetion", "Ignition and Starting Systems", "Engine Maintenance and Repair", "Troubleshooting", "Safety Practices"],
+    "heavy_duty_mechanics": ["Heavy Equipment Identification and Safety", "Engine Systems and Overhaul", "Hydraulic and Transmission Systems", "Undercarriage and Frame Systems", "Preventive Maintenance", "Safety and Documentation"],
+    "heavy_duty_operation_forklift": ["Forklift Safety Regulations", "Load Assessment and Handling", "Equipment Inspection and Maintenance", "Warehouse Operations"],
+    "autobody_repairs": ["Damage Assessment and Estimation", "Panel Beating and Metalwork", "Welding and Cutting", "Surface Preparation and Painting", "Rust Treatment and Prevention", "Safety Practices"],
+    "jewellry": ["Jewelry Design and Sketching", "Metalwork and Casting Techniques", "Gemstone Identification and Setting", "Jewelry Polishing and Finishing", "Business and Marketing Skills"],
+    "leather_work": ["Leather Types and Properties", "Cutting and Stitching Techniques", "Pattern Making", "Dyeing and Surface Finishing", "Product Design and Development"],
+    "refrideration_and_air_conditioning": ["Refrigeration Principles and Cycles", "Refrigerants and Safety", "Refrigeration Components and Systems", "Air Conditioning Systems", "System Installation and Commissioning", "Fault Diagnosis and Repair"],
+}
+
 _BASIC_TOPICS = {
             "mathematics": ["Number Systems", "Algebra", "Geometry", "Statistics", "Calculus", "Trigonometry"],
             "additional_mathematics": ["Advanced Algebra", "Calculus", "Vectors", "Matrices", "Statistics"],
@@ -99,13 +142,16 @@ _BASIC_TOPICS = {
 
 def _get_fallback_topics(subject: str) -> list:
     subject_key = subject.lower().replace("-", "_").replace(" ", "_")
-    topics = _BASIC_TOPICS.get(subject_key)
-    if not topics:
-        for key, t in _BASIC_TOPICS.items():
+    # Check TVET-specific topics first, then general SHS topics
+    for lookup in (_TVET_TOPICS, _BASIC_TOPICS):
+        topics = lookup.get(subject_key)
+        if topics:
+            return topics
+    for lookup in (_TVET_TOPICS, _BASIC_TOPICS):
+        for key, t in lookup.items():
             if key in subject_key or subject_key in key:
-                topics = t
-                break
-    return topics or []
+                return t
+    return []
 
 
 @router.get("/topics/{subject}")
@@ -133,6 +179,16 @@ async def get_topics(subject: str, year: str = "year_1"):
         # Fall back to curated list when textbooks are unavailable (e.g. Render cold start)
         if not topics:
             topics = _get_fallback_topics(subject)
+            # For SHS subjects, kick off a background download so the NEXT request has PDFs
+            if academic_level == "SHS" and year_key != "year_3":
+                async def _bg_fetch(yk: str, slug: str) -> None:
+                    try:
+                        from app.services.curriculum_fetcher import CurriculumResourceFetcher
+                        f = CurriculumResourceFetcher()
+                        await f.ensure_subject_resources(yk, slug, ["textbooks"])
+                    except Exception:
+                        pass
+                asyncio.create_task(_bg_fetch(year_key, subject_slug))
 
         return {"subject": subject, "year": year_key, "topics": topics}
     except Exception as e:
