@@ -74,7 +74,7 @@ if (-not $FrontendOnly) {
     Start-InNewWindow `
         -WindowTitle "BisaME Backend" `
         -WorkingDirectory $BackendDir `
-        -Command "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+        -Command "uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
 }
 
 if (-not $BackendOnly) {
@@ -82,10 +82,10 @@ if (-not $BackendOnly) {
     Start-InNewWindow `
         -WindowTitle "BisaME Frontend" `
         -WorkingDirectory $FrontendDir `
-        -Command "npm run dev -- --host 0.0.0.0 --port 5173"
+        -Command "npm run dev"
 }
 
 Write-Step "System startup requested"
 Write-Host "Backend:  http://localhost:8000" -ForegroundColor Green
-Write-Host "Frontend: http://localhost:5173" -ForegroundColor Green
+Write-Host "Frontend: http://localhost:5175" -ForegroundColor Green
 Write-Host "API docs: http://localhost:8000/docs" -ForegroundColor Green

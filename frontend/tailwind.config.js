@@ -5,6 +5,30 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* Map shadcn-style semantic tokens to the design-system CSS variables
+           so that classes like bg-background, text-foreground, bg-card, etc.
+           work correctly in both light and dark modes. */
+        background: 'var(--bg-0)',
+        foreground: 'var(--fg-0)',
+        card: {
+          DEFAULT: 'var(--bg-1)',
+          foreground: 'var(--fg-0)',
+        },
+        popover: {
+          DEFAULT: 'var(--bg-1)',
+          foreground: 'var(--fg-0)',
+        },
+        muted: {
+          DEFAULT: 'var(--bg-2)',
+          foreground: 'var(--fg-2)',
+        },
+        accent: {
+          DEFAULT: 'var(--bg-2)',
+          foreground: 'var(--fg-0)',
+        },
+        border: 'var(--line)',
+        input: 'var(--line)',
+        ring: 'var(--accent)',
         ink: {
           0: '#FFFFFF',
           50: '#F7F8FA',

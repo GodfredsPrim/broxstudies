@@ -47,7 +47,11 @@
       "PowerShell(Get-ChildItem -Recurse \"C:\\\\Users\\\\HP\\\\Desktop\\\\broxstudies\\\\backend\\\\data\\\\tvet\\\\textbooks\" | Select-Object Name, Extension, @{N='Dir';E={$_.DirectoryName}} | Format-Table -AutoSize | Select-Object -First 50)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\HP\\\\Desktop\\\\broxstudies\\\\backend\\\\data\\\\tvet\\\\textbooks\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -First 30 FullName)",
       "PowerShell($files = Get-ChildItem -Path \"C:\\\\Users\\\\HP\\\\Desktop\\\\broxstudies\\\\backend\\\\data\\\\tvet\\\\textbooks\" -Recurse -File; Write-Host \"File count: $\\($files.Count\\)\"; $files | Select-Object -First 20 | ForEach-Object { Write-Host $_.FullName })",
-      "PowerShell($files = Get-ChildItem -Path \"C:\\\\Users\\\\HP\\\\Desktop\\\\broxstudies\\\\backend\\\\data\\\\tvet\\\\syllabi\" -Recurse -File; Write-Host \"File count: $\\($files.Count\\)\"; $files | Select-Object -First 20 | ForEach-Object { Write-Host $_.FullName })"
+      "PowerShell($files = Get-ChildItem -Path \"C:\\\\Users\\\\HP\\\\Desktop\\\\broxstudies\\\\backend\\\\data\\\\tvet\\\\syllabi\" -Recurse -File; Write-Host \"File count: $\\($files.Count\\)\"; $files | Select-Object -First 20 | ForEach-Object { Write-Host $_.FullName })",
+      "Bash(python3 -c 'import json; d=json.load\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\); print\\(len\\(d\\)\\)')",
+      "Bash(xargs -I{} bash -c 'echo -n \"{}: \"; python3 -c \"import json; print\\(len\\(json.load\\(open\\(\\\\\"{}\\\\\"\\)\\)\\)\" 2>/dev/null || echo \"err\"')",
+      "Bash(\"venv/Scripts/python.exe\" -c \"import sys; sys.path.insert\\(0, '.'\\); from app.services import news_fetcher; from app.models import NewsArticle; print\\('imports OK'\\)\")",
+      "Bash(venv/Scripts/python.exe -c ' *)"
     ]
   }
 }

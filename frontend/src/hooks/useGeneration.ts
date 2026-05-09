@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { questionsApi } from '@/api/endpoints'
 import type { GenerationJob } from '@/api/types'
 
@@ -13,12 +13,22 @@ export function useGeneration(options: UseGenerationOptions = {}) {
   const [activeJobs, setActiveJobs] = useState<Map<string, GenerationJob>>(new Map())
   const [completedJobs, setCompletedJobs] = useState<GenerationJob[]>([])
 
-  // Poll for job status updates
+  // Keep a ref so the interval can read current jobs without being in the dep array
+  const activeJobsRef = useRef(activeJobs)
+  const onCompleteRef = useRef(onComplete)
+  const onErrorRef = useRef(onError)
+  useEffect(() => { activeJobsRef.current = activeJobs }, [activeJobs])
+  useEffect(() => { onCompleteRef.current = onComplete }, [onComplete])
+  useEffect(() => { onErrorRef.current = onError }, [onError])
+
+  const activeCount = activeJobs.size
+
+  // Poll for job status updates — only recreate interval when job count changes
   useEffect(() => {
-    if (activeJobs.size === 0) return
+    if (activeCount === 0) return
 
     const interval = setInterval(async () => {
-      for (const [jobId, job] of activeJobs) {
+      for (const [jobId, job] of activeJobsRef.current) {
         if (job.status === 'completed' || job.status === 'failed') continue
 
         try {
@@ -30,10 +40,10 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           })
 
           if (updatedJob.status === 'completed') {
-            setCompletedJobs(prev => [updatedJob, ...prev.slice(0, 9)]) // Keep last 10
-            onComplete?.(updatedJob)
+            setCompletedJobs(prev => [updatedJob, ...prev.slice(0, 9)])
+            onCompleteRef.current?.(updatedJob)
           } else if (updatedJob.status === 'failed') {
-            onError?.(updatedJob)
+            onErrorRef.current?.(updatedJob)
           }
         } catch (error) {
           console.error(`Failed to check job ${jobId}:`, error)
@@ -42,7 +52,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     }, pollInterval)
 
     return () => clearInterval(interval)
-  }, [activeJobs, pollInterval, onComplete, onError])
+  }, [activeCount, pollInterval])
 
   const startGeneration = useCallback(async (requestData: any): Promise<string> => {
     const response = await questionsApi.generate(requestData)

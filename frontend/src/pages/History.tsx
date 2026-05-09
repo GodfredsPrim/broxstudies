@@ -20,10 +20,10 @@ interface ChatMessage {
 }
 
 function gradeInfo(pct: number) {
-  if (pct >= 80) return { label: 'Excellent', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' }
-  if (pct >= 65) return { label: 'Good', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' }
-  if (pct >= 50) return { label: 'Fair', color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200' }
-  return { label: 'Needs Work', color: 'text-red-700', bg: 'bg-red-50 border-red-200' }
+  if (pct >= 80) return { label: 'Excellent', color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' }
+  if (pct >= 65) return { label: 'Good', color: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' }
+  if (pct >= 50) return { label: 'Fair', color: 'text-yellow-700 dark:text-yellow-400', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' }
+  return { label: 'Needs Work', color: 'text-red-700 dark:text-red-400', bg: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50' }
 }
 
 type MergedEntry = (ExamHistoryEntry | LocalExamEntry) & { _source: 'server' | 'local' }
@@ -126,13 +126,13 @@ export function HistoryPage() {
           </p>
         </div>
         {isOfflineFallback && (
-          <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+          <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400">
             <WifiOff className="h-3.5 w-3.5" />
             Offline — showing cached data
           </div>
         )}
         {!isOfflineFallback && user && (
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-400">
             <Wifi className="h-3.5 w-3.5" />
             Live
           </div>
@@ -200,9 +200,9 @@ export function HistoryPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`text-xl font-black ${gradeColor}`}>{pct}%</span>
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${gradeColor} bg-white/60`}>{grade}</span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${gradeColor} bg-[var(--bg-2)]`}>{grade}</span>
                           {entry._source === 'local' && (
-                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400">
                               Saved offline
                             </span>
                           )}
@@ -228,14 +228,14 @@ export function HistoryPage() {
                     </button>
 
                     {isExpanded && (
-                      <div className="mt-4 rounded-2xl border border-white/60 bg-white/40 px-4 py-4">
+                      <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--bg-2)] px-4 py-4">
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                           <Stat label="Score" value={`${Math.round(entry.score_obtained)}/${entry.total_questions}`} />
                           <Stat label="Percentage" value={`${pct}%`} />
                           <Stat label="Type" value={entry.exam_type} />
                           <Stat label="Date" value={dateStr} />
                         </div>
-                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/60">
+                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-3)]">
                           <div
                             className="h-full rounded-full transition-all duration-700"
                             style={{
@@ -248,7 +248,7 @@ export function HistoryPage() {
                           {entry.exam_type === 'Practice' && (
                             <Link
                               to="/practice"
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-white/70 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-white"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--bg-1)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-0)] hover:bg-[var(--bg-0)] border border-[var(--line)]"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                               Practice again
@@ -257,7 +257,7 @@ export function HistoryPage() {
                           {(entry.exam_type === 'WASSCE' || entry.exam_type === 'NAPTEX') && (
                             <Link
                               to="/wassce"
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-white/70 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-white"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--bg-1)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-0)] hover:bg-[var(--bg-0)] border border-[var(--line)]"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                               Try again
@@ -307,8 +307,8 @@ export function HistoryPage() {
                   key={msg.id}
                   className={`rounded-3xl border p-5 ${
                     msg.role === 'user'
-                      ? 'border-blue-200 bg-blue-50'
-                      : 'border-input bg-card'
+                      ? 'border-blue-200 bg-blue-50 dark:border-blue-800/50 dark:bg-blue-900/20'
+                      : 'border-[var(--line)] bg-[var(--bg-1)]'
                   }`}
                 >
                   <div className="mb-2 flex items-center gap-2">

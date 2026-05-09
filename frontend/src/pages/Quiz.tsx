@@ -14,7 +14,7 @@ interface SubjectOption {
 }
 
 const INPUT_CLS =
-  'mt-2 w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm text-foreground focus:border-emerald-500 focus:outline-none'
+  'mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:outline-none'
 
 export function QuizPage() {
   const [phase, setPhase] = useState<Phase>('pick')
@@ -161,15 +161,15 @@ export function QuizPage() {
 
   const pageHeader = (
     <div className="mt-6">
-      <h1 className="text-3xl font-black text-foreground">Quiz Challenge</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <h1 className="text-3xl font-black text-[var(--fg-0)]">Quiz Challenge</h1>
+      <p className="mt-1 text-sm text-[var(--fg-2)]">
         Compete live with classmates in a real-time quiz room.
       </p>
     </div>
   )
 
   const errorBanner = error ? (
-    <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+    <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">{error}</div>
   ) : null
 
   /* ── PICK ── */
@@ -183,14 +183,14 @@ export function QuizPage() {
           {/* Create */}
           <button
             onClick={() => go('create')}
-            className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-8 text-center transition hover:border-emerald-500 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-8 text-center transition hover:border-emerald-500 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30"
           >
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md transition group-hover:bg-emerald-700">
               <Plus size={28} />
             </span>
             <span>
-              <span className="block text-lg font-bold text-foreground">Create Room</span>
-              <span className="mt-1 block text-sm text-muted-foreground">
+              <span className="block text-lg font-bold text-[var(--fg-0)]">Create Room</span>
+              <span className="mt-1 block text-sm text-[var(--fg-2)]">
                 Host a live quiz and share the code with classmates
               </span>
             </span>
@@ -199,23 +199,23 @@ export function QuizPage() {
           {/* Join */}
           <button
             onClick={() => go('join')}
-            className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-slate-200 bg-slate-50 p-8 text-center transition hover:border-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-ink-200 bg-ink-50 p-8 text-center transition hover:border-ink-400 hover:bg-ink-100 focus:outline-none focus:ring-2 focus:ring-ink-400 dark:border-ink-700 dark:bg-ink-900 dark:hover:border-ink-600 dark:hover:bg-ink-800"
           >
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-800 text-white shadow-md transition group-hover:bg-slate-700">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-ink-800 text-white shadow-md transition group-hover:bg-ink-700 dark:bg-ink-700 dark:group-hover:bg-ink-600">
               <LogIn size={28} />
             </span>
             <span>
-              <span className="block text-lg font-bold text-foreground">Join Room</span>
-              <span className="mt-1 block text-sm text-muted-foreground">
+              <span className="block text-lg font-bold text-[var(--fg-0)]">Join Room</span>
+              <span className="mt-1 block text-sm text-[var(--fg-2)]">
                 Enter a room code to join a friend's quiz
               </span>
             </span>
           </button>
         </div>
 
-        <div className="mt-8 rounded-3xl border border-input bg-card p-6">
-          <h2 className="text-sm font-bold text-foreground">How it works</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+        <div className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
+          <h2 className="text-sm font-bold text-[var(--fg-0)]">How it works</h2>
+          <ul className="mt-3 space-y-2 text-sm text-[var(--fg-2)]">
             <li>• The host creates a room and shares the 6-letter code.</li>
             <li>• Anyone with the code can join and answer questions live.</li>
             <li>• The leaderboard updates automatically every few seconds.</li>
@@ -232,20 +232,20 @@ export function QuizPage() {
         {pageHeader}
         {errorBanner}
 
-        <div className="mt-8 rounded-3xl border border-input bg-card p-6">
+        <div className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
           <button
             onClick={() => go('pick')}
-            className="mb-5 flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+            className="mb-5 flex items-center gap-1 text-sm text-[var(--fg-2)] transition hover:text-[var(--fg-0)]"
           >
             <ChevronLeft size={14} /> Back
           </button>
 
-          <h2 className="text-xl font-bold text-foreground">Join a Quiz Room</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Enter the code shared by the room host.</p>
+          <h2 className="text-xl font-bold text-[var(--fg-0)]">Join a Quiz Room</h2>
+          <p className="mt-1 text-sm text-[var(--fg-2)]">Enter the code shared by the room host.</p>
 
           <div className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-semibold text-foreground">Your name</span>
+              <span className="text-sm font-semibold text-[var(--fg-0)]">Your name</span>
               <input
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
@@ -254,7 +254,7 @@ export function QuizPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-semibold text-foreground">Room code</span>
+              <span className="text-sm font-semibold text-[var(--fg-0)]">Room code</span>
               <input
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
@@ -268,7 +268,7 @@ export function QuizPage() {
           <button
             onClick={handleJoinRoom}
             disabled={submitting}
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-ink-700 dark:hover:bg-ink-600"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
             {submitting ? 'Joining…' : 'Join Room'}
@@ -285,29 +285,29 @@ export function QuizPage() {
         {pageHeader}
         {errorBanner}
 
-        <div className="mt-8 rounded-3xl border border-input bg-card p-6">
+        <div className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
           <button
             onClick={() => go('pick')}
-            className="mb-5 flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+            className="mb-5 flex items-center gap-1 text-sm text-[var(--fg-2)] transition hover:text-[var(--fg-0)]"
           >
             <ChevronLeft size={14} /> Back
           </button>
 
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-foreground">Create a Quiz Room</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h2 className="text-xl font-bold text-[var(--fg-0)]">Create a Quiz Room</h2>
+              <p className="mt-1 text-sm text-[var(--fg-2)]">
                 Configure your quiz, then share the generated code.
               </p>
             </div>
-            <span className="rounded-2xl bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <span className="rounded-2xl bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
               Live
             </span>
           </div>
 
           <div className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-semibold text-foreground">Your name (host)</span>
+              <span className="text-sm font-semibold text-[var(--fg-0)]">Your name (host)</span>
               <input
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
@@ -318,7 +318,7 @@ export function QuizPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-foreground">Year / Level</span>
+                <span className="text-sm font-semibold text-[var(--fg-0)]">Year / Level</span>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
@@ -328,7 +328,7 @@ export function QuizPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-foreground">Subject</span>
+                <span className="text-sm font-semibold text-[var(--fg-0)]">Subject</span>
                 <select
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
@@ -345,7 +345,7 @@ export function QuizPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-foreground">Question type</span>
+                <span className="text-sm font-semibold text-[var(--fg-0)]">Question type</span>
                 <select
                   value={questionType}
                   onChange={(e) => setQuestionType(e.target.value)}
@@ -357,7 +357,7 @@ export function QuizPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-foreground">Difficulty</span>
+                <span className="text-sm font-semibold text-[var(--fg-0)]">Difficulty</span>
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
@@ -372,7 +372,7 @@ export function QuizPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-foreground">Questions (1–20)</span>
+                <span className="text-sm font-semibold text-[var(--fg-0)]">Questions (1–20)</span>
                 <input
                   type="number"
                   value={numQuestions}
@@ -382,7 +382,7 @@ export function QuizPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-foreground">Time limit (mins)</span>
+                <span className="text-sm font-semibold text-[var(--fg-0)]">Time limit (mins)</span>
                 <input
                   type="number"
                   value={timeLimit}
@@ -421,23 +421,23 @@ export function QuizPage() {
         {/* Questions column */}
         <div className="space-y-0">
           {roomCode && liveState && (
-            <div className="rounded-3xl border border-input bg-card p-6">
+            <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
               {/* Room header */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-foreground">Room</h2>
-                    <span className="rounded-2xl bg-slate-100 px-3 py-0.5 font-mono text-base font-bold text-foreground">
+                    <h2 className="text-xl font-bold text-[var(--fg-0)]">Room</h2>
+                    <span className="rounded-2xl bg-[var(--bg-2)] px-3 py-0.5 font-mono text-base font-bold text-[var(--fg-0)]">
                       {roomCode}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-sm text-[var(--fg-2)]">
                     Host: {liveState.host} · {liveState.questions.length} questions · {liveState.time_limit} min
                   </p>
                 </div>
-                <div className="flex items-center gap-2 self-start rounded-2xl bg-emerald-50 px-4 py-2 sm:self-auto">
-                  <Clock size={14} className="text-emerald-600" />
-                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-red-600' : 'text-emerald-700'}`}>
+                <div className="flex items-center gap-2 self-start rounded-2xl bg-emerald-50 px-4 py-2 sm:self-auto dark:bg-emerald-900/20">
+                  <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                     {fmtTime}
                   </span>
                 </div>
@@ -446,12 +446,12 @@ export function QuizPage() {
               {/* Question list */}
               <div className="mt-6 space-y-4">
                 {liveState.questions.map((q, i) => (
-                  <div key={i} className="rounded-3xl border border-input bg-background p-5">
-                    <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                  <div key={i} className="rounded-3xl border border-[var(--line)] bg-[var(--bg-0)] p-5">
+                    <div className="flex items-center justify-between gap-4 text-xs text-[var(--fg-2)]">
                       <span>Question {i + 1}</span>
                       <span>{q.question_type.replace('_', ' ')}</span>
                     </div>
-                    <div className="mt-2 text-sm font-medium text-foreground">
+                    <div className="mt-2 text-sm font-medium text-[var(--fg-0)]">
                       <MathText>{q.question_text}</MathText>
                     </div>
                     {q.options?.length ? (
@@ -459,10 +459,10 @@ export function QuizPage() {
                         {q.options.map((opt) => (
                           <label
                             key={opt}
-                            className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm transition ${
+                            className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm text-[var(--fg-0)] transition ${
                               answers[i] === opt
-                                ? 'border-emerald-400 bg-emerald-50'
-                                : 'border-input hover:bg-muted'
+                                ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                                : 'border-[var(--line)] hover:bg-[var(--bg-2)]'
                             }`}
                           >
                             <input
@@ -481,7 +481,7 @@ export function QuizPage() {
                       <input
                         value={answers[i] || ''}
                         onChange={(e) => setAnswers((p) => ({ ...p, [i]: e.target.value }))}
-                        className="mt-3 w-full rounded-2xl border border-input bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
+                        className="mt-3 w-full rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:border-emerald-500 focus:outline-none"
                         placeholder="Your answer…"
                       />
                     )}
@@ -494,21 +494,21 @@ export function QuizPage() {
                 <button
                   onClick={handleSubmitAnswers}
                   disabled={submitting || Boolean(result)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-ink-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-ink-700 dark:hover:bg-ink-600"
                 >
                   {submitting && <Loader2 size={16} className="animate-spin" />}
                   Submit answers
                 </button>
                 <button
                   onClick={leaveRoom}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-input px-5 py-3 text-sm font-semibold text-foreground transition hover:border-slate-400"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-5 py-3 text-sm font-semibold text-[var(--fg-0)] transition hover:border-[var(--line-strong)] hover:bg-[var(--bg-2)]"
                 >
                   Leave room
                 </button>
               </div>
 
               {result && (
-                <div className="mt-4 rounded-3xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+                <div className="mt-4 rounded-3xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-300">
                   {result}
                 </div>
               )}
@@ -518,39 +518,39 @@ export function QuizPage() {
 
         {/* Sidebar */}
         <aside className="space-y-5">
-          <div className="rounded-3xl border border-input bg-card p-5">
+          <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-5">
             <div className="flex items-center gap-2">
               <Trophy size={16} className="text-amber-500" />
-              <h2 className="text-sm font-bold text-foreground">Leaderboard</h2>
+              <h2 className="text-sm font-bold text-[var(--fg-0)]">Leaderboard</h2>
             </div>
             <div className="mt-4 space-y-2">
               {liveState?.leaderboard.length ? (
                 liveState.leaderboard.map((p, i) => (
                   <div
                     key={p.player}
-                    className="flex items-center justify-between rounded-2xl border border-input px-3 py-2.5 text-sm"
+                    className="flex items-center justify-between rounded-2xl border border-[var(--line)] px-3 py-2.5 text-sm text-[var(--fg-0)]"
                   >
                     <span className="flex items-center gap-2">
-                      <span className="w-4 text-center text-xs text-muted-foreground">
+                      <span className="w-4 text-center text-xs text-[var(--fg-2)]">
                         {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                       </span>
                       {p.player}
                     </span>
-                    <span className="font-bold text-emerald-700">{p.percentage.toFixed(0)}%</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.percentage.toFixed(0)}%</span>
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-muted-foreground">No scores yet — submit answers to appear here.</p>
+                <p className="text-xs text-[var(--fg-2)]">No scores yet — submit answers to appear here.</p>
               )}
             </div>
           </div>
 
-          <div className="rounded-3xl border border-input bg-card p-5">
-            <h2 className="text-sm font-bold text-foreground">Room details</h2>
-            <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
+          <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-5">
+            <h2 className="text-sm font-bold text-[var(--fg-0)]">Room details</h2>
+            <div className="mt-3 space-y-1.5 text-sm text-[var(--fg-2)]">
               <div>
                 Code:{' '}
-                <span className="ml-1 font-mono font-bold text-foreground">{roomCode}</span>
+                <span className="ml-1 font-mono font-bold text-[var(--fg-0)]">{roomCode}</span>
               </div>
               <div>Host: {liveState?.host}</div>
               <div>Status: {polling ? '🟢 live' : '⚪ idle'}</div>

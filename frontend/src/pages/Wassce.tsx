@@ -72,27 +72,18 @@ function GeneratingScreen({
   estimatedSeconds?: number
 }) {
   const [displayPct, setDisplayPct] = useState(0)
-  const [elapsedTime, setElapsedTime] = useState(0)
   const startTimeRef = useRef(Date.now())
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now()
-      const elapsed = (now - startTimeRef.current) / 1000
-      setElapsedTime(elapsed)
-
-      // Calculate percentage based on actual elapsed time vs estimated time
-      // Ramp up 0-95% over the estimated period, then slow down to 97%
+      const elapsed = (Date.now() - startTimeRef.current) / 1000
       let pct = Math.min(95, (elapsed / estimatedSeconds) * 95)
-      
-      // If we're past estimated time, creep toward 97%
       if (elapsed > estimatedSeconds) {
         pct = Math.min(97, 95 + ((elapsed - estimatedSeconds) / estimatedSeconds) * 2)
       }
-      
       setDisplayPct(Math.floor(pct))
-    }, 200)
-    
+    }, 500)
+
     return () => clearInterval(interval)
   }, [estimatedSeconds])
 
@@ -106,12 +97,12 @@ function GeneratingScreen({
   ]
 
   const currentStageIdx = Math.min(
-    Math.floor((elapsedTime / estimatedSeconds) * stages.length),
+    stages.filter(s => s.pct <= displayPct).length,
     stages.length - 1
   )
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white px-6">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[var(--bg-0)] px-6">
       <div className="w-full max-w-sm text-center">
         <div className="relative mx-auto mb-6 h-20 w-20">
           <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
@@ -157,7 +148,7 @@ function GeneratingScreen({
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Time elapsed: <span className="font-mono font-semibold">{fmt(Math.floor(elapsedTime))}</span> — questions are built from real past papers.
+          Questions are built from real past papers — this takes about a minute.
         </p>
       </div>
     </div>
@@ -575,7 +566,7 @@ export function WassceePage() {
           </div>
         )}
 
-        <div className="shrink-0 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+        <div className="shrink-0 flex items-center justify-between border-b border-[var(--line)] bg-[var(--bg-1)] px-4 py-2.5 shadow-sm">
           <div className="min-w-0">
             <p className="truncate text-sm font-black text-foreground">{selectedName}</p>
             <p className="text-xs text-muted-foreground">{selectedYear} · {likelyLabel}</p>
@@ -593,7 +584,7 @@ export function WassceePage() {
               type="button"
               onClick={handleDownload}
               title="Download as branded PDF"
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--bg-1)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-1)] transition hover:bg-[var(--bg-2)]"
             >
               <Download size={12} />
               <span className="hidden sm:inline">PDF</span>
@@ -603,7 +594,7 @@ export function WassceePage() {
               onClick={() => uploadInputRef.current?.click()}
               disabled={grading || submitting}
               title="Upload photos of your solutions for AI grading"
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--bg-1)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-1)] transition hover:bg-[var(--bg-2)] disabled:opacity-60"
             >
               {grading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
               <span className="hidden sm:inline">{grading ? 'Grading…' : 'Upload'}</span>
@@ -620,7 +611,7 @@ export function WassceePage() {
               type="button"
               onClick={handleShare}
               title="Share or copy questions"
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--bg-1)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-1)] transition hover:bg-[var(--bg-2)]"
             >
               <Share2 size={12} />
               <span className="hidden sm:inline">{shareLabel || 'Share'}</span>
@@ -638,7 +629,7 @@ export function WassceePage() {
           </div>
         </div>
 
-        <div className="shrink-0 flex border-b border-slate-200 bg-white px-2">
+        <div className="shrink-0 flex border-b border-[var(--line)] bg-[var(--bg-1)] px-2">
           {availablePapers.map(k => {
             const m = PAPER[k]
             const ans = answeredInPaper(k)
@@ -659,8 +650,8 @@ export function WassceePage() {
                 <span
                   className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                   style={{
-                    backgroundColor: ans === total ? '#D1FAE5' : '#F3F4F6',
-                    color: ans === total ? '#065F46' : '#6B7280',
+                    backgroundColor: ans === total ? 'var(--accent-tint)' : 'var(--bg-2)',
+                    color: ans === total ? 'var(--accent-strong)' : 'var(--fg-2)',
                   }}
                 >
                   {ans}/{total}
@@ -688,8 +679,8 @@ export function WassceePage() {
               return (
                 <article
                   key={gi}
-                  className="rounded-3xl border bg-white p-5 shadow-sm transition-colors"
-                  style={{ borderColor: isAnswered ? meta.hex : '#E2E8F0' }}
+                  className="rounded-3xl border bg-[var(--bg-1)] p-5 shadow-sm transition-colors"
+                  style={{ borderColor: isAnswered ? meta.hex : 'var(--line-strong)' }}
                 >
                   <div className="mb-3 flex items-center gap-2">
                     <span
@@ -700,10 +691,10 @@ export function WassceePage() {
                     </span>
                     {q.difficulty_level && (
                       <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        q.difficulty_level === 'easy' ? 'bg-green-100 text-green-700' :
-                        q.difficulty_level === 'hard' ? 'bg-red-100 text-red-700' :
-                        q.difficulty_level === 'standard' ? 'bg-blue-100 text-blue-700' :
-                        'bg-yellow-100 text-yellow-700'
+                        q.difficulty_level === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        q.difficulty_level === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        q.difficulty_level === 'standard' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>{q.difficulty_level}</span>
                     )}
                   </div>
@@ -724,16 +715,16 @@ export function WassceePage() {
                             onClick={() => setAnswers(prev => ({ ...prev, [gi]: opt }))}
                             className="flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition"
                             style={{
-                              borderColor: isSelected ? meta.hex : '#E2E8F0',
-                              backgroundColor: isSelected ? meta.light : '#fff',
+                              borderColor: isSelected ? meta.hex : 'var(--line-strong)',
+                              backgroundColor: isSelected ? meta.light : 'var(--bg-1)',
                               fontWeight: isSelected ? 600 : 400,
                             }}
                           >
                             <span
                               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                               style={{
-                                backgroundColor: isSelected ? meta.hex : '#F1F5F9',
-                                color: isSelected ? '#fff' : '#64748B',
+                                backgroundColor: isSelected ? meta.hex : 'var(--bg-3)',
+                                color: isSelected ? '#fff' : 'var(--fg-2)',
                               }}
                             >
                               {letter}
@@ -749,7 +740,7 @@ export function WassceePage() {
                       onChange={e => setAnswers(prev => ({ ...prev, [gi]: e.target.value }))}
                       placeholder="Write your answer here…"
                       rows={4}
-                      className="mt-4 block w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2"
+                      className="mt-4 block w-full resize-none rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2"
                       style={{ userSelect: 'text' }}
                       onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${meta.hex}40`)}
                       onBlur={e => (e.currentTarget.style.boxShadow = '')}
@@ -761,7 +752,7 @@ export function WassceePage() {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3">
+        <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-1)] px-6 py-3">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
             <div className="flex gap-2">
               {availablePapers.map(k => (
@@ -771,8 +762,8 @@ export function WassceePage() {
                   onClick={() => setActivePaper(k)}
                   className="rounded-xl px-3 py-1.5 text-xs font-semibold transition"
                   style={{
-                    backgroundColor: activePaper === k ? PAPER[k].hex : '#F1F5F9',
-                    color: activePaper === k ? '#fff' : '#64748B',
+                    backgroundColor: activePaper === k ? PAPER[k].hex : 'var(--bg-2)',
+                    color: activePaper === k ? '#fff' : 'var(--fg-2)',
                   }}
                 >
                   {PAPER[k].label}
@@ -798,8 +789,8 @@ export function WassceePage() {
 
   /* ──────────────── RESULTS ──────────────── */
   const grade = percentage >= 80 ? 'Excellent' : percentage >= 65 ? 'Good' : percentage >= 50 ? 'Fair' : 'Needs Work'
-  const gradeColor = percentage >= 80 ? 'text-emerald-700' : percentage >= 65 ? 'text-blue-700' : percentage >= 50 ? 'text-yellow-700' : 'text-red-700'
-  const gradeBg = percentage >= 80 ? 'bg-emerald-50 border-emerald-200' : percentage >= 65 ? 'bg-blue-50 border-blue-200' : percentage >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+  const gradeColor = percentage >= 80 ? 'text-emerald-700 dark:text-emerald-400' : percentage >= 65 ? 'text-blue-700 dark:text-blue-400' : percentage >= 50 ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
+  const gradeBg = percentage >= 80 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' : percentage >= 65 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' : percentage >= 50 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50'
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">

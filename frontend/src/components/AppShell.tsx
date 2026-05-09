@@ -363,16 +363,7 @@ export function AppShell() {
         )}
 
         <main className="flex-1">
-          <AnimatePresence>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.15 }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <Outlet />
         </main>
       </div>
     </div>
@@ -446,11 +437,7 @@ function NavItem({ item, collapsed, onNavigate }: NavItemProps) {
       {({ isActive }) => (
         <>
           {isActive && !collapsed && (
-            <motion.span
-              layoutId="nav-active"
-              className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.6)]"
-              transition={{ type: 'spring', stiffness: 400, damping: 36 }}
-            />
+            <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
           )}
           <Icon size={16} className="shrink-0" />
           {!collapsed && <span className="flex-1 truncate">{item.label}</span>}

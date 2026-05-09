@@ -302,3 +302,6 @@ For support, please contact the development team or open an issue on the reposit
 - OpenAI for GPT models
 - LangChain community for RAG patterns
 - FastAPI and React communities
+
+
+

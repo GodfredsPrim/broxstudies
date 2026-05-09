@@ -294,11 +294,11 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
             </div>
           )}
           {excerpt && !excerptLoading && (
-            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800/50 dark:bg-emerald-900/20">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                 Reading Excerpt (Project Gutenberg)
               </p>
-              <div className="max-h-48 overflow-y-auto rounded-xl bg-white p-4 text-sm leading-7 text-foreground whitespace-pre-wrap font-serif">
+              <div className="max-h-48 overflow-y-auto rounded-xl bg-[var(--bg-1)] p-4 text-sm leading-7 text-[var(--fg-0)] whitespace-pre-wrap font-serif">
                 {excerpt}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -317,7 +317,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
                 >
                   <ExternalLink size={12} />
                   {link.label}
@@ -330,7 +330,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
           </div>
 
           {/* Quiz section */}
-          <div className="mt-6 rounded-2xl border border-input bg-slate-50 p-4">
+          <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--bg-2)] p-4">
             {!quiz ? (
               <div className="text-center">
                 <BookMarked size={28} className="mx-auto mb-2 text-emerald-600" />
@@ -357,8 +357,8 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                   {quiz.submitted && (
                     <span className={`rounded-full px-3 py-1 text-sm font-bold ${
                       quizScore >= quiz.questions.length * 0.7
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-amber-100 text-amber-700'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                     }`}>
                       {quizScore}/{quiz.questions.length} correct
                     </span>
@@ -375,9 +375,9 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                     return (
                       <div key={qi} className={`rounded-xl border p-4 ${
                         quiz.submitted
-                          ? isCorrect ? 'border-emerald-200 bg-emerald-50' :
-                            isWrong ? 'border-red-200 bg-red-50' : 'border-input'
-                          : 'border-input bg-white'
+                          ? isCorrect ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20' :
+                            isWrong ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20' : 'border-[var(--line)] bg-[var(--bg-1)]'
+                          : 'border-[var(--line)] bg-[var(--bg-1)]'
                       }`}>
                         <p className="text-sm font-semibold text-foreground">
                           {qi + 1}. {q.question}
@@ -394,14 +394,14 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                                   type="button"
                                   disabled={quiz.submitted}
                                   onClick={() => handleQuizAnswer(qi, opt)}
-                                  className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                                  className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition text-[var(--fg-0)] ${
                                     isAnswer && quiz.submitted
-                                      ? 'border-emerald-500 bg-emerald-100 font-semibold text-emerald-900'
+                                      ? 'border-emerald-500 bg-emerald-100 font-semibold text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300'
                                       : isSelected && !quiz.submitted
-                                        ? 'border-emerald-500 bg-emerald-50 font-semibold'
+                                        ? 'border-emerald-500 bg-emerald-50 font-semibold dark:bg-emerald-900/20'
                                         : isSelected && isWrong
-                                          ? 'border-red-400 bg-red-50 text-red-800'
-                                          : 'border-input bg-white hover:border-emerald-300'
+                                          ? 'border-red-400 bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                          : 'border-[var(--line)] bg-[var(--bg-1)] hover:border-emerald-300'
                                   }`}
                                 >
                                   {quiz.submitted && isAnswer && <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />}
@@ -419,7 +419,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                               onChange={e => handleQuizAnswer(qi, e.target.value)}
                               disabled={quiz.submitted}
                               placeholder="Type your answer…"
-                              className="w-full rounded-xl border border-input bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                              className="w-full rounded-xl border border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-[var(--bg-2)] disabled:opacity-70"
                             />
                             {quiz.submitted && q.answer && (
                               <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-emerald-700">
@@ -446,7 +446,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => setQuiz(null)}
-                    className="mt-4 w-full rounded-2xl border border-input bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-slate-50"
+                    className="mt-4 w-full rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-5 py-2.5 text-sm font-semibold text-[var(--fg-0)] hover:bg-[var(--bg-2)]"
                   >
                     Take another quiz
                   </button>

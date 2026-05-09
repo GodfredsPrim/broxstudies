@@ -39,10 +39,10 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 const SOURCES = [
-  { Icon: BookOpen,      label: 'Books & Textbooks',         color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { Icon: FileText,      label: 'Past Exam Questions',       color: 'text-blue-600',    bg: 'bg-blue-50'    },
-  { Icon: ScrollText,    label: 'Syllabi',                   color: 'text-purple-600',  bg: 'bg-purple-50'  },
-  { Icon: ClipboardList, label: "Chief Examiners' Report",   color: 'text-amber-600',   bg: 'bg-amber-50'   },
+  { Icon: BookOpen,      label: 'Books & Textbooks',         color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+  { Icon: FileText,      label: 'Past Exam Questions',       color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-50 dark:bg-blue-900/20'        },
+  { Icon: ScrollText,    label: 'Syllabi',                   color: 'text-purple-600 dark:text-purple-400',   bg: 'bg-purple-50 dark:bg-purple-900/20'    },
+  { Icon: ClipboardList, label: "Chief Examiners' Report",   color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-50 dark:bg-amber-900/20'      },
 ]
 
 export function PracticePage() {
@@ -518,7 +518,7 @@ export function PracticePage() {
         </div>
 
         {sourceUsed && (
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-400">
             <BookMarked className="h-3 w-3" />
             Source: {SOURCE_LABELS[sourceUsed] || sourceUsed}
           </div>
@@ -569,8 +569,8 @@ export function PracticePage() {
                           onClick={() => setAnswers(prev => ({ ...prev, [i]: opt }))}
                           className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition ${
                             isSelected
-                              ? 'border-emerald-500 bg-emerald-50 font-semibold text-emerald-900'
-                              : 'border-input bg-background text-foreground hover:border-emerald-300 hover:bg-emerald-50/40'
+                              ? 'border-emerald-500 bg-emerald-50 font-semibold text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-300'
+                              : 'border-[var(--line)] bg-[var(--bg-1)] text-[var(--fg-0)] hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/10'
                           }`}
                         >
                           <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
@@ -636,14 +636,14 @@ export function PracticePage() {
       displayPercentage >= 50 ? 'Fair' : 'Needs Work'
 
     const gradeColor =
-      displayPercentage >= 80 ? 'text-emerald-700' :
-      displayPercentage >= 65 ? 'text-blue-700' :
-      displayPercentage >= 50 ? 'text-yellow-700' : 'text-red-700'
+      displayPercentage >= 80 ? 'text-emerald-700 dark:text-emerald-400' :
+      displayPercentage >= 65 ? 'text-blue-700 dark:text-blue-400' :
+      displayPercentage >= 50 ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
 
     const gradeBg =
-      displayPercentage >= 80 ? 'bg-emerald-50 border-emerald-200' :
-      displayPercentage >= 65 ? 'bg-blue-50 border-blue-200' :
-      displayPercentage >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+      displayPercentage >= 80 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' :
+      displayPercentage >= 65 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' :
+      displayPercentage >= 50 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50'
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
@@ -676,7 +676,7 @@ export function PracticePage() {
             <article
               key={i}
               className={`rounded-3xl border p-5 ${
-                isCorrect ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/20'
+                isCorrect ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/50 dark:bg-emerald-900/15' : 'border-red-200 bg-red-50/20 dark:border-red-800/50 dark:bg-red-900/10'
               }`}
             >
               <div className="flex items-start gap-3">
@@ -722,11 +722,11 @@ export function PracticePage() {
       </button>
 
       {/* Upload answers option */}
-      <div className="mt-6 rounded-3xl border border-dashed border-emerald-300 bg-emerald-50/50 p-6">
+      <div className="mt-6 rounded-3xl border border-dashed border-emerald-300 bg-emerald-50/50 p-6 dark:border-emerald-800/50 dark:bg-emerald-900/10">
         <div className="text-center">
-          <FileUp className="mx-auto mb-3 h-8 w-8 text-emerald-600" />
-          <h3 className="text-lg font-semibold text-foreground">Upload Answer Sheet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <FileUp className="mx-auto mb-3 h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+          <h3 className="text-lg font-semibold text-[var(--fg-0)]">Upload Answer Sheet</h3>
+          <p className="mt-1 text-sm text-[var(--fg-2)]">
             Have a PDF of answers? Upload it to get AI grading and detailed feedback.
           </p>
           <div className="mt-4">
@@ -739,7 +739,7 @@ export function PracticePage() {
             />
             <label
               htmlFor="answer-upload"
-              className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--bg-1)] border border-[var(--line)] px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-[var(--bg-2)] dark:text-emerald-400"
             >
               <Upload size={14} />
               Choose PDF
