@@ -378,6 +378,89 @@ Helpful textbook context:
             logger.error(f"Error in TutorService image flow: {str(e)}")
             return TutorResponse(explanation=f"Image Study Error: {str(e)}")
 
+    @staticmethod
+    def _is_vision_model(model: str) -> bool:
+        """Return True if the configured LLM model supports image inputs."""
+        model = (model or "").lower()
+        vision_prefixes = (
+            "gpt-4o", "gpt-4-turbo", "gpt-4-vision",
+            "claude-3", "claude-sonnet", "claude-opus", "claude-haiku",
+        )
+        return any(model.startswith(p) for p in vision_prefixes)
+
+    async def get_explanation_with_attachments(
+        self,
+        *,
+        question: str,
+        images: List[str],        # list of "data:{mime};base64,..." URIs
+        extracted_text: str,      # combined text from PDFs / DOCX / TXT
+        subject: Optional[str] = None,
+        history: Optional[List] = None,
+    ) -> TutorResponse:
+        """Answer a question that may include attached images and/or extracted document text."""
+        try:
+            llm = self._get_llm()
+            year_key, subject_id, subject_label = self._normalize_subject_details(subject)
+            textbook_dir = settings.SITE_RESOURCE_DIR / "textbooks" / year_key / subject_id
+            textbook_context = self._extract_excerpts_from_directory(textbook_dir, max_docs=2)
+            if not textbook_context:
+                textbook_context = "No direct textbook excerpts found. Please use general SHS academic standards."
+
+            if images and not self._is_vision_model(settings.resolved_llm_model):
+                raise ValueError(
+                    "Image uploads need a vision-capable model. "
+                    "Your tutor is currently text-only — please upload a PDF, DOCX, or TXT instead."
+                )
+
+            system_prompt, mode = self._build_system_prompt(
+                question=question or "Interpret the attached material and solve it.",
+                subject_label=subject_label,
+                subject_id=subject_id,
+                textbook_context=textbook_context,
+                context=None,
+                is_image_request=bool(images),
+                is_main_concept_only=False,
+            )
+
+            # Build the user-turn content
+            combined_question = question or "Please interpret the attached material and answer step by step."
+            text_body = combined_question
+            if extracted_text:
+                text_body += f"\n\n--- Extracted from attached file(s) ---\n{extracted_text}"
+
+            messages = [SystemMessage(content=system_prompt)]
+            if history:
+                for msg in history:
+                    if msg.role == "user":
+                        messages.append(HumanMessage(content=msg.content))
+                    elif msg.role == "ai":
+                        messages.append(AIMessage(content=msg.content))
+
+            if images:
+                parts: List[dict] = [{"type": "text", "text": text_body}]
+                for img_uri in images:
+                    parts.append({"type": "image_url", "image_url": {"url": img_uri}})
+                messages.append(HumanMessage(content=parts))
+            else:
+                messages.append(HumanMessage(content=text_body))
+
+            response = await asyncio.wait_for(llm.ainvoke(messages), timeout=120.0)
+            content = response.content if isinstance(response.content, str) else str(response.content)
+            parsed = self._parse_response(content, mode)
+            if mode != "core_concept":
+                parsed.related_questions = self._build_related_questions(
+                    question or "this problem", subject_label, mode
+                )
+            return parsed
+        except asyncio.TimeoutError:
+            logger.error("Tutor attachment request timed out.")
+            return TutorResponse(explanation="Timeout: The AI took too long to process the attachment. Please try again.")
+        except ValueError as ve:
+            raise
+        except Exception as e:
+            logger.error(f"Error in TutorService attachment flow: {e}")
+            return TutorResponse(explanation=f"Attachment Study Error: {e}")
+
     def _build_related_questions(self, question: str, subject_label: str, mode: str) -> List[str]:
         if mode == "math_step_by_step":
             return [

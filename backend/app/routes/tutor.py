@@ -1,15 +1,36 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
-from typing import Optional
+import base64
+import json
+import logging
+import tempfile
+from io import BytesIO
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 
 from app.models import (
+    AuthUser,
+    ChatHistoryMessage,
     ChatHistoryResponse,
     TutorImageRequest,
     TutorRequest,
     TutorResponse,
-    AuthUser,
 )
-from app.services.tutor_service import TutorService
 from app.services.auth_service import AuthService
+from app.services.pdf_processor import PDFProcessor
+from app.services.tutor_service import TutorService
+
+logger = logging.getLogger(__name__)
+
+_MAX_FILE_BYTES = 8 * 1024 * 1024    # 8 MB per file
+_MAX_TOTAL_BYTES = 24 * 1024 * 1024  # 24 MB total
+
+_ALLOWED_MIMES = {
+    "image/png", "image/jpeg", "image/webp", "image/gif",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain", "text/markdown",
+}
+_IMAGE_MIMES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 
 router = APIRouter()
 tutor_service = TutorService()
@@ -152,6 +173,123 @@ async def interpret_study_image(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ask-with-files", response_model=TutorResponse)
+async def ask_tutor_with_files(
+    question: str = Form(""),
+    history_json: str = Form("[]"),
+    subject: Optional[str] = Form(None),
+    files: List[UploadFile] = File(default=[]),
+    current_user: Optional[AuthUser] = Depends(_get_optional_user),
+):
+    """Ask the AI tutor a question with optional file attachments (images, PDFs, DOCX, TXT/MD)."""
+    if not question.strip() and not files:
+        raise HTTPException(status_code=400, detail="Provide a question and/or at least one file.")
+
+    try:
+        history_raw = json.loads(history_json) if history_json.strip() else []
+    except Exception:
+        history_raw = []
+
+    history = [
+        ChatHistoryMessage(id=0, role=m.get("role", "user"), content=m.get("content", ""), created_at="")
+        for m in history_raw
+    ]
+
+    images: List[str] = []
+    extracted_parts: List[str] = []
+    file_names: List[str] = []
+    total_bytes = 0
+
+    for upload in files:
+        raw = await upload.read()
+        if len(raw) > _MAX_FILE_BYTES:
+            raise HTTPException(status_code=413, detail=f"File '{upload.filename}' exceeds the 8 MB limit.")
+        total_bytes += len(raw)
+        if total_bytes > _MAX_TOTAL_BYTES:
+            raise HTTPException(status_code=413, detail="Total upload size exceeds the 24 MB limit.")
+
+        # Determine mime by content-type header or filename extension
+        mime = (upload.content_type or "").split(";")[0].strip().lower()
+        fname = (upload.filename or "").lower()
+        if not mime or mime == "application/octet-stream":
+            if fname.endswith(".pdf"):
+                mime = "application/pdf"
+            elif fname.endswith(".docx"):
+                mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif fname.endswith((".txt", ".md")):
+                mime = "text/plain"
+            elif fname.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                mime = f"image/{fname.rsplit('.', 1)[-1].replace('jpg', 'jpeg')}"
+
+        if mime not in _ALLOWED_MIMES:
+            raise HTTPException(status_code=415, detail=f"File type '{mime}' is not supported. Upload images, PDFs, DOCX, TXT, or MD files.")
+
+        file_names.append(upload.filename or "file")
+
+        if mime in _IMAGE_MIMES:
+            b64 = base64.b64encode(raw).decode()
+            images.append(f"data:{mime};base64,{b64}")
+
+        elif mime == "application/pdf":
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(raw)
+                tmp_path = tmp.name
+            try:
+                result = PDFProcessor().process_pdf(tmp_path)
+                text = result.get("text", "") if isinstance(result, dict) else str(result)
+                if text.strip():
+                    extracted_parts.append(f"--- {upload.filename} ---\n{text[:10000]}")
+            except Exception as pdf_err:
+                logger.warning("PDF extraction failed for %s: %s", upload.filename, pdf_err)
+            finally:
+                import os; os.unlink(tmp_path)
+
+        elif mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            try:
+                import docx as python_docx
+                doc = python_docx.Document(BytesIO(raw))
+                text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+                if text.strip():
+                    extracted_parts.append(f"--- {upload.filename} ---\n{text[:10000]}")
+            except Exception as docx_err:
+                logger.warning("DOCX extraction failed for %s: %s", upload.filename, docx_err)
+
+        else:  # text/plain or text/markdown
+            try:
+                text = raw.decode("utf-8", errors="replace")
+                if text.strip():
+                    extracted_parts.append(f"--- {upload.filename} ---\n{text[:10000]}")
+            except Exception:
+                pass
+
+    extracted_text = "\n\n".join(extracted_parts)
+    # Cap total extracted text to ~30K chars to stay well within LLM context
+    if len(extracted_text) > 30000:
+        extracted_text = extracted_text[:30000] + "\n\n[Content truncated — file too long]"
+
+    try:
+        result = await tutor_service.get_explanation_with_attachments(
+            question=question.strip(),
+            images=images,
+            extracted_text=extracted_text,
+            subject=subject,
+            history=history,
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=415, detail=str(ve))
+
+    if current_user:
+        try:
+            attachment_label = ", ".join(file_names)
+            user_content = f"[Attached: {attachment_label}]\n{question.strip()}" if file_names else question.strip()
+            auth_service.save_chat_message(user_id=current_user.id, role="user", content=user_content, subject=subject)
+            auth_service.save_chat_message(user_id=current_user.id, role="ai", content=result.explanation, subject=subject)
+        except Exception as hist_err:
+            logger.warning("Failed to save attachment chat history: %s", hist_err)
+
+    return result
 
 
 @router.get("/history", response_model=ChatHistoryResponse)

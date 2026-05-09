@@ -163,6 +163,23 @@ export const tutorApi = {
     is_main_concept_only?: boolean
     history?: Array<{ role: 'user' | 'ai'; content: string }>
   }) => api.post<TutorResponse>('/api/tutor/ask', body).then(r => r.data),
+  askWithFiles: (opts: {
+    question: string
+    files: File[]
+    history?: Array<{ role: 'user' | 'ai'; content: string }>
+    subject?: string
+  }) => {
+    const fd = new FormData()
+    fd.append('question', opts.question)
+    fd.append('history_json', JSON.stringify(opts.history ?? []))
+    if (opts.subject) fd.append('subject', opts.subject)
+    for (const f of opts.files) fd.append('files', f)
+    return api.post<TutorResponse>('/api/tutor/ask-with-files', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000,
+    }).then(r => r.data)
+  },
+
   history: (limit = 60) =>
     api
       .get<{ messages: Array<{ id: number; role: 'user' | 'ai'; content: string; created_at: string }> }>(
