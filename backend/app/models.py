@@ -393,6 +393,12 @@ class PaymentConfirmResponse(BaseModel):
     sms_message: Optional[str] = None
 
 
+class SendAccessCodeSmsRequest(BaseModel):
+    phone: str
+    code: str
+    duration_months: Optional[int] = None
+
+
 class PaymentRequest(BaseModel):
     id: int
     user_id: int

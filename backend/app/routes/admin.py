@@ -28,12 +28,6 @@ class CouponGenerateRequest(BaseModel):
     quantity: int = 1
     duration_months: int | None = None
 
-
-class SendAccessCodeSmsRequest(BaseModel):
-    phone: str
-    code: str
-    duration_months: int | None = None
-
 def require_admin(current_user: AuthUser = Depends(get_current_user)):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin privileges required.")
