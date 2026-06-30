@@ -12,8 +12,10 @@ import {
   MessageSquare,
   Sparkles,
   ChevronRight,
+  CreditCard,
+  Loader2,
 } from 'lucide-react'
-import { authApi } from '@/api/endpoints'
+import { authApi, paymentsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
@@ -38,6 +40,8 @@ const DEFAULT_CONFIG: AuthConfigResponse = {
   subscription_months: 3,
   momo_payment_number: '0248317900',
   sms_enabled: false,
+  paystack_enabled: false,
+  paystack_public_key: '',
 }
 
 export function ActivatePage() {
@@ -58,6 +62,11 @@ export function ActivatePage() {
   const [paymentError, setPaymentError] = useState('')
   const [paymentLoading, setPaymentLoading] = useState(false)
 
+  const [paystackPhone, setPaystackPhone] = useState('')
+  const [paystackLoading, setPaystackLoading] = useState(false)
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [paystackSuccess, setPaystackSuccess] = useState('')
+
   const [code, setCode] = useState('')
   const [activateError, setActivateError] = useState('')
   const [activateLoading, setActivateLoading] = useState(false)
@@ -67,7 +76,47 @@ export function ActivatePage() {
     authApi.config().then(setConfig).catch(() => {})
   }, [])
 
+  const paystackReference = params.get('reference')
+
+  useEffect(() => {
+    if (!paystackReference) return
+    let cancelled = false
+    setVerifyLoading(true)
+    setPaymentError('')
+    paymentsApi
+      .paystackVerify(paystackReference)
+      .then(res => {
+        if (cancelled) return
+        if (res.status === 'success' && res.access_code) {
+          setCode(res.access_code)
+          setStep('activate')
+          setPaystackSuccess(
+            res.sms_sent
+              ? 'Payment confirmed! Your access code was sent by SMS — it’s also filled in below.'
+              : 'Payment confirmed! Enter your access code below to activate.',
+          )
+        } else if (res.status === 'success') {
+          setStep('activate')
+          setPaystackSuccess('Payment confirmed! Enter the access code you received.')
+        } else {
+          setPaymentError(res.sms_message || 'Payment not completed yet. Try again or contact support.')
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setPaymentError(extractError(err, 'Could not verify payment.'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVerifyLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [paystackReference])
+
   const price = config.subscription_price_ghs || '20'
+  const paystackEnabled = Boolean(config.paystack_enabled && config.paystack_public_key)
   const months = config.subscription_months || 3
   const momoNumber_display = config.momo_payment_number || '0248317900'
 
@@ -78,6 +127,26 @@ export function ActivatePage() {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       /* clipboard unavailable */
+    }
+  }
+
+  const onPaystackPay = async () => {
+    if (!paystackPhone.trim()) {
+      setPaymentError('Enter your MoMo number so we can text your access code.')
+      return
+    }
+    setPaymentError('')
+    setPaystackLoading(true)
+    try {
+      const callbackUrl = `${window.location.origin}/activate?next=${encodeURIComponent(next)}`
+      const res = await paymentsApi.paystackInitialize({
+        momo_number: paystackPhone.trim(),
+        callback_url: callbackUrl,
+      })
+      window.location.href = res.authorization_url
+    } catch (err) {
+      setPaymentError(extractError(err, 'Could not start online payment.'))
+      setPaystackLoading(false)
     }
   }
 
@@ -223,8 +292,68 @@ export function ActivatePage() {
                   transition={{ duration: 0.25 }}
                   className="space-y-5"
                 >
+                  {verifyLoading && (
+                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                      <Loader2 size={18} className="shrink-0 animate-spin" />
+                      Verifying your payment…
+                    </div>
+                  )}
+
+                  {paystackEnabled && (
+                    <>
+                      <div>
+                        <h2 className="font-display text-xl text-ink-0">Pay online</h2>
+                        <p className="mt-1 text-sm text-ink-400">
+                          Pay <strong className="text-ink-100">GH₵ {price}</strong> with card or MoMo via Paystack.
+                          {config.sms_enabled && ' Your access code is sent by SMS automatically.'}
+                        </p>
+                      </div>
+
+                      <label className="block">
+                        <span className="mb-1.5 block text-[13px] font-medium text-ink-100">
+                          MoMo number (for SMS delivery)
+                        </span>
+                        <Input
+                          type="tel"
+                          value={paystackPhone}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setPaystackPhone(e.target.value)}
+                          placeholder="0241234567"
+                        />
+                      </label>
+
+                      {paymentError && !verifyLoading && (
+                        <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
+                          {paymentError}
+                        </div>
+                      )}
+
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="lg"
+                        fullWidth
+                        loading={paystackLoading}
+                        leading={<CreditCard size={16} />}
+                        onClick={() => void onPaystackPay()}
+                      >
+                        Pay GH₵ {price} with Paystack
+                      </Button>
+
+                      <div className="relative py-2">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-[var(--line)]" />
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                          <span className="bg-[var(--bg-0)] px-3 text-ink-400">or pay manually</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
                   <div>
-                    <h2 className="font-display text-xl text-ink-0">Send Mobile Money</h2>
+                    <h2 className="font-display text-xl text-ink-0">
+                      {paystackEnabled ? 'Manual Mobile Money' : 'Send Mobile Money'}
+                    </h2>
                     <p className="mt-1 text-sm text-ink-400">
                       Pay exactly <strong className="text-ink-100">GH₵ {price}</strong> to the number below.
                     </p>
@@ -355,7 +484,17 @@ export function ActivatePage() {
                   exit={{ opacity: 0, x: 12 }}
                   transition={{ duration: 0.25 }}
                 >
-                  {paymentSubmitted && (
+                  {paystackSuccess && (
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-medium">Payment confirmed!</p>
+                        <p className="mt-0.5 text-emerald-600/90 dark:text-emerald-300/90">{paystackSuccess}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentSubmitted && !paystackSuccess && (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>

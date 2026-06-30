@@ -76,6 +76,7 @@ export function AppShell() {
   const activeNav = pageNav.find(n => (n.to === '/' ? location.pathname === '/' : location.pathname.startsWith(n.to)))
   const isAdmin = location.pathname.startsWith('/admin')
   const currentTitle = isAdmin ? 'Admin Dashboard' : (activeNav?.label || 'BroxStudies')
+  const isStudyPage = location.pathname === '/'
 
   return (
     <div className="flex min-h-dvh">
@@ -118,6 +119,20 @@ export function AppShell() {
                     <div className="v2-eyebrow mb-1.5">Signed in</div>
                     <div className="truncate text-sm font-semibold text-ink-0">{user.full_name || user.email}</div>
                     <div className="truncate text-xs text-ink-400">{user.email}</div>
+                  </div>
+                )}
+                {selectedTrack && !collapsed && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                      {selectedTrack.toUpperCase()}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={resetAcademicTrack}
+                      className="text-[11px] font-medium text-ink-400 underline underline-offset-2 hover:text-ink-0"
+                    >
+                      Change track
+                    </button>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -298,7 +313,7 @@ export function AppShell() {
             <span className="text-[var(--fg-1)]">{currentTitle}</span>
           </div>
           <div className="flex-1" />
-          {!user && (
+          {!user && !isStudyPage && (
             <Badge tone="accent" className="hidden sm:inline-flex">
               <Sparkles size={10} /> {remaining}/{limit} free
             </Badge>
@@ -365,7 +380,7 @@ export function AppShell() {
           </div>
         )}
 
-        <main className="flex-1">
+        <main className="flex min-h-0 flex-1 flex-col">
           <Outlet />
         </main>
       </div>

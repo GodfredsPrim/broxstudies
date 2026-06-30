@@ -27,6 +27,8 @@ export interface AuthConfigResponse {
   subscription_months?: number
   momo_payment_number?: string
   sms_enabled?: boolean
+  paystack_enabled?: boolean
+  paystack_public_key?: string
 }
 
 export interface Subject {
@@ -218,6 +220,20 @@ export interface PaymentConfirmResponse {
   duration_months?: number
   sms_sent: boolean
   sms_message?: string
+}
+
+export interface PaystackInitResponse {
+  authorization_url: string
+  reference: string
+  public_key: string
+}
+
+export interface PaystackVerifyResponse {
+  status: string
+  access_code?: string
+  sms_sent: boolean
+  sms_message?: string
+  already_fulfilled?: boolean
 }
 
 export interface AccessCodeRecord {

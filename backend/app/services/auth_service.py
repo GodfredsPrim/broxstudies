@@ -202,6 +202,25 @@ class AuthService:
                 """
             )
 
+            # ── Paystack transactions ──────────────────────────────────────────
+            self._execute(
+                conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS paystack_transactions (
+                    id {id_type},
+                    user_id INTEGER NOT NULL,
+                    reference TEXT NOT NULL UNIQUE,
+                    amount_pesewas INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    momo_number TEXT,
+                    access_code TEXT,
+                    sms_sent INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    paid_at TEXT
+                )
+                """
+            )
+
             # ── Competitions table ─────────────────────────────────────────────
             self._execute(conn, 
                 f"""
@@ -790,10 +809,94 @@ class AuthService:
                 return cursor.fetchone()["id"]
             return cursor.lastrowid
 
-    def process_payment_confirmation(self, request_id: int, action: str) -> dict:
-        """Confirm or reject a payment. On confirm, mint an access code and SMS it to the payer."""
+    def fulfill_subscription_payment(self, user_id: int, momo_number: str) -> dict:
+        """Mint an access code and optionally SMS it after a confirmed payment."""
         from app.services.sms_service import sms_service
 
+        access_code, months = self.generate_single_access_code()
+        sms_result = None
+        if settings.SMS_ENABLED and momo_number:
+            sms_result = sms_service.send_access_code(momo_number, access_code, months)
+
+        return {
+            "ok": True,
+            "access_code": access_code,
+            "duration_months": months,
+            "sms_sent": bool(sms_result and sms_result.success),
+            "sms_message": sms_result.message if sms_result else "SMS disabled.",
+            "user_id": user_id,
+        }
+
+    def create_paystack_transaction(
+        self, user_id: int, reference: str, amount_pesewas: int, momo_number: Optional[str] = None
+    ) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            query = """
+                INSERT INTO paystack_transactions (user_id, reference, amount_pesewas, status, momo_number, created_at)
+                VALUES (?, ?, ?, 'pending', ?, ?)
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+            cursor = self._execute(conn, query, (user_id, reference, amount_pesewas, momo_number, now))
+            if self.is_postgres:
+                return cursor.fetchone()["id"]
+            return cursor.lastrowid
+
+    def get_paystack_transaction(self, reference: str) -> Optional[dict]:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                "SELECT * FROM paystack_transactions WHERE reference = ?",
+                (reference,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def complete_paystack_transaction(self, reference: str, momo_number: Optional[str] = None) -> dict:
+        """Idempotent fulfillment after Paystack confirms payment."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                "SELECT * FROM paystack_transactions WHERE reference = ?",
+                (reference,),
+            ).fetchone()
+            if not row:
+                return {"ok": False, "error": "Transaction not found."}
+
+            tx = dict(row)
+            if tx.get("status") == "success" and tx.get("access_code"):
+                return {
+                    "ok": True,
+                    "already_fulfilled": True,
+                    "access_code": tx["access_code"],
+                    "sms_sent": bool(tx.get("sms_sent")),
+                    "user_id": tx["user_id"],
+                }
+
+            phone = momo_number or tx.get("momo_number") or ""
+            fulfillment = self.fulfill_subscription_payment(int(tx["user_id"]), phone)
+
+            self._execute(
+                conn,
+                """
+                UPDATE paystack_transactions
+                SET status = 'success', paid_at = ?, access_code = ?, sms_sent = ?, momo_number = COALESCE(?, momo_number)
+                WHERE reference = ?
+                """,
+                (
+                    now,
+                    fulfillment["access_code"],
+                    1 if fulfillment.get("sms_sent") else 0,
+                    momo_number,
+                    reference,
+                ),
+            )
+
+            return {**fulfillment, "already_fulfilled": False, "reference": reference}
+
+    def process_payment_confirmation(self, request_id: int, action: str) -> dict:
+        """Confirm or reject a payment. On confirm, mint an access code and SMS it to the payer."""
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             row = self._execute(
@@ -822,19 +925,10 @@ class AuthService:
             if action != "confirm":
                 return {"ok": True, "status": new_status}
 
-            access_code, months = self.generate_single_access_code()
-            sms_result = None
-            if settings.SMS_ENABLED:
-                sms_result = sms_service.send_access_code(momo_number, access_code, months)
-
+            fulfillment = self.fulfill_subscription_payment(user_id, momo_number)
             return {
-                "ok": True,
+                **fulfillment,
                 "status": new_status,
-                "access_code": access_code,
-                "duration_months": months,
-                "sms_sent": bool(sms_result and sms_result.success),
-                "sms_message": sms_result.message if sms_result else "SMS disabled.",
-                "user_id": user_id,
             }
 
     # ── chat history methods ───────────────────────────────────────────────────

@@ -9,6 +9,8 @@ import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
+import { QuestionCard } from '@/components/exam/QuestionCard'
+import { ScoreHero } from '@/components/exam/ScoreHero'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -681,78 +683,17 @@ export function WassceePage() {
           <div className="mx-auto max-w-3xl space-y-5">
             {currentQs.map((q, li) => {
               const gi = currentOffset + li
-              const isAnswered = gi in answers
               return (
-                <article
+                <QuestionCard
                   key={gi}
-                  className="rounded-3xl border bg-[var(--bg-1)] p-5 shadow-sm transition-colors"
-                  style={{ borderColor: isAnswered ? meta.hex : 'var(--line-strong)' }}
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <span
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-black text-white"
-                      style={{ backgroundColor: meta.hex }}
-                    >
-                      {li + 1}
-                    </span>
-                    {q.difficulty_level && (
-                      <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        q.difficulty_level === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        q.difficulty_level === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        q.difficulty_level === 'standard' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      }`}>{q.difficulty_level}</span>
-                    )}
-                  </div>
-
-                  <p className="text-sm font-medium leading-relaxed text-foreground">
-                    <MathText>{q.question_text}</MathText>
-                  </p>
-
-                  {q.options?.length ? (
-                    <div className="mt-4 space-y-2">
-                      {q.options.map((opt, oi) => {
-                        const letter = String.fromCharCode(65 + oi)
-                        const isSelected = answers[gi] === opt
-                        return (
-                          <button
-                            key={oi}
-                            type="button"
-                            onClick={() => setAnswers(prev => ({ ...prev, [gi]: opt }))}
-                            className="flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition"
-                            style={{
-                              borderColor: isSelected ? meta.hex : 'var(--line-strong)',
-                              backgroundColor: isSelected ? meta.light : 'var(--bg-1)',
-                              fontWeight: isSelected ? 600 : 400,
-                            }}
-                          >
-                            <span
-                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                              style={{
-                                backgroundColor: isSelected ? meta.hex : 'var(--bg-3)',
-                                color: isSelected ? '#fff' : 'var(--fg-2)',
-                              }}
-                            >
-                              {letter}
-                            </span>
-                            <MathText>{opt}</MathText>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <textarea
-                      value={answers[gi] || ''}
-                      onChange={e => setAnswers(prev => ({ ...prev, [gi]: e.target.value }))}
-                      placeholder="Write your answer here…"
-                      rows={4}
-                      className="mt-4 block w-full resize-none rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2"
-                      style={{ userSelect: 'text' }}
-                      onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${meta.hex}40`)}
-                      onBlur={e => (e.currentTarget.style.boxShadow = '')}
-                    />
-                  )}
-                </article>
+                  index={li}
+                  question={q}
+                  answer={answers[gi] || ''}
+                  onAnswer={opt => setAnswers(prev => ({ ...prev, [gi]: opt }))}
+                  answered={gi in answers}
+                  accentColor={meta.hex}
+                  accentTint={meta.light}
+                />
               )
             })}
           </div>
@@ -794,10 +735,6 @@ export function WassceePage() {
   }
 
   /* ──────────────── RESULTS ──────────────── */
-  const grade = percentage >= 80 ? 'Excellent' : percentage >= 65 ? 'Good' : percentage >= 50 ? 'Fair' : 'Needs Work'
-  const gradeColor = percentage >= 80 ? 'text-emerald-700 dark:text-emerald-400' : percentage >= 65 ? 'text-blue-700 dark:text-blue-400' : percentage >= 50 ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
-  const gradeBg = percentage >= 80 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' : percentage >= 65 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' : percentage >= 50 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50'
-
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
       <div className="mt-8">
@@ -807,14 +744,13 @@ export function WassceePage() {
         </p>
       </div>
 
-      <div className={`mt-6 rounded-3xl border p-8 text-center ${gradeBg}`}>
-        <Trophy className={`mx-auto mb-3 h-10 w-10 ${gradeColor}`} />
-        <div className={`text-5xl font-black ${gradeColor}`}>{Math.round(percentage)}%</div>
-        <div className="mt-1 text-base font-semibold text-muted-foreground">{grade}</div>
-        <div className="mt-2 text-sm text-muted-foreground">
-          {Math.round(score)} of {allQuestions.length} correct
-        </div>
-      </div>
+      <ScoreHero
+        className="mt-6"
+        percentage={percentage}
+        score={score}
+        total={allQuestions.length}
+        icon={<Trophy className="mx-auto mb-3 h-10 w-10 text-amber-600 dark:text-amber-400" />}
+      />
 
       {(['paper_1', 'paper_2', 'paper_3'] as PaperKey[])
         .filter(k => (organizedPapers[k] || []).length > 0)

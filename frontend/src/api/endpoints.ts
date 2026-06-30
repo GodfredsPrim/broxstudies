@@ -21,6 +21,8 @@ import type {
   LoadingProgress,
   NewsArticle,
   NewsArticleCreateBody,
+  PaystackInitResponse,
+  PaystackVerifyResponse,
   PaymentConfirmResponse,
   PendingPayment,
   PracticeMarkResponse,
@@ -46,6 +48,13 @@ export const authApi = {
     api.get<{ has_access: boolean; subscription_status: string }>('/api/auth/subscription').then(r => r.data),
   adminLogin: (secret: string) =>
     api.post<AuthResponse>('/api/admin/login-secret', { secret }).then(r => r.data),
+}
+
+export const paymentsApi = {
+  paystackInitialize: (body: { momo_number: string; callback_url?: string }) =>
+    api.post<PaystackInitResponse>('/api/payments/paystack/initialize', body).then(r => r.data),
+  paystackVerify: (reference: string) =>
+    api.get<PaystackVerifyResponse>(`/api/payments/paystack/verify/${encodeURIComponent(reference)}`).then(r => r.data),
 }
 
 /* ------------------------------ SYSTEM ------------------------------ */

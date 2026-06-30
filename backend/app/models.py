@@ -348,6 +348,8 @@ class AuthConfigResponse(BaseModel):
     subscription_months: int = 3
     momo_payment_number: str = "0248317900"
     sms_enabled: bool = False
+    paystack_enabled: bool = False
+    paystack_public_key: str = ""
 
 
 # ── Access-code / subscription models ─────────────────────────────────────────

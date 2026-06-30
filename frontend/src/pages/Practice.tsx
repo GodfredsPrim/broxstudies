@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   BookOpen, Loader2, CheckCircle2, XCircle,
-  RotateCcw, Trophy, ChevronRight, BookMarked, GraduationCap,
+  RotateCcw, Trophy, ChevronRight, BookMarked,
   FileText, ClipboardList, ScrollText, Download, Share2,
   Upload, FileUp,
 } from 'lucide-react'
@@ -12,6 +12,8 @@ import { useGeneration } from '@/hooks/useGeneration'
 import { useToast } from '@/hooks/useToast'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
+import { QuestionCard } from '@/components/exam/QuestionCard'
+import { ScoreHero } from '@/components/exam/ScoreHero'
 import { Combobox } from '@/components/ui/Combobox'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { Card } from '@/components/ui/card'
@@ -533,76 +535,18 @@ export function PracticePage() {
         )}
 
         <div className="mt-6 space-y-5">
-          {questions.map((q, i) => {
-            const isAnswered = i in answers
-            return (
-              <article
-                key={i}
-                className={`rounded-3xl border bg-card p-5 shadow-sm transition-colors ${
-                  isAnswered ? 'border-emerald-300' : 'border-input'
-                }`}
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-black text-white">
-                    {i + 1}
-                  </span>
-                  {q.difficulty_level && (
-                    <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                      q.difficulty_level === 'easy'
-                        ? 'bg-green-100 text-green-700'
-                        : q.difficulty_level === 'hard'
-                          ? 'bg-red-100 text-red-700'
-                          : q.difficulty_level === 'standard'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {q.difficulty_level}
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-sm font-medium leading-relaxed text-foreground">
-                  <MathText>{q.question_text}</MathText>
-                </p>
-
-                {q.options?.length ? (
-                  <div className="mt-4 space-y-2">
-                    {q.options.map((opt, oi) => {
-                      const letter = String.fromCharCode(65 + oi)
-                      const isSelected = answers[i] === opt
-                      return (
-                        <button
-                          key={oi}
-                          type="button"
-                          onClick={() => setAnswers(prev => ({ ...prev, [i]: opt }))}
-                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50 font-semibold text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-300'
-                              : 'border-[var(--line)] bg-[var(--bg-1)] text-[var(--fg-0)] hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/10'
-                          }`}
-                        >
-                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                            isSelected ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {letter}
-                          </span>
-                          <MathText>{opt}</MathText>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <textarea
-                    value={answers[i] || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
-                    placeholder="Write your answer here…"
-                    rows={3}
-                    className="mt-4 block w-full resize-none rounded-2xl border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                )}
-              </article>
-            )
-          })}
+          {questions.map((q, i) => (
+            <QuestionCard
+              key={i}
+              index={i}
+              question={q}
+              answer={answers[i] || ''}
+              onAnswer={opt => setAnswers(prev => ({ ...prev, [i]: opt }))}
+              answered={i in answers}
+              accentColor="#059669"
+              accentTint="rgba(5, 150, 105, 0.12)"
+            />
+          ))}
         </div>
 
         {submitError && (
@@ -638,21 +582,6 @@ export function PracticePage() {
     const displayPercentage = currentResults.percentage
     const displayResults = currentResults.results || []
 
-    const grade =
-      displayPercentage >= 80 ? 'Excellent' :
-      displayPercentage >= 65 ? 'Good' :
-      displayPercentage >= 50 ? 'Fair' : 'Needs Work'
-
-    const gradeColor =
-      displayPercentage >= 80 ? 'text-emerald-700 dark:text-emerald-400' :
-      displayPercentage >= 65 ? 'text-blue-700 dark:text-blue-400' :
-      displayPercentage >= 50 ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
-
-    const gradeBg =
-      displayPercentage >= 80 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' :
-      displayPercentage >= 65 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' :
-      displayPercentage >= 50 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50'
-
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
       <div className="mt-8">
@@ -663,15 +592,12 @@ export function PracticePage() {
         </p>
       </div>
 
-      {/* Score card */}
-      <div className={`mt-6 rounded-3xl border p-8 text-center ${gradeBg}`}>
-        <GraduationCap className={`mx-auto mb-3 h-10 w-10 ${gradeColor}`} />
-        <div className={`text-5xl font-black ${gradeColor}`}>{Math.round(displayPercentage)}%</div>
-        <div className="mt-1 text-base font-semibold text-muted-foreground">{grade}</div>
-        <div className="mt-2 text-sm text-muted-foreground">
-          {Math.round(displayScore)} of {questions.length} correct
-        </div>
-      </div>
+      <ScoreHero
+        className="mt-6"
+        percentage={displayPercentage}
+        score={displayScore}
+        total={questions.length}
+      />
 
       {/* Per-question breakdown */}
       <h2 className="mt-8 text-lg font-bold text-foreground">Question breakdown</h2>
