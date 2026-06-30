@@ -9,6 +9,9 @@ import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
+import { PageLayout } from '@/components/ui/PageLayout'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import type { Question, Subject } from '@/api/types'
 import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
 
@@ -424,27 +427,27 @@ export function WassceePage() {
   /* ──────────────── SETUP ──────────────── */
   if (phase === 'setup') {
     return (
-      <div className="mx-auto w-full max-w-xl px-4 pb-16 sm:px-8">
-        <div className="mt-8">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            <Shield className="h-3.5 w-3.5" />
-            {examLabel}
-          </div>
-          <h1 className="text-3xl font-black text-foreground">{likelyLabel}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Questions are generated exclusively from past exam papers following the exact {curriculumName} paper structure. Subjects without past papers fall back to their official textbooks.
+      <PageLayout
+        eyebrow="Studio"
+        title={likelyLabel}
+        subtitle={`Questions are generated from past exam papers following the exact ${curriculumName} paper structure. Subjects without past papers fall back to official textbooks.`}
+        width="narrow"
+        noHeaderBorder
+      >
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <Shield className="h-3.5 w-3.5" />
+          {examLabel}
+        </div>
+
+        <div className="v2-alert v2-alert-warning mb-6">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            <strong>Exam Mode:</strong> The session opens full-screen with navigation blocked to replicate real exam conditions.
           </p>
         </div>
 
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <p className="text-xs text-amber-800">
-            <strong>Exam Mode:</strong> The session opens in a full-screen isolated view.
-            Navigation away from the page is blocked to replicate real exam conditions.
-          </p>
-        </div>
-
-        <form onSubmit={handleGenerate} className="mt-8 space-y-5 rounded-3xl border border-input bg-card p-6 shadow-sm">
+        <form onSubmit={handleGenerate}>
+          <Card className="space-y-5 p-6">
           <div>
             <label className="text-sm font-semibold text-foreground">Subject</label>
             <select
@@ -503,19 +506,22 @@ export function WassceePage() {
           </div>
 
           {setupError && (
-            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{setupError}</div>
+            <div className="v2-alert v2-alert-error">{setupError}</div>
           )}
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
             disabled={!subjectId}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            leading={<TrendingUp size={16} />}
           >
-            <TrendingUp size={16} />
             Begin {curriculumName} simulation
-          </button>
+          </Button>
+          </Card>
         </form>
-      </div>
+      </PageLayout>
     )
   }
 
@@ -543,8 +549,8 @@ export function WassceePage() {
     return (
       <div
         ref={overlayRef}
-        className="fixed inset-0 z-[9999] flex flex-col"
-        style={{ backgroundColor: '#f8fafc', userSelect: 'none' }}
+        className="fixed inset-0 z-[9999] flex flex-col bg-[var(--bg-0)]"
+        style={{ userSelect: 'none' }}
       >
         {fsWarning && (
           <div

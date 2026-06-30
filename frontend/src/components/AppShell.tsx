@@ -289,6 +289,9 @@ export function AppShell() {
               <Menu size={18} />
             </button>
           )}
+          <div className="min-w-0 flex-1 truncate font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400 sm:hidden">
+            {currentTitle}
+          </div>
           <div className="v2-eyebrow hidden sm:flex sm:items-center sm:gap-2">
             <span>BroxStudies · {selectedTrack ? selectedTrack.toUpperCase() : 'SHS / TVET'}</span>
             <span className="text-[var(--fg-3)]">/</span>
@@ -317,16 +320,16 @@ export function AppShell() {
               <Settings size={16} />
             </NavLink>
           ) : null}
-          <NavLink
-            to="/"
-            className={({ isActive }) =>
-              cn('v2-btn v2-btn-primary h-9 !px-4 text-[13px]', isActive && 'pointer-events-none opacity-70')
-            }
-          >
-            <Sparkles size={14} />
-            <span className="hidden sm:inline">Start studying</span>
-            <span className="sm:hidden">Study</span>
-          </NavLink>
+          {location.pathname !== '/' && (
+            <NavLink
+              to="/"
+              className="v2-btn v2-btn-primary h-9 !px-4 text-[13px]"
+            >
+              <Sparkles size={14} />
+              <span className="hidden sm:inline">Start studying</span>
+              <span className="sm:hidden">Study</span>
+            </NavLink>
+          )}
         </header>
 
         {/* Offline indicator */}
@@ -340,7 +343,7 @@ export function AppShell() {
         {/* PWA install banner */}
         {installPrompt && !installDismissed && !isOffline && (
           <div className="flex items-center justify-between gap-3 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 sm:px-8">
-            <p className="text-sm text-emerald-300">
+            <p className="text-sm text-emerald-700 dark:text-emerald-300">
               Install BroxStudies for offline access and a better experience.
             </p>
             <div className="flex shrink-0 items-center gap-2">

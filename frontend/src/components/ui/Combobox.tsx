@@ -30,7 +30,7 @@ export function Combobox({
   const listRef = useRef<HTMLUListElement>(null)
 
   const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    option.label.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const selectedOption = options.find(option => option.value === value)
@@ -93,15 +93,15 @@ export function Combobox({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            'w-full rounded-2xl border border-input bg-white dark:bg-zinc-900 px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500',
-            disabled && 'cursor-not-allowed opacity-60'
+            'v2-input pr-10',
+            disabled && 'cursor-not-allowed opacity-60',
           )}
         />
         <button
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-0"
         >
           <ChevronDown size={16} className={cn('transition-transform', isOpen && 'rotate-180')} />
         </button>
@@ -110,12 +110,10 @@ export function Combobox({
       {isOpen && (
         <ul
           ref={listRef}
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-input bg-white dark:bg-zinc-900 py-1 shadow-lg"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-[var(--line)] bg-[var(--bg-1)] py-1 shadow-xl"
         >
           {filteredOptions.length === 0 ? (
-            <li className="px-4 py-2 text-sm text-muted-foreground">
-              No options found
-            </li>
+            <li className="px-4 py-2 text-sm text-ink-400">No options found</li>
           ) : (
             filteredOptions.map((option) => (
               <li key={option.value}>
@@ -123,12 +121,12 @@ export function Combobox({
                   type="button"
                   onClick={() => handleSelect(option)}
                   className={cn(
-                    'flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-muted',
-                    option.value === value && 'bg-emerald-50 text-emerald-900'
+                    'flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--bg-2)]',
+                    option.value === value && 'bg-[var(--accent-tint)] text-[var(--accent-strong)]',
                   )}
                 >
                   <span>{option.label}</span>
-                  {option.value === value && <Check size={14} className="text-emerald-600" />}
+                  {option.value === value && <Check size={14} />}
                 </button>
               </li>
             ))

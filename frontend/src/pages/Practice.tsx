@@ -13,6 +13,9 @@ import { useToast } from '@/hooks/useToast'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
 import { Combobox } from '@/components/ui/Combobox'
+import { PageLayout } from '@/components/ui/PageLayout'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { ToastContainer } from '@/components/ui/Toast'
 import type { Question, Subject, GenerationJob } from '@/api/types'
 import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
@@ -325,13 +328,13 @@ export function PracticePage() {
 
   /* ── Setup ── */
   const renderSetup = () => (
-    <div className="mx-auto w-full max-w-xl px-4 pb-16 sm:px-8">
-      <div className="mt-8">
-        <h1 className="text-3xl font-black text-foreground">Practice Questions</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Choose your subject and {selectedTrack === 'tvet' ? 'TVET year' : 'SHS year'}, set how many questions you want, then start a personalised practice session.
-        </p>
-      </div>
+    <PageLayout
+      eyebrow="Studio"
+      title="Practice Questions"
+      subtitle={`Choose your subject and ${selectedTrack === 'tvet' ? 'TVET year' : 'SHS year'}, set how many questions you want, then start a personalised practice session.`}
+      width="narrow"
+      noHeaderBorder
+    >
 
       {/* Source legend */}
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -346,7 +349,8 @@ export function PracticePage() {
           Questions draw from all four sources above
         </p>
 
-        <form onSubmit={handleGenerate} className="mt-8 space-y-5 rounded-3xl border border-input bg-card p-6 shadow-sm">
+        <form onSubmit={handleGenerate} className="mt-2 space-y-5">
+          <Card className="space-y-5 p-6">
           {/* Subject */}
           <div>
             <label className="text-sm font-semibold text-foreground">Subject</label>
@@ -460,19 +464,23 @@ export function PracticePage() {
           </div>
 
           {genError && (
-            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{genError}</div>
+            <div className="v2-alert v2-alert-error">{genError}</div>
           )}
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
             disabled={!subjectId || activeJobs.length > 0}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            loading={activeJobs.length > 0}
+            trailing={activeJobs.length > 0 ? undefined : <ChevronRight size={16} />}
           >
-            {activeJobs.length > 0 ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight size={16} />}
             {activeJobs.length > 0 ? 'Generating questions…' : 'Start practice session'}
-          </button>
+          </Button>
+          </Card>
         </form>
-      </div>
+    </PageLayout>
     )
 
   /* ── Practice ── */

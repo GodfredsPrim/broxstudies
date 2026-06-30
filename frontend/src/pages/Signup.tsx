@@ -99,7 +99,7 @@ export function SignupPage() {
         </Field>
 
         {error && (
-          <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+          <div className="v2-alert v2-alert-error">
             {error}
           </div>
         )}
@@ -113,7 +113,7 @@ export function SignupPage() {
         Already have one?{' '}
         <Link
           to={`/login?next=${encodeURIComponent(next)}`}
-          className="font-semibold text-emerald-300 hover:text-emerald-200"
+          className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
         >
           Log in
         </Link>

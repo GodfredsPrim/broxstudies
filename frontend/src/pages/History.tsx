@@ -6,6 +6,11 @@ import {
 } from 'lucide-react'
 import { tutorApi, questionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
+import { PageLayout } from '@/components/ui/PageLayout'
+import { LoadingBlock } from '@/components/ui/LoadingBlock'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
 import { useOfflineHistory, type LocalExamEntry } from '@/hooks/useOfflineHistory'
 import type { ExamHistoryEntry } from '@/api/types'
@@ -116,31 +121,26 @@ export function HistoryPage() {
     </button>
   )
 
-  return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
-      <div className="mt-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-foreground">History</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your practice sessions, exams, and AI tutor conversations.
-          </p>
-        </div>
-        {isOfflineFallback && (
-          <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400">
-            <WifiOff className="h-3.5 w-3.5" />
-            Offline — showing cached data
-          </div>
-        )}
-        {!isOfflineFallback && user && (
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-400">
-            <Wifi className="h-3.5 w-3.5" />
-            Live
-          </div>
-        )}
-      </div>
+  const statusBadge = isOfflineFallback ? (
+    <Badge tone="gold" className="!h-8 gap-1.5">
+      <WifiOff size={12} /> Offline
+    </Badge>
+  ) : user ? (
+    <Badge tone="accent" className="!h-8 gap-1.5">
+      <Wifi size={12} /> Live
+    </Badge>
+  ) : null
 
-      {/* Tabs */}
-      <div className="mt-6 flex border-b border-input">
+  return (
+    <PageLayout
+      eyebrow="Prep"
+      title="History"
+      subtitle="Your practice sessions, exams, and AI tutor conversations — review anytime."
+      width="medium"
+      actions={statusBadge}
+      noHeaderBorder
+    >
+      <div className="flex border-b border-[var(--line)]">
         {tabBtn('exams', 'Exams & Practice', examHistory.length || undefined)}
         {tabBtn('chat', 'AI Chat', messages.length || undefined)}
       </div>
@@ -149,33 +149,28 @@ export function HistoryPage() {
       {tab === 'exams' && (
         <div className="mt-6">
           {!user ? (
-            <div className="py-20 text-center">
-              <Trophy size={48} className="mx-auto text-muted-foreground/40" />
-              <p className="mt-4 text-muted-foreground">Sign in to track your exam history.</p>
-              <Link to="/login" className="mt-4 inline-flex rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                Sign in
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Trophy size={22} />}
+              title="Sign in to track exams"
+              body="Your practice and WASSCE results sync across devices when you're signed in."
+              action={<Link to="/login"><Button variant="primary">Sign in</Button></Link>}
+            />
           ) : examLoading ? (
-            <div className="py-20 text-center">
-              <div className="pulse-loader mx-auto" />
-              <p className="mt-4 text-sm text-muted-foreground">Loading history…</p>
-            </div>
+            <LoadingBlock label="Loading exam history…" compact />
           ) : examError && examHistory.length === 0 ? (
-            <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-sm text-red-700">{examError}</div>
+            <div className="v2-alert v2-alert-error">{examError}</div>
           ) : examHistory.length === 0 ? (
-            <div className="py-20 text-center">
-              <BookOpen size={48} className="mx-auto text-muted-foreground/40" />
-              <p className="mt-4 text-muted-foreground">No exam history yet. Complete a Practice or WASSCE session to see results here.</p>
-              <div className="mt-6 flex justify-center gap-3">
-                <Link to="/practice" className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                  Practice
-                </Link>
-                <Link to="/wassce" className="rounded-2xl border border-input px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted">
-                  WASSCE Sim
-                </Link>
-              </div>
-            </div>
+            <EmptyState
+              icon={<BookOpen size={22} />}
+              title="No exam history yet"
+              body="Complete a Practice or WASSCE session to see your results here."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link to="/practice"><Button variant="primary">Start practice</Button></Link>
+                  <Link to="/wassce"><Button variant="ghost">WASSCE sim</Button></Link>
+                </div>
+              }
+            />
           ) : (
             <div className="space-y-3">
               {examHistory.map((entry, i) => {
@@ -278,28 +273,23 @@ export function HistoryPage() {
       {tab === 'chat' && (
         <div className="mt-6">
           {!user ? (
-            <div className="py-20 text-center">
-              <Bot size={48} className="mx-auto text-muted-foreground/40" />
-              <p className="mt-4 text-muted-foreground">Sign in to view your AI tutor conversations.</p>
-              <Link to="/login" className="mt-4 inline-flex rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                Sign in
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Bot size={22} />}
+              title="Sign in for chat history"
+              body="Your AI tutor conversations are saved to your account."
+              action={<Link to="/login"><Button variant="primary">Sign in</Button></Link>}
+            />
           ) : chatLoading ? (
-            <div className="py-20 text-center">
-              <div className="pulse-loader mx-auto" />
-              <p className="mt-4 text-sm text-muted-foreground">Loading conversations…</p>
-            </div>
+            <LoadingBlock label="Loading conversations…" compact />
           ) : chatError ? (
-            <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-sm text-red-700">{chatError}</div>
+            <div className="v2-alert v2-alert-error">{chatError}</div>
           ) : messages.length === 0 ? (
-            <div className="py-20 text-center">
-              <Bot size={48} className="mx-auto text-muted-foreground/40" />
-              <p className="mt-4 text-muted-foreground">No conversations yet. Ask the AI tutor a question to get started.</p>
-              <Link to="/" className="mt-4 inline-flex rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                Ask AI Tutor
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Bot size={22} />}
+              title="No conversations yet"
+              body="Ask the AI tutor a question on the Study page — your chats appear here."
+              action={<Link to="/"><Button variant="primary">Ask AI Tutor</Button></Link>}
+            />
           ) : (
             <div className="space-y-3">
               {messages.map(msg => (
@@ -339,7 +329,7 @@ export function HistoryPage() {
           )}
         </div>
       )}
-    </div>
+    </PageLayout>
   )
 }
 

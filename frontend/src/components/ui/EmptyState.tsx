@@ -12,7 +12,7 @@ export function EmptyState({ icon, title, body, action }: EmptyStateProps) {
   return (
     <Card className="flex flex-col items-center gap-4 py-14 text-center" grain>
       {icon && (
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-400/20">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-300">
           {icon}
         </div>
       )}

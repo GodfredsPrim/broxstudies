@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Lock, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { Spinner } from './ui/Spinner'
 import { Card } from './ui/card'
 import { Eyebrow } from './ui/Eyebrow'
 
@@ -27,7 +28,7 @@ export function Gate({ children, requireSubscription = true, label, pitch }: Gat
   if (loading) {
     return (
       <div className="grid min-h-[60dvh] place-items-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-emerald-400" />
+        <Spinner size="lg" label="Checking access…" />
       </div>
     )
   }
@@ -65,16 +66,16 @@ function AuthWall({
           <div className="v2-mesh" style={{ opacity: 0.45 }} />
           <div className="relative">
             <div className="mb-4 flex items-center gap-2">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/20">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-300">
                 <Lock size={16} />
               </div>
               <Eyebrow>{label}</Eyebrow>
             </div>
             <h1 className="v2-display text-[38px] leading-[1.05] tracking-tighter text-ink-0">
               {signup ? (
-                <>This one's for <em className="not-italic text-emerald-300">signed-in students.</em></>
+                <>This one's for <em className="not-italic text-emerald-600 dark:text-emerald-300">signed-in students.</em></>
               ) : (
-                <>Activate to unlock <em className="not-italic text-emerald-300">{label}.</em></>
+                <>Activate to unlock <em className="not-italic text-emerald-600 dark:text-emerald-300">{label}.</em></>
               )}
             </h1>
             <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink-300">{pitch}</p>
