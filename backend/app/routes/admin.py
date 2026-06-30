@@ -14,7 +14,6 @@ from app.models import (
     NewsArticleCreateRequest,
     NewsArticleUpdateRequest,
     PaymentConfirmResponse,
-    SendAccessCodeSmsRequest,
 )
 from app.routes.auth import get_current_user
 from app.services.auth_service import AuthService
