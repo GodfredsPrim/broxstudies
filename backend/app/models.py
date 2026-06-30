@@ -344,6 +344,10 @@ class AuthConfigResponse(BaseModel):
     facebook_enabled: bool = False
     tiktok_enabled: bool = False
     passkey_enabled: bool = False
+    subscription_price_ghs: str = "20"
+    subscription_months: int = 3
+    momo_payment_number: str = "0248317900"
+    sms_enabled: bool = False
 
 
 # ── Access-code / subscription models ─────────────────────────────────────────
@@ -376,7 +380,15 @@ class SubscriptionStatusResponse(BaseModel):
 class PaymentManualRequest(BaseModel):
     momo_name: str
     momo_number: str
-    reference: str
+    reference: str = ""
+
+
+class PaymentConfirmResponse(BaseModel):
+    status: str
+    access_code: Optional[str] = None
+    duration_months: Optional[int] = None
+    sms_sent: bool = False
+    sms_message: Optional[str] = None
 
 
 class PaymentRequest(BaseModel):

@@ -612,6 +612,16 @@ class AuthService:
 
         return codes
 
+    def generate_single_access_code(self, duration_months: Optional[int] = None) -> tuple[str, int]:
+        """Mint one unused access code. Returns (code, duration_months)."""
+        months = duration_months or settings.SUBSCRIPTION_MONTHS
+        codes = self.generate_admin_codes(
+            admin_secret=settings.ADMIN_SECRET,
+            duration_months=months,
+            quantity=1,
+        )
+        return codes[0], months
+
     def get_unused_access_codes(self) -> List[dict]:
         with self._connect() as conn:
             rows = self._execute(conn, 
@@ -779,42 +789,53 @@ class AuthService:
             if self.is_postgres:
                 return cursor.fetchone()["id"]
             return cursor.lastrowid
-    def get_pending_payments(self) -> List[dict]:
-        with self._connect() as conn:
-            rows = self._execute(conn, """
-                SELECT p.id, p.user_id, u.full_name, u.email, p.momo_name, p.momo_number, p.reference, p.status, p.created_at
-                FROM payment_requests p
-                JOIN users u ON p.user_id = u.id
-                WHERE p.status = 'pending'
-                ORDER BY p.created_at DESC
-            """).fetchall()
-            return [dict(r) for r in rows]
 
-    def process_payment_confirmation(self, request_id: int, action: str) -> bool:
-        """action can be 'confirm' or 'reject'"""
+    def process_payment_confirmation(self, request_id: int, action: str) -> dict:
+        """Confirm or reject a payment. On confirm, mint an access code and SMS it to the payer."""
+        from app.services.sms_service import sms_service
+
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            row = self._execute(conn, "SELECT user_id FROM payment_requests WHERE id = ?", (request_id,)).fetchone()
+            row = self._execute(
+                conn,
+                """
+                SELECT p.user_id, p.momo_number, u.full_name
+                FROM payment_requests p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.id = ?
+                """,
+                (request_id,),
+            ).fetchone()
             if not row:
-                return False
-            
+                return {"ok": False, "error": "Request not found."}
+
             user_id = row["user_id"]
-            new_status = 'confirmed' if action == 'confirm' else 'rejected'
-            
-            self._execute(conn, 
+            momo_number = row["momo_number"]
+            new_status = "confirmed" if action == "confirm" else "rejected"
+
+            self._execute(
+                conn,
                 "UPDATE payment_requests SET status = ?, processed_at = ? WHERE id = ?",
-                (new_status, now, request_id)
+                (new_status, now, request_id),
             )
-            
-            if action == 'confirm':
-                # Grant 3 months premium
-                expires_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
-                self._execute(conn, 
-                    "UPDATE users SET subscription_status = 'active', subscription_expires_at = ? WHERE id = ?",
-                    (expires_at, user_id)
-                )
-            
-            return True
+
+            if action != "confirm":
+                return {"ok": True, "status": new_status}
+
+            access_code, months = self.generate_single_access_code()
+            sms_result = None
+            if settings.SMS_ENABLED:
+                sms_result = sms_service.send_access_code(momo_number, access_code, months)
+
+            return {
+                "ok": True,
+                "status": new_status,
+                "access_code": access_code,
+                "duration_months": months,
+                "sms_sent": bool(sms_result and sms_result.success),
+                "sms_message": sms_result.message if sms_result else "SMS disabled.",
+                "user_id": user_id,
+            }
 
     # ── chat history methods ───────────────────────────────────────────────────
 
@@ -989,32 +1010,6 @@ class AuthService:
                 (image_url, competition_id)
             )
             return cursor.rowcount > 0
-
-    def process_payment_confirmation(self, request_id: int, action: str) -> bool:
-        """action can be 'confirm' or 'reject'"""
-        now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as conn:
-            request = self._execute(conn, "SELECT user_id FROM payment_requests WHERE id = ?", (request_id,)).fetchone()
-            if not request:
-                return False
-            
-            user_id = request['user_id']
-            status = 'confirmed' if action == 'confirm' else 'rejected'
-            
-            self._execute(conn, 
-                "UPDATE payment_requests SET status = ?, processed_at = ? WHERE id = ?",
-                (status, now, request_id)
-            )
-
-            if action == 'confirm':
-                # Grant 3 months premium
-                expires_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
-                self._execute(conn, 
-                    "UPDATE users SET subscription_status = 'active', subscription_expires_at = ? WHERE id = ?",
-                    (expires_at, user_id)
-                )
-            
-            return True
 
     def create_competition(self, title: str, description: str, prize: str, start_date: str, end_date: str, quiz_json: Optional[str] = None, pdf_url: Optional[str] = None) -> int:
         now = datetime.now(timezone.utc).isoformat()

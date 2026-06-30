@@ -51,12 +51,18 @@ def get_optional_user(authorization: str | None = Header(default=None)) -> AuthU
 
 @router.get("/config", response_model=AuthConfigResponse)
 async def get_auth_config():
+    from app.services.sms_service import sms_service
+
     return AuthConfigResponse(
         google_client_id=settings.GOOGLE_CLIENT_ID,
         google_enabled=bool(settings.GOOGLE_CLIENT_ID),
         facebook_enabled=False,
         tiktok_enabled=False,
         passkey_enabled=False,
+        subscription_price_ghs=settings.SUBSCRIPTION_PRICE_GHS,
+        subscription_months=settings.SUBSCRIPTION_MONTHS,
+        momo_payment_number=settings.MOMO_PAYMENT_NUMBER,
+        sms_enabled=sms_service.enabled and settings.SMS_ENABLED,
     )
 
 

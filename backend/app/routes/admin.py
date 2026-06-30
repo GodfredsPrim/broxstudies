@@ -13,6 +13,8 @@ from app.models import (
     NewsArticle,
     NewsArticleCreateRequest,
     NewsArticleUpdateRequest,
+    PaymentConfirmResponse,
+    SendAccessCodeSmsRequest,
 )
 from app.routes.auth import get_current_user
 from app.services.auth_service import AuthService
@@ -24,6 +26,12 @@ auth_service = AuthService()
 
 class CouponGenerateRequest(BaseModel):
     quantity: int = 1
+    duration_months: int | None = None
+
+
+class SendAccessCodeSmsRequest(BaseModel):
+    phone: str
+    code: str
     duration_months: int | None = None
 
 def require_admin(current_user: AuthUser = Depends(get_current_user)):
@@ -134,19 +142,36 @@ async def generate_coupons(request: CouponGenerateRequest, admin: AuthUser = Dep
 async def get_pending_payments(admin: AuthUser = Depends(require_admin)):
     return auth_service.get_pending_payments()
 
-@router.post("/payments/{request_id}/confirm")
+@router.post("/payments/{request_id}/confirm", response_model=PaymentConfirmResponse)
 async def confirm_payment(request_id: int, admin: AuthUser = Depends(require_admin)):
-    success = auth_service.process_payment_confirmation(request_id, "confirm")
-    if not success:
-        raise HTTPException(status_code=404, detail="Request not found.")
-    return {"status": "success"}
+    result = auth_service.process_payment_confirmation(request_id, "confirm")
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Request not found."))
+    return PaymentConfirmResponse(
+        status="success",
+        access_code=result.get("access_code"),
+        duration_months=result.get("duration_months"),
+        sms_sent=bool(result.get("sms_sent")),
+        sms_message=result.get("sms_message"),
+    )
 
 @router.post("/payments/{request_id}/reject")
 async def reject_payment(request_id: int, admin: AuthUser = Depends(require_admin)):
-    success = auth_service.process_payment_confirmation(request_id, "reject")
-    if not success:
-        raise HTTPException(status_code=404, detail="Request not found.")
+    result = auth_service.process_payment_confirmation(request_id, "reject")
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Request not found."))
     return {"status": "success"}
+
+
+@router.post("/codes/send-sms")
+async def send_access_code_sms(request: SendAccessCodeSmsRequest, admin: AuthUser = Depends(require_admin)):
+    from app.services.sms_service import sms_service
+
+    months = request.duration_months or settings.SUBSCRIPTION_MONTHS
+    result = sms_service.send_access_code(request.phone, request.code, months)
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    return {"status": "success", "message": result.message}
 
 @router.get("/competitions/all", response_model=List[Competition])
 async def list_all_comps(admin: AuthUser = Depends(require_admin)):

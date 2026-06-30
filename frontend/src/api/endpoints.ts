@@ -21,6 +21,7 @@ import type {
   LoadingProgress,
   NewsArticle,
   NewsArticleCreateBody,
+  PaymentConfirmResponse,
   PendingPayment,
   PracticeMarkResponse,
   SubjectsResponse,
@@ -39,6 +40,8 @@ export const authApi = {
   me: () => api.get<AuthUser>('/api/auth/me').then(r => r.data),
   verifyCode: (code: string, track?: string | null) =>
     api.post<AuthUser>('/api/auth/verify-code', { code, track }).then(r => r.data),
+  paymentRequest: (body: { momo_name: string; momo_number: string; reference?: string }) =>
+    api.post<{ status: string; request_id: number }>('/api/auth/payment-request', body).then(r => r.data),
   subscription: () =>
     api.get<{ has_access: boolean; subscription_status: string }>('/api/auth/subscription').then(r => r.data),
   adminLogin: (secret: string) =>
@@ -231,9 +234,11 @@ export const adminApi = {
   pendingPayments: () =>
     api.get<PendingPayment[]>('/api/admin/payments/pending').then(r => r.data),
   confirmPayment: (id: number) =>
-    api.post<{ status: string }>(`/api/admin/payments/${id}/confirm`).then(r => r.data),
+    api.post<PaymentConfirmResponse>(`/api/admin/payments/${id}/confirm`).then(r => r.data),
   rejectPayment: (id: number) =>
     api.post<{ status: string }>(`/api/admin/payments/${id}/reject`).then(r => r.data),
+  sendCodeSms: (body: { phone: string; code: string; duration_months?: number }) =>
+    api.post<{ status: string; message: string }>('/api/admin/codes/send-sms', body).then(r => r.data),
 
   codeInventory: () =>
     api.get<AccessCodeRecord[]>('/api/admin/coupons/inventory').then(r => r.data),
