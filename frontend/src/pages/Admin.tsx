@@ -17,6 +17,7 @@ import {
   FileText,
   Newspaper,
   Trash2,
+  MessageSquare,
 } from 'lucide-react'
 import { adminApi, newsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
@@ -31,6 +32,7 @@ import type {
   AdminAnalytics,
   Competition,
   NewsArticle,
+  PaymentConfirmResponse,
   PendingPayment,
 } from '@/api/types'
 import { cn } from '@/lib/cn'
@@ -203,6 +205,7 @@ function PaymentsPanel() {
   const [rows, setRows] = useState<PendingPayment[]>([])
   const [busyId, setBusyId] = useState<number | null>(null)
   const [actionError, setActionError] = useState('')
+  const [lastConfirm, setLastConfirm] = useState<PaymentConfirmResponse | null>(null)
   const { loading, error, reload } = useAsyncLoad(
     () => adminApi.pendingPayments(),
     setRows,
@@ -211,9 +214,14 @@ function PaymentsPanel() {
   const act = async (id: number, action: 'confirm' | 'reject') => {
     setBusyId(id)
     setActionError('')
+    setLastConfirm(null)
     try {
-      if (action === 'confirm') await adminApi.confirmPayment(id)
-      else await adminApi.rejectPayment(id)
+      if (action === 'confirm') {
+        const res = await adminApi.confirmPayment(id)
+        setLastConfirm(res)
+      } else {
+        await adminApi.rejectPayment(id)
+      }
       await reload()
     } catch (err) {
       setActionError(extractError(err, `Failed to ${action} payment.`))
@@ -226,9 +234,37 @@ function PaymentsPanel() {
     <div className="space-y-4">
       <PanelHeader
         title="Pending MoMo payments"
-        subtitle="Confirm or reject student activation requests."
+        subtitle="Confirm payment — we mint an access code and SMS it to the student's MoMo number."
         onRefresh={reload}
       />
+
+      {lastConfirm?.access_code && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-200">
+                Payment confirmed — code minted
+              </p>
+              <code className="mt-2 inline-block rounded-lg bg-[var(--bg-2)] px-3 py-2 font-mono text-lg font-bold text-ink-0">
+                {lastConfirm.access_code}
+              </code>
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-400">
+                <MessageSquare size={12} />
+                {lastConfirm.sms_sent
+                  ? 'SMS delivered successfully.'
+                  : `SMS not sent: ${lastConfirm.sms_message || 'Check Moolre configuration.'}`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void navigator.clipboard.writeText(lastConfirm.access_code!)}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-300"
+            >
+              <Copy size={12} /> Copy code
+            </button>
+          </div>
+        </div>
+      )}
 
       {actionError && <InlineError message={actionError} />}
       {error && <InlineError message={error} />}

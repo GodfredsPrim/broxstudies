@@ -316,6 +316,68 @@ body {
   }
   html.dark .v2-badge[data-tone='danger'] { color: #FDA4AF; }
 
+  /* Page layout shells */
+  .page-shell {
+    margin-inline: auto;
+    width: 100%;
+    padding-inline: 1rem;
+    padding-bottom: 4rem;
+  }
+  @media (min-width: 640px) {
+    .page-shell { padding-inline: 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .page-shell { padding-inline: 2.5rem; }
+  }
+  .page-narrow { max-width: 36rem; }
+  .page-medium { max-width: 48rem; }
+  .page-wide { max-width: 77.5rem; }
+
+  /* Alerts */
+  .v2-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+  .v2-alert-success {
+    border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+    background: var(--accent-tint);
+    color: var(--accent-strong);
+  }
+  html.dark .v2-alert-success { color: #6EE7B7; }
+  .v2-alert-error {
+    border-color: color-mix(in oklab, var(--danger) 35%, transparent);
+    background: var(--danger-tint);
+    color: #BE123C;
+  }
+  html.dark .v2-alert-error { color: #FDA4AF; }
+  .v2-alert-warning {
+    border-color: color-mix(in oklab, var(--gold) 35%, transparent);
+    background: var(--gold-tint);
+    color: #B45309;
+  }
+  html.dark .v2-alert-warning { color: #FCD34D; }
+  .v2-alert-info {
+    border-color: var(--line-strong);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+
+  /* Loading pulse — legacy alias kept for any missed references */
+  .pulse-loader {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    border: 2px solid var(--line-strong);
+    border-top-color: var(--accent);
+    animation: v2-spin 0.75s linear infinite;
+  }
+
   /* Grain overlay — subtle paper texture on hero surfaces */
   .v2-grain::after {
     content: '';
@@ -347,6 +409,10 @@ body {
   0% { box-shadow: 0 0 0 0 var(--accent-glow); }
   70% { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes v2-spin {
+  to { transform: rotate(360deg); }
 }
 
 .v2-mesh {
@@ -415,3 +481,5 @@ html:not(.dark) .bg-black\/60 { background-color: rgba(20, 32, 43, 0.55); }
 html:not(.dark) .text-emerald-200 { color: var(--accent-strong); }
 html:not(.dark) .text-emerald-300 { color: var(--accent-strong); }
 html:not(.dark) .text-emerald-300\/70 { color: color-mix(in oklab, var(--accent-strong) 70%, transparent); }
+html:not(.dark) .text-rose-300 { color: #BE123C; }
+html:not(.dark) .text-rose-600 { color: #BE123C; }

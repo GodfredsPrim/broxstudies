@@ -5,6 +5,11 @@ import {
 } from 'lucide-react'
 import { extractError } from '@/api/client'
 import { libraryApi } from '@/api/endpoints'
+import { PageLayout } from '@/components/ui/PageLayout'
+import { FilterChips } from '@/components/ui/FilterChips'
+import { LoadingBlock } from '@/components/ui/LoadingBlock'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Input } from '@/components/ui/input'
 import type { Book, BookQuizQuestion } from '@/api/types'
 
 /* ── Local catalog (merged with remote OpenLibrary results) ── */
@@ -276,7 +281,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-full bg-slate-100 p-2 hover:bg-slate-200">
+          <button onClick={onClose} className="v2-btn v2-btn-ghost !h-9 !w-9 !p-0 rounded-full" aria-label="Close">
             <X size={16} />
           </button>
         </div>
@@ -512,42 +517,30 @@ export function LibraryPage() {
   const closeBook = () => setSelectedBook(null)
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] px-4 pb-16 sm:px-8 lg:px-12">
-      <div className="mt-6">
-        <h1 className="text-3xl font-black text-foreground">Digital Library</h1>
-        <p className="mt-2 text-muted-foreground">
-          Browse Ghanaian classics, global bestsellers, and study guides. Read online or take a comprehension quiz to deepen your understanding.
-        </p>
+    <PageLayout
+      eyebrow="Prep"
+      title="Digital Library"
+      subtitle="Browse Ghanaian classics, global bestsellers, and study guides. Read online or take a comprehension quiz."
+      width="wide"
+      noHeaderBorder
+    >
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" size={18} />
+        <Input
+          type="text"
+          placeholder="Search by title, author, subject, or keyword…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="pl-11"
+        />
       </div>
 
-      <div className="mt-8">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-          <input
-            type="text"
-            placeholder="Search by title, author, subject, or keyword…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full rounded-2xl border border-input bg-background pl-12 pr-4 py-3 text-sm text-foreground shadow-sm focus:border-emerald-500 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-wrap gap-2 sm:gap-3">
-        {CATEGORIES.map(cat => (
-          <button
-            key={cat.value}
-            onClick={() => setSelectedCategory(cat.value)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              selectedCategory === cat.value
-                ? 'bg-emerald-600 text-white'
-                : 'border border-input bg-background text-foreground hover:border-emerald-300'
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
+      <FilterChips
+        className="mt-6"
+        items={CATEGORIES.map(cat => ({ id: cat.value, label: cat.label }))}
+        value={selectedCategory}
+        onChange={setSelectedCategory}
+      />
 
       <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
@@ -572,15 +565,13 @@ export function LibraryPage() {
 
       <div className="mt-6">
         {loading ? (
-          <div className="text-center py-12">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
-            <p className="mt-4 text-muted-foreground">Searching library…</p>
-          </div>
+          <LoadingBlock label="Searching library…" icon={<BookOpen size={22} />} />
         ) : books.length === 0 ? (
-          <div className="rounded-3xl border border-input bg-card p-12 text-center">
-            <BookOpen size={48} className="mx-auto text-muted-foreground/50" />
-            <p className="mt-4 text-muted-foreground">No books found. Try a different keyword or category.</p>
-          </div>
+          <EmptyState
+            icon={<BookOpen size={22} />}
+            title="No books found"
+            body="Try a different keyword or category — we search local favorites and OpenLibrary."
+          />
         ) : viewMode === 'grid' ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {books.map(book => (
@@ -643,6 +634,6 @@ export function LibraryPage() {
       {selectedBook && (
         <BookReader book={selectedBook} onClose={closeBook} />
       )}
-    </div>
+    </PageLayout>
   )
 }

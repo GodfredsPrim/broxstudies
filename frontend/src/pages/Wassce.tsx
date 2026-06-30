@@ -9,6 +9,11 @@ import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
+import { QuestionCard } from '@/components/exam/QuestionCard'
+import { ScoreHero } from '@/components/exam/ScoreHero'
+import { PageLayout } from '@/components/ui/PageLayout'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import type { Question, Subject } from '@/api/types'
 import { downloadQuestionsAsPDF, buildShareText, shareOrCopy } from '@/utils/exportQuestions'
 
@@ -424,27 +429,27 @@ export function WassceePage() {
   /* ──────────────── SETUP ──────────────── */
   if (phase === 'setup') {
     return (
-      <div className="mx-auto w-full max-w-xl px-4 pb-16 sm:px-8">
-        <div className="mt-8">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            <Shield className="h-3.5 w-3.5" />
-            {examLabel}
-          </div>
-          <h1 className="text-3xl font-black text-foreground">{likelyLabel}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Questions are generated exclusively from past exam papers following the exact {curriculumName} paper structure. Subjects without past papers fall back to their official textbooks.
+      <PageLayout
+        eyebrow="Studio"
+        title={likelyLabel}
+        subtitle={`Questions are generated from past exam papers following the exact ${curriculumName} paper structure. Subjects without past papers fall back to official textbooks.`}
+        width="narrow"
+        noHeaderBorder
+      >
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <Shield className="h-3.5 w-3.5" />
+          {examLabel}
+        </div>
+
+        <div className="v2-alert v2-alert-warning mb-6">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            <strong>Exam Mode:</strong> The session opens full-screen with navigation blocked to replicate real exam conditions.
           </p>
         </div>
 
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <p className="text-xs text-amber-800">
-            <strong>Exam Mode:</strong> The session opens in a full-screen isolated view.
-            Navigation away from the page is blocked to replicate real exam conditions.
-          </p>
-        </div>
-
-        <form onSubmit={handleGenerate} className="mt-8 space-y-5 rounded-3xl border border-input bg-card p-6 shadow-sm">
+        <form onSubmit={handleGenerate}>
+          <Card className="space-y-5 p-6">
           <div>
             <label className="text-sm font-semibold text-foreground">Subject</label>
             <select
@@ -503,19 +508,22 @@ export function WassceePage() {
           </div>
 
           {setupError && (
-            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{setupError}</div>
+            <div className="v2-alert v2-alert-error">{setupError}</div>
           )}
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
             disabled={!subjectId}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            leading={<TrendingUp size={16} />}
           >
-            <TrendingUp size={16} />
             Begin {curriculumName} simulation
-          </button>
+          </Button>
+          </Card>
         </form>
-      </div>
+      </PageLayout>
     )
   }
 
@@ -543,8 +551,8 @@ export function WassceePage() {
     return (
       <div
         ref={overlayRef}
-        className="fixed inset-0 z-[9999] flex flex-col"
-        style={{ backgroundColor: '#f8fafc', userSelect: 'none' }}
+        className="fixed inset-0 z-[9999] flex flex-col bg-[var(--bg-0)]"
+        style={{ userSelect: 'none' }}
       >
         {fsWarning && (
           <div
@@ -675,78 +683,17 @@ export function WassceePage() {
           <div className="mx-auto max-w-3xl space-y-5">
             {currentQs.map((q, li) => {
               const gi = currentOffset + li
-              const isAnswered = gi in answers
               return (
-                <article
+                <QuestionCard
                   key={gi}
-                  className="rounded-3xl border bg-[var(--bg-1)] p-5 shadow-sm transition-colors"
-                  style={{ borderColor: isAnswered ? meta.hex : 'var(--line-strong)' }}
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <span
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-black text-white"
-                      style={{ backgroundColor: meta.hex }}
-                    >
-                      {li + 1}
-                    </span>
-                    {q.difficulty_level && (
-                      <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        q.difficulty_level === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        q.difficulty_level === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        q.difficulty_level === 'standard' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      }`}>{q.difficulty_level}</span>
-                    )}
-                  </div>
-
-                  <p className="text-sm font-medium leading-relaxed text-foreground">
-                    <MathText>{q.question_text}</MathText>
-                  </p>
-
-                  {q.options?.length ? (
-                    <div className="mt-4 space-y-2">
-                      {q.options.map((opt, oi) => {
-                        const letter = String.fromCharCode(65 + oi)
-                        const isSelected = answers[gi] === opt
-                        return (
-                          <button
-                            key={oi}
-                            type="button"
-                            onClick={() => setAnswers(prev => ({ ...prev, [gi]: opt }))}
-                            className="flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition"
-                            style={{
-                              borderColor: isSelected ? meta.hex : 'var(--line-strong)',
-                              backgroundColor: isSelected ? meta.light : 'var(--bg-1)',
-                              fontWeight: isSelected ? 600 : 400,
-                            }}
-                          >
-                            <span
-                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                              style={{
-                                backgroundColor: isSelected ? meta.hex : 'var(--bg-3)',
-                                color: isSelected ? '#fff' : 'var(--fg-2)',
-                              }}
-                            >
-                              {letter}
-                            </span>
-                            <MathText>{opt}</MathText>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <textarea
-                      value={answers[gi] || ''}
-                      onChange={e => setAnswers(prev => ({ ...prev, [gi]: e.target.value }))}
-                      placeholder="Write your answer here…"
-                      rows={4}
-                      className="mt-4 block w-full resize-none rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2"
-                      style={{ userSelect: 'text' }}
-                      onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${meta.hex}40`)}
-                      onBlur={e => (e.currentTarget.style.boxShadow = '')}
-                    />
-                  )}
-                </article>
+                  index={li}
+                  question={q}
+                  answer={answers[gi] || ''}
+                  onAnswer={opt => setAnswers(prev => ({ ...prev, [gi]: opt }))}
+                  answered={gi in answers}
+                  accentColor={meta.hex}
+                  accentTint={meta.light}
+                />
               )
             })}
           </div>
@@ -788,10 +735,6 @@ export function WassceePage() {
   }
 
   /* ──────────────── RESULTS ──────────────── */
-  const grade = percentage >= 80 ? 'Excellent' : percentage >= 65 ? 'Good' : percentage >= 50 ? 'Fair' : 'Needs Work'
-  const gradeColor = percentage >= 80 ? 'text-emerald-700 dark:text-emerald-400' : percentage >= 65 ? 'text-blue-700 dark:text-blue-400' : percentage >= 50 ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'
-  const gradeBg = percentage >= 80 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' : percentage >= 65 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' : percentage >= 50 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50'
-
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
       <div className="mt-8">
@@ -801,14 +744,13 @@ export function WassceePage() {
         </p>
       </div>
 
-      <div className={`mt-6 rounded-3xl border p-8 text-center ${gradeBg}`}>
-        <Trophy className={`mx-auto mb-3 h-10 w-10 ${gradeColor}`} />
-        <div className={`text-5xl font-black ${gradeColor}`}>{Math.round(percentage)}%</div>
-        <div className="mt-1 text-base font-semibold text-muted-foreground">{grade}</div>
-        <div className="mt-2 text-sm text-muted-foreground">
-          {Math.round(score)} of {allQuestions.length} correct
-        </div>
-      </div>
+      <ScoreHero
+        className="mt-6"
+        percentage={percentage}
+        score={score}
+        total={allQuestions.length}
+        icon={<Trophy className="mx-auto mb-3 h-10 w-10 text-amber-600 dark:text-amber-400" />}
+      />
 
       {(['paper_1', 'paper_2', 'paper_3'] as PaperKey[])
         .filter(k => (organizedPapers[k] || []).length > 0)

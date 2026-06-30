@@ -9,8 +9,6 @@ import { useGuestChats } from '@/hooks/useGuestChats'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { MathText } from '@/components/MathText'
 import { Button } from '@/components/ui/button'
-import { Eyebrow } from '@/components/ui/Eyebrow'
-import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024
@@ -129,7 +127,7 @@ export function StudyPage() {
     if (!isAuth) {
       const ok = guest.consume()
       if (!ok) {
-        setError('')
+        setError(`You've used all ${guest.limit} free chats. Sign up to continue.`)
         return
       }
     }
@@ -214,7 +212,7 @@ export function StudyPage() {
 
   return (
     <div
-      className="flex h-[calc(100dvh-3.5rem)] flex-col"
+      className="flex h-full min-h-0 flex-1 flex-col"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -229,34 +227,19 @@ export function StudyPage() {
         </div>
       )}
 
-      {/* Study sub-header */}
-      <div className="border-b border-[var(--line)] bg-[var(--bg-0)]/40 px-4 py-4 backdrop-blur-sm sm:px-8 lg:px-12">
-        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="v2-dot" />
-            <Eyebrow>Study with AI</Eyebrow>
-          </div>
-          <div className="flex flex-1 items-center justify-end gap-2">
-            {!isAuth && (
-              <Badge tone="accent">
-                <Sparkles size={10} /> {guest.remaining}/{guest.limit} free
-              </Badge>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetChat}
-              leading={<Plus size={13} />}
-              disabled={empty && pendingFiles.length === 0}
-            >
-              New chat
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-y-auto">
+        <div className="absolute right-4 top-4 z-10 sm:right-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetChat}
+            leading={<Plus size={13} />}
+            disabled={empty && pendingFiles.length === 0}
+          >
+            New chat
+          </Button>
+        </div>
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
           {empty ? (
             <EmptyChat />

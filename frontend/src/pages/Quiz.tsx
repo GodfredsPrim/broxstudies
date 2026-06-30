@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Plus, LogIn, ChevronLeft, Trophy, Clock } from 'lucide-react'
+import { Plus, LogIn, ChevronLeft, Trophy, Clock } from 'lucide-react'
 import { questionsApi, liveQuizApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { MathText } from '@/components/MathText'
+import { PageLayout } from '@/components/ui/PageLayout'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/Badge'
 import type { LiveQuizStateResponse } from '@/api/types'
+
+const INPUT_CLS = 'v2-input mt-2'
 
 type Phase = 'pick' | 'create' | 'join' | 'active'
 
@@ -12,9 +18,6 @@ interface SubjectOption {
   name: string
   year: string
 }
-
-const INPUT_CLS =
-  'mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:outline-none'
 
 export function QuizPage() {
   const [phase, setPhase] = useState<Phase>('pick')
@@ -159,93 +162,90 @@ export function QuizPage() {
     setPhase('pick')
   }
 
-  const pageHeader = (
-    <div className="mt-6">
-      <h1 className="text-3xl font-black text-[var(--fg-0)]">Quiz Challenge</h1>
-      <p className="mt-1 text-sm text-[var(--fg-2)]">
-        Compete live with classmates in a real-time quiz room.
-      </p>
-    </div>
-  )
-
   const errorBanner = error ? (
-    <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">{error}</div>
+    <div className="v2-alert v2-alert-error mb-6">{error}</div>
   ) : null
 
   /* ── PICK ── */
   if (phase === 'pick') {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 pb-16 sm:px-8">
-        {pageHeader}
+      <PageLayout
+        eyebrow="Compete"
+        title="Quiz Challenge"
+        subtitle="Compete live with classmates in a real-time quiz room."
+        width="medium"
+        noHeaderBorder
+      >
         {errorBanner}
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {/* Create */}
+        <div className="grid gap-5 sm:grid-cols-2">
           <button
+            type="button"
             onClick={() => go('create')}
-            className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-8 text-center transition hover:border-emerald-500 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30"
+            className="v2-card v2-card-interactive group flex flex-col items-center gap-5 p-8 text-center"
           >
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md transition group-hover:bg-emerald-700">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-glow-sm transition group-hover:bg-emerald-700">
               <Plus size={28} />
             </span>
             <span>
-              <span className="block text-lg font-bold text-[var(--fg-0)]">Create Room</span>
-              <span className="mt-1 block text-sm text-[var(--fg-2)]">
+              <span className="block font-display text-xl text-ink-0">Create room</span>
+              <span className="mt-1 block text-sm text-ink-300">
                 Host a live quiz and share the code with classmates
               </span>
             </span>
           </button>
 
-          {/* Join */}
           <button
+            type="button"
             onClick={() => go('join')}
-            className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-ink-200 bg-ink-50 p-8 text-center transition hover:border-ink-400 hover:bg-ink-100 focus:outline-none focus:ring-2 focus:ring-ink-400 dark:border-ink-700 dark:bg-ink-900 dark:hover:border-ink-600 dark:hover:bg-ink-800"
+            className="v2-card v2-card-interactive group flex flex-col items-center gap-5 p-8 text-center"
           >
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-ink-800 text-white shadow-md transition group-hover:bg-ink-700 dark:bg-ink-700 dark:group-hover:bg-ink-600">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--bg-3)] text-ink-0 ring-1 ring-[var(--line)] transition group-hover:bg-[var(--accent-tint)] group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
               <LogIn size={28} />
             </span>
             <span>
-              <span className="block text-lg font-bold text-[var(--fg-0)]">Join Room</span>
-              <span className="mt-1 block text-sm text-[var(--fg-2)]">
+              <span className="block font-display text-xl text-ink-0">Join room</span>
+              <span className="mt-1 block text-sm text-ink-300">
                 Enter a room code to join a friend's quiz
               </span>
             </span>
           </button>
         </div>
 
-        <div className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
-          <h2 className="text-sm font-bold text-[var(--fg-0)]">How it works</h2>
-          <ul className="mt-3 space-y-2 text-sm text-[var(--fg-2)]">
+        <Card className="mt-8 p-6">
+          <h2 className="text-sm font-bold text-ink-0">How it works</h2>
+          <ul className="mt-3 space-y-2 text-sm text-ink-300">
             <li>• The host creates a room and shares the 6-letter code.</li>
             <li>• Anyone with the code can join and answer questions live.</li>
             <li>• The leaderboard updates automatically every few seconds.</li>
           </ul>
-        </div>
-      </div>
+        </Card>
+      </PageLayout>
     )
   }
 
   /* ── JOIN ── */
   if (phase === 'join') {
     return (
-      <div className="mx-auto w-full max-w-md px-4 pb-16 sm:px-8">
-        {pageHeader}
+      <PageLayout
+        eyebrow="Compete"
+        title="Join a quiz"
+        subtitle="Enter the code shared by the room host."
+        width="narrow"
+        noHeaderBorder
+      >
         {errorBanner}
-
-        <div className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
+        <Card className="p-6">
           <button
+            type="button"
             onClick={() => go('pick')}
-            className="mb-5 flex items-center gap-1 text-sm text-[var(--fg-2)] transition hover:text-[var(--fg-0)]"
+            className="mb-5 flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-0"
           >
             <ChevronLeft size={14} /> Back
           </button>
-
-          <h2 className="text-xl font-bold text-[var(--fg-0)]">Join a Quiz Room</h2>
-          <p className="mt-1 text-sm text-[var(--fg-2)]">Enter the code shared by the room host.</p>
-
-          <div className="mt-6 space-y-4">
+          <div className="space-y-4">
             <label className="block">
-              <span className="text-sm font-semibold text-[var(--fg-0)]">Your name</span>
+              <span className="text-sm font-semibold text-ink-0">Your name</span>
               <input
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
@@ -254,7 +254,7 @@ export function QuizPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-semibold text-[var(--fg-0)]">Room code</span>
+              <span className="text-sm font-semibold text-ink-0">Room code</span>
               <input
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
@@ -264,50 +264,45 @@ export function QuizPage() {
               />
             </label>
           </div>
-
-          <button
-            onClick={handleJoinRoom}
-            disabled={submitting}
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-ink-700 dark:hover:bg-ink-600"
+          <Button
+            className="mt-6"
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={submitting}
+            leading={<LogIn size={16} />}
+            onClick={() => void handleJoinRoom()}
           >
-            {submitting ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-            {submitting ? 'Joining…' : 'Join Room'}
-          </button>
-        </div>
-      </div>
+            {submitting ? 'Joining…' : 'Join room'}
+          </Button>
+        </Card>
+      </PageLayout>
     )
   }
 
   /* ── CREATE ── */
   if (phase === 'create') {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 pb-16 sm:px-8">
-        {pageHeader}
+      <PageLayout
+        eyebrow="Compete"
+        title="Create a quiz room"
+        subtitle="Configure your quiz, then share the generated code."
+        width="medium"
+        actions={<Badge tone="accent">Live</Badge>}
+        noHeaderBorder
+      >
         {errorBanner}
-
-        <div className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] p-6">
+        <Card className="p-6">
           <button
+            type="button"
             onClick={() => go('pick')}
-            className="mb-5 flex items-center gap-1 text-sm text-[var(--fg-2)] transition hover:text-[var(--fg-0)]"
+            className="mb-5 flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-0"
           >
             <ChevronLeft size={14} /> Back
           </button>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-[var(--fg-0)]">Create a Quiz Room</h2>
-              <p className="mt-1 text-sm text-[var(--fg-2)]">
-                Configure your quiz, then share the generated code.
-              </p>
-            </div>
-            <span className="rounded-2xl bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-              Live
-            </span>
-          </div>
-
-          <div className="mt-6 space-y-4">
+          <div className="space-y-4">
             <label className="block">
-              <span className="text-sm font-semibold text-[var(--fg-0)]">Your name (host)</span>
+              <span className="text-sm font-semibold text-ink-0">Your name (host)</span>
               <input
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
@@ -318,7 +313,7 @@ export function QuizPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-[var(--fg-0)]">Year / Level</span>
+                <span className="text-sm font-semibold text-ink-0">Year / Level</span>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
@@ -328,7 +323,7 @@ export function QuizPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-[var(--fg-0)]">Subject</span>
+                <span className="text-sm font-semibold text-ink-0">Subject</span>
                 <select
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
@@ -345,7 +340,7 @@ export function QuizPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-[var(--fg-0)]">Question type</span>
+                <span className="text-sm font-semibold text-ink-0">Question type</span>
                 <select
                   value={questionType}
                   onChange={(e) => setQuestionType(e.target.value)}
@@ -357,7 +352,7 @@ export function QuizPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-[var(--fg-0)]">Difficulty</span>
+                <span className="text-sm font-semibold text-ink-0">Difficulty</span>
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
@@ -372,7 +367,7 @@ export function QuizPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-[var(--fg-0)]">Questions (1–20)</span>
+                <span className="text-sm font-semibold text-ink-0">Questions (1–20)</span>
                 <input
                   type="number"
                   value={numQuestions}
@@ -382,7 +377,7 @@ export function QuizPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-[var(--fg-0)]">Time limit (mins)</span>
+                <span className="text-sm font-semibold text-ink-0">Time limit (mins)</span>
                 <input
                   type="number"
                   value={timeLimit}
@@ -394,16 +389,19 @@ export function QuizPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleCreateRoom}
-            disabled={submitting || loadingSubjects}
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          <Button
+            className="mt-6"
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={submitting || loadingSubjects}
+            leading={<Plus size={16} />}
+            onClick={() => void handleCreateRoom()}
           >
-            {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            {submitting ? 'Creating room…' : 'Create Room'}
-          </button>
-        </div>
-      </div>
+            {submitting ? 'Creating room…' : 'Create room'}
+          </Button>
+        </Card>
+      </PageLayout>
     )
   }
 
@@ -413,11 +411,16 @@ export function QuizPage() {
     : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] px-4 pb-16 sm:px-8 lg:px-12">
-      {pageHeader}
+    <PageLayout
+      eyebrow="Compete"
+      title="Live quiz"
+      subtitle={roomCode ? `Room ${roomCode}` : 'Quiz in progress'}
+      width="wide"
+      noHeaderBorder
+    >
       {errorBanner}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
         {/* Questions column */}
         <div className="space-y-0">
           {roomCode && liveState && (
@@ -491,20 +494,19 @@ export function QuizPage() {
 
               {/* Actions */}
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={handleSubmitAnswers}
-                  disabled={submitting || Boolean(result)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-ink-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-ink-700 dark:hover:bg-ink-600"
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="flex-1"
+                  loading={submitting}
+                  disabled={Boolean(result)}
+                  onClick={() => void handleSubmitAnswers()}
                 >
-                  {submitting && <Loader2 size={16} className="animate-spin" />}
                   Submit answers
-                </button>
-                <button
-                  onClick={leaveRoom}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--line)] px-5 py-3 text-sm font-semibold text-[var(--fg-0)] transition hover:border-[var(--line-strong)] hover:bg-[var(--bg-2)]"
-                >
+                </Button>
+                <Button variant="ghost" size="lg" onClick={leaveRoom}>
                   Leave room
-                </button>
+                </Button>
               </div>
 
               {result && (
@@ -558,6 +560,6 @@ export function QuizPage() {
           </div>
         </aside>
       </div>
-    </div>
+    </PageLayout>
   )
 }

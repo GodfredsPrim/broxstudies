@@ -19,9 +19,16 @@ export interface AuthResponse {
 
 export interface AuthConfigResponse {
   google_client_id?: string | null
+  google_enabled?: boolean
   access_code_length?: number
   allow_free_trial?: boolean
   signup_open?: boolean
+  subscription_price_ghs?: string
+  subscription_months?: number
+  momo_payment_number?: string
+  sms_enabled?: boolean
+  paystack_enabled?: boolean
+  paystack_public_key?: string
 }
 
 export interface Subject {
@@ -205,6 +212,28 @@ export interface PendingPayment {
   reference?: string
   status: string
   created_at: string
+}
+
+export interface PaymentConfirmResponse {
+  status: string
+  access_code?: string
+  duration_months?: number
+  sms_sent: boolean
+  sms_message?: string
+}
+
+export interface PaystackInitResponse {
+  authorization_url: string
+  reference: string
+  public_key: string
+}
+
+export interface PaystackVerifyResponse {
+  status: string
+  access_code?: string
+  sms_sent: boolean
+  sms_message?: string
+  already_fulfilled?: boolean
 }
 
 export interface AccessCodeRecord {

@@ -15,8 +15,8 @@ export function PageHeader({ eyebrow, title, subtitle, actions, className, tight
   return (
     <header
       className={cn(
-        'flex flex-col gap-6 border-b border-white/5 pb-8 sm:flex-row sm:items-end sm:justify-between',
-        tight ? 'pt-6' : 'pt-10 sm:pt-14',
+        'flex flex-col gap-6 border-b border-[var(--line)] pb-8 sm:flex-row sm:items-end sm:justify-between',
+        tight ? 'pt-6' : 'pt-8 sm:pt-10',
         className,
       )}
     >
