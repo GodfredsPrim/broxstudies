@@ -48,6 +48,28 @@ services:
       - key: SUBSCRIPTION_MONTHS
         value: "3"
 
+      # Moolre payments + SMS
+      - key: MOOLRE_API_USER
+        sync: false
+      - key: MOOLRE_API_KEY
+        sync: false
+      - key: MOOLRE_API_PUBKEY
+        sync: false
+      - key: MOOLRE_ACCOUNT_NUMBER
+        sync: false
+      - key: MOOLRE_VAS_KEY
+        sync: false
+      - key: MOOLRE_SENDER_ID
+        value: BroxStudies
+      - key: MOOLRE_PAYMENTS_ENABLED
+        value: "true"
+      - key: MOOLRE_USE_SANDBOX
+        value: "false"
+      - key: SMS_ENABLED
+        value: "true"
+      - key: PUBLIC_APP_URL
+        sync: false
+
       # Document Loading
       - key: AUTO_LOAD_ON_STARTUP
         value: "true"

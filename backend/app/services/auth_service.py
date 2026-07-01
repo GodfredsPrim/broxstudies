@@ -202,7 +202,7 @@ class AuthService:
                 """
             )
 
-            # ── Paystack transactions ──────────────────────────────────────────
+            # ── Online payment transactions (Moolre) ───────────────────────────
             self._execute(
                 conn,
                 f"""
@@ -873,7 +873,7 @@ class AuthService:
             return dict(row) if row else None
 
     def complete_paystack_transaction(self, reference: str, momo_number: Optional[str] = None) -> dict:
-        """Idempotent fulfillment after Paystack confirms payment."""
+        """Idempotent fulfillment after Moolre confirms payment."""
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             row = self._execute(

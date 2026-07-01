@@ -54,7 +54,7 @@ def get_optional_user(authorization: str | None = Header(default=None)) -> AuthU
 @router.get("/config", response_model=AuthConfigResponse)
 async def get_auth_config():
     from app.services.sms_service import sms_service
-    from app.services.paystack_service import paystack_service
+    from app.services.moolre_payment_service import moolre_payment_service
 
     return AuthConfigResponse(
         google_client_id=settings.GOOGLE_CLIENT_ID,
@@ -66,8 +66,7 @@ async def get_auth_config():
         subscription_months=settings.SUBSCRIPTION_MONTHS,
         momo_payment_number=settings.MOMO_PAYMENT_NUMBER,
         sms_enabled=sms_service.enabled and settings.SMS_ENABLED,
-        paystack_enabled=paystack_service.enabled and settings.PAYSTACK_ENABLED,
-        paystack_public_key=settings.PAYSTACK_PUBLIC_KEY if paystack_service.enabled else "",
+        moolre_payments_enabled=moolre_payment_service.enabled,
     )
 
 

@@ -81,16 +81,17 @@ class Settings(BaseSettings):
     SUBSCRIPTION_MONTHS: int = 3
     MOMO_PAYMENT_NUMBER: str = "0248317900"
 
-    # Moolre SMS (access code delivery after payment confirmation)
+    # Moolre (SMS + payment collection)
     MOOLRE_VAS_KEY: str = ""
     MOOLRE_SENDER_ID: str = "BroxStudies"
     MOOLRE_API_BASE_URL: str = "https://api.moolre.com"
+    MOOLRE_API_USER: str = ""
+    MOOLRE_API_KEY: str = ""
+    MOOLRE_API_PUBKEY: str = ""
+    MOOLRE_ACCOUNT_NUMBER: str = ""
+    MOOLRE_PAYMENTS_ENABLED: bool = True
+    MOOLRE_USE_SANDBOX: bool = False
     SMS_ENABLED: bool = True
-
-    # Paystack (automatic MoMo/card payments)
-    PAYSTACK_SECRET_KEY: str = ""
-    PAYSTACK_PUBLIC_KEY: str = ""
-    PAYSTACK_ENABLED: bool = True
     PUBLIC_APP_URL: str = "http://localhost:5173"
 
     # CORS

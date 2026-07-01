@@ -21,8 +21,8 @@ import type {
   LoadingProgress,
   NewsArticle,
   NewsArticleCreateBody,
-  PaystackInitResponse,
-  PaystackVerifyResponse,
+  MoolreInitResponse,
+  MoolreVerifyResponse,
   PaymentConfirmResponse,
   PendingPayment,
   PracticeMarkResponse,
@@ -55,10 +55,14 @@ export const authApi = {
 }
 
 export const paymentsApi = {
-  paystackInitialize: (body: { momo_number: string; callback_url?: string }) =>
-    api.post<PaystackInitResponse>('/api/payments/paystack/initialize', body).then(r => r.data),
-  paystackVerify: (reference: string) =>
-    api.get<PaystackVerifyResponse>(`/api/payments/paystack/verify/${encodeURIComponent(reference)}`).then(r => r.data),
+  moolreInitialize: (body: {
+    momo_number: string
+    method?: 'momo' | 'link'
+    channel?: string
+    callback_url?: string
+  }) => api.post<MoolreInitResponse>('/api/payments/moolre/initialize', body).then(r => r.data),
+  moolreVerify: (reference: string) =>
+    api.get<MoolreVerifyResponse>(`/api/payments/moolre/verify/${encodeURIComponent(reference)}`).then(r => r.data),
 }
 
 /* ------------------------------ SYSTEM ------------------------------ */

@@ -41,8 +41,7 @@ export interface AuthConfigResponse {
   subscription_months?: number
   momo_payment_number?: string
   sms_enabled?: boolean
-  paystack_enabled?: boolean
-  paystack_public_key?: string
+  moolre_payments_enabled?: boolean
 }
 
 export interface Subject {
@@ -236,13 +235,15 @@ export interface PaymentConfirmResponse {
   sms_message?: string
 }
 
-export interface PaystackInitResponse {
-  authorization_url: string
+export interface MoolreInitResponse {
   reference: string
-  public_key: string
+  message: string
+  pending_approval: boolean
+  authorization_url?: string | null
+  requires_otp?: boolean
 }
 
-export interface PaystackVerifyResponse {
+export interface MoolreVerifyResponse {
   status: string
   access_code?: string
   sms_sent: boolean

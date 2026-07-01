@@ -40,8 +40,7 @@ const DEFAULT_CONFIG: AuthConfigResponse = {
   subscription_months: 3,
   momo_payment_number: '0248317900',
   sms_enabled: false,
-  paystack_enabled: false,
-  paystack_public_key: '',
+  moolre_payments_enabled: false,
 }
 
 export function ActivatePage() {
@@ -62,10 +61,12 @@ export function ActivatePage() {
   const [paymentError, setPaymentError] = useState('')
   const [paymentLoading, setPaymentLoading] = useState(false)
 
-  const [paystackPhone, setPaystackPhone] = useState('')
-  const [paystackLoading, setPaystackLoading] = useState(false)
+  const [moolrePhone, setMoolrePhone] = useState('')
+  const [moolreLoading, setMoolreLoading] = useState(false)
   const [verifyLoading, setVerifyLoading] = useState(false)
-  const [paystackSuccess, setPaystackSuccess] = useState('')
+  const [onlinePaymentSuccess, setOnlinePaymentSuccess] = useState('')
+  const [moolreMessage, setMoolreMessage] = useState('')
+  const [pendingReference, setPendingReference] = useState<string | null>(null)
 
   const [code, setCode] = useState('')
   const [activateError, setActivateError] = useState('')
@@ -76,31 +77,36 @@ export function ActivatePage() {
     authApi.config().then(setConfig).catch(() => {})
   }, [])
 
-  const paystackReference = params.get('reference')
+  const paymentReference = params.get('reference')
+
+  const applyVerifyResult = (res: Awaited<ReturnType<typeof paymentsApi.moolreVerify>>) => {
+    if (res.status === 'success' && res.access_code) {
+      setCode(res.access_code)
+      setStep('activate')
+      setOnlinePaymentSuccess(
+        res.sms_sent
+          ? 'Payment confirmed! Your access code was sent by SMS — it’s also filled in below.'
+          : 'Payment confirmed! Enter your access code below to activate.',
+      )
+      setPendingReference(null)
+    } else if (res.status === 'success') {
+      setStep('activate')
+      setOnlinePaymentSuccess('Payment confirmed! Enter the access code you received.')
+      setPendingReference(null)
+    } else {
+      setPaymentError(res.sms_message || 'Payment not completed yet. Approve the MoMo prompt and try again.')
+    }
+  }
 
   useEffect(() => {
-    if (!paystackReference) return
+    if (!paymentReference) return
     let cancelled = false
     setVerifyLoading(true)
     setPaymentError('')
     paymentsApi
-      .paystackVerify(paystackReference)
+      .moolreVerify(paymentReference)
       .then(res => {
-        if (cancelled) return
-        if (res.status === 'success' && res.access_code) {
-          setCode(res.access_code)
-          setStep('activate')
-          setPaystackSuccess(
-            res.sms_sent
-              ? 'Payment confirmed! Your access code was sent by SMS — it’s also filled in below.'
-              : 'Payment confirmed! Enter your access code below to activate.',
-          )
-        } else if (res.status === 'success') {
-          setStep('activate')
-          setPaystackSuccess('Payment confirmed! Enter the access code you received.')
-        } else {
-          setPaymentError(res.sms_message || 'Payment not completed yet. Try again or contact support.')
-        }
+        if (!cancelled) applyVerifyResult(res)
       })
       .catch(err => {
         if (!cancelled) {
@@ -113,10 +119,30 @@ export function ActivatePage() {
     return () => {
       cancelled = true
     }
-  }, [paystackReference])
+  }, [paymentReference])
+
+  useEffect(() => {
+    if (!pendingReference) return
+    let cancelled = false
+    const poll = () => {
+      paymentsApi
+        .moolreVerify(pendingReference)
+        .then(res => {
+          if (cancelled) return
+          if (res.status === 'success') applyVerifyResult(res)
+        })
+        .catch(() => {})
+    }
+    poll()
+    const id = window.setInterval(poll, 4000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [pendingReference])
 
   const price = config.subscription_price_ghs || '20'
-  const paystackEnabled = Boolean(config.paystack_enabled && config.paystack_public_key)
+  const moolreEnabled = Boolean(config.moolre_payments_enabled)
   const months = config.subscription_months || 3
   const momoNumber_display = config.momo_payment_number || '0248317900'
 
@@ -130,23 +156,51 @@ export function ActivatePage() {
     }
   }
 
-  const onPaystackPay = async () => {
-    if (!paystackPhone.trim()) {
-      setPaymentError('Enter your MoMo number so we can text your access code.')
+  const onMoolreMoMoPay = async () => {
+    if (!moolrePhone.trim()) {
+      setPaymentError('Enter your MoMo number so we can collect payment and text your access code.')
       return
     }
     setPaymentError('')
-    setPaystackLoading(true)
+    setMoolreMessage('')
+    setMoolreLoading(true)
+    try {
+      const res = await paymentsApi.moolreInitialize({
+        momo_number: moolrePhone.trim(),
+        method: 'momo',
+      })
+      setMoolreMessage(res.message)
+      setPendingReference(res.reference)
+    } catch (err) {
+      setPaymentError(extractError(err, 'Could not start MoMo payment.'))
+    } finally {
+      setMoolreLoading(false)
+    }
+  }
+
+  const onMoolreLinkPay = async () => {
+    if (!moolrePhone.trim()) {
+      setPaymentError('Enter your MoMo number for SMS delivery after payment.')
+      return
+    }
+    setPaymentError('')
+    setMoolreLoading(true)
     try {
       const callbackUrl = `${window.location.origin}/activate?next=${encodeURIComponent(next)}`
-      const res = await paymentsApi.paystackInitialize({
-        momo_number: paystackPhone.trim(),
+      const res = await paymentsApi.moolreInitialize({
+        momo_number: moolrePhone.trim(),
+        method: 'link',
         callback_url: callbackUrl,
       })
-      window.location.href = res.authorization_url
+      if (res.authorization_url) {
+        window.location.href = res.authorization_url
+        return
+      }
+      setPaymentError('Could not open the Moolre payment page.')
     } catch (err) {
       setPaymentError(extractError(err, 'Could not start online payment.'))
-      setPaystackLoading(false)
+    } finally {
+      setMoolreLoading(false)
     }
   }
 
@@ -299,27 +353,37 @@ export function ActivatePage() {
                     </div>
                   )}
 
-                  {paystackEnabled && (
+                  {moolreEnabled && (
                     <>
                       <div>
-                        <h2 className="font-display text-xl text-ink-0">Pay online</h2>
+                        <h2 className="font-display text-xl text-ink-0">Pay online with Moolre</h2>
                         <p className="mt-1 text-sm text-ink-400">
-                          Pay <strong className="text-ink-100">GH₵ {price}</strong> with card or MoMo via Paystack.
-                          {config.sms_enabled && ' Your access code is sent by SMS automatically.'}
+                          Pay <strong className="text-ink-100">GH₵ {price}</strong> via MoMo collection.
+                          {config.sms_enabled && ' Your access code is sent by SMS automatically after payment.'}
                         </p>
                       </div>
 
                       <label className="block">
                         <span className="mb-1.5 block text-[13px] font-medium text-ink-100">
-                          MoMo number (for SMS delivery)
+                          MoMo number
                         </span>
                         <Input
                           type="tel"
-                          value={paystackPhone}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setPaystackPhone(e.target.value)}
+                          value={moolrePhone}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setMoolrePhone(e.target.value)}
                           placeholder="0241234567"
                         />
                       </label>
+
+                      {moolreMessage && pendingReference && (
+                        <div className="flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400">
+                          <Loader2 size={18} className="mt-0.5 shrink-0 animate-spin" />
+                          <div>
+                            <p className="font-medium text-indigo-300">Waiting for payment</p>
+                            <p className="mt-0.5 text-indigo-400/90">{moolreMessage}</p>
+                          </div>
+                        </div>
+                      )}
 
                       {paymentError && !verifyLoading && (
                         <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
@@ -332,11 +396,23 @@ export function ActivatePage() {
                         variant="primary"
                         size="lg"
                         fullWidth
-                        loading={paystackLoading}
-                        leading={<CreditCard size={16} />}
-                        onClick={() => void onPaystackPay()}
+                        loading={moolreLoading}
+                        leading={<Smartphone size={16} />}
+                        onClick={() => void onMoolreMoMoPay()}
                       >
-                        Pay GH₵ {price} with Paystack
+                        Pay GH₵ {price} with MoMo
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="lg"
+                        fullWidth
+                        loading={moolreLoading}
+                        leading={<CreditCard size={16} />}
+                        onClick={() => void onMoolreLinkPay()}
+                      >
+                        Pay on Moolre web page
                       </Button>
 
                       <div className="relative py-2">
@@ -352,7 +428,7 @@ export function ActivatePage() {
 
                   <div>
                     <h2 className="font-display text-xl text-ink-0">
-                      {paystackEnabled ? 'Manual Mobile Money' : 'Send Mobile Money'}
+                      {moolreEnabled ? 'Manual Mobile Money' : 'Send Mobile Money'}
                     </h2>
                     <p className="mt-1 text-sm text-ink-400">
                       Pay exactly <strong className="text-ink-100">GH₵ {price}</strong> to the number below.
@@ -484,17 +560,17 @@ export function ActivatePage() {
                   exit={{ opacity: 0, x: 12 }}
                   transition={{ duration: 0.25 }}
                 >
-                  {paystackSuccess && (
+                  {onlinePaymentSuccess && (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium">Payment confirmed!</p>
-                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">{paystackSuccess}</p>
+                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">{onlinePaymentSuccess}</p>
                       </div>
                     </div>
                   )}
 
-                  {paymentSubmitted && !paystackSuccess && (
+                  {paymentSubmitted && !onlinePaymentSuccess && (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>
