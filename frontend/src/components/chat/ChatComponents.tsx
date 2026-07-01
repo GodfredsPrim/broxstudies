@@ -48,7 +48,7 @@ export function EmptyChat({ onPromptSelect, disabled }: { onPromptSelect?: (p: s
   )
 }
 
-export function MessageBubble({ msg, streaming = false }: { msg: ChatMessage; streaming?: boolean }) {
+export function MessageBubble({ msg, streaming = false, streamingLive = false }: { msg: ChatMessage; streaming?: boolean; streamingLive?: boolean }) {
   const isUser = msg.role === 'user'
   return (
     <motion.div
@@ -95,7 +95,7 @@ export function MessageBubble({ msg, streaming = false }: { msg: ChatMessage; st
             {isUser ? (
               <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{msg.content}</p>
             ) : streaming ? (
-              <StreamingMessage content={msg.content} />
+              <StreamingMessage content={msg.content} live={streamingLive} animate={!streamingLive} />
             ) : (
               <MarkdownMessage content={msg.content} />
             )}

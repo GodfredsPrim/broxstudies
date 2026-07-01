@@ -26,12 +26,12 @@ export function TrackSelectionPage() {
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center px-4 py-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_35%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.15),_transparent_35%)]" />
       <div className="relative w-full max-w-3xl">
         <Card padded={false} className="overflow-hidden border border-white/10 bg-[var(--bg-1)] shadow-xl">
           <div className="p-8 sm:p-10">
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-3xl bg-emerald-500/10 text-emerald-300">
+              <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-3xl bg-indigo-500/10 text-indigo-300">
                 <Sparkles size={20} />
               </div>
               <Eyebrow className="mb-3">Welcome</Eyebrow>
@@ -59,7 +59,7 @@ export function TrackSelectionPage() {
             {selectedTrack && (
               <div className="mt-8 flex flex-col gap-4 text-center">
                 <p className="text-sm text-ink-200">
-                  You selected <span className="font-semibold text-emerald-300">{selectedTrack.toUpperCase()}</span>. You can now study with AI for up to 3 chats before signing in.
+                  You selected <span className="font-semibold text-indigo-300">{selectedTrack.toUpperCase()}</span>. You can now study with AI for up to 3 chats before signing in.
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Link to="/" className="v2-btn v2-btn-primary inline-flex items-center justify-center px-4 py-3 text-sm font-semibold transition-all">

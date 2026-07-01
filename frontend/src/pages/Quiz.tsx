@@ -184,7 +184,7 @@ export function QuizPage() {
             onClick={() => go('create')}
             className="v2-card v2-card-interactive group flex flex-col items-center gap-5 p-8 text-center"
           >
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-glow-sm transition group-hover:bg-emerald-700">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-glow-sm transition group-hover:bg-indigo-700">
               <Plus size={28} />
             </span>
             <span>
@@ -200,7 +200,7 @@ export function QuizPage() {
             onClick={() => go('join')}
             className="v2-card v2-card-interactive group flex flex-col items-center gap-5 p-8 text-center"
           >
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--bg-3)] text-ink-0 ring-1 ring-[var(--line)] transition group-hover:bg-[var(--accent-tint)] group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--bg-3)] text-ink-0 ring-1 ring-[var(--line)] transition group-hover:bg-[var(--accent-tint)] group-hover:text-indigo-400 dark:group-hover:text-indigo-300">
               <LogIn size={28} />
             </span>
             <span>
@@ -438,9 +438,9 @@ export function QuizPage() {
                     Host: {liveState.host} · {liveState.questions.length} questions · {liveState.time_limit} min
                   </p>
                 </div>
-                <div className="flex items-center gap-2 self-start rounded-2xl bg-emerald-50 px-4 py-2 sm:self-auto dark:bg-emerald-900/20">
-                  <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                <div className="flex items-center gap-2 self-start rounded-2xl bg-indigo-500/10 px-4 py-2 sm:self-auto dark:bg-indigo-900/20">
+                  <Clock size={14} className="text-indigo-500 dark:text-indigo-400" />
+                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-red-600 dark:text-red-400' : 'text-indigo-400 dark:text-indigo-300'}`}>
                     {fmtTime}
                   </span>
                 </div>
@@ -464,7 +464,7 @@ export function QuizPage() {
                             key={opt}
                             className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm text-[var(--fg-0)] transition ${
                               answers[i] === opt
-                                ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                                ? 'border-indigo-400 bg-indigo-500/10 dark:bg-indigo-900/20'
                                 : 'border-[var(--line)] hover:bg-[var(--bg-2)]'
                             }`}
                           >
@@ -474,7 +474,7 @@ export function QuizPage() {
                               value={opt}
                               checked={answers[i] === opt}
                               onChange={() => setAnswers((p) => ({ ...p, [i]: opt }))}
-                              className="h-4 w-4 text-emerald-600"
+                              className="h-4 w-4 text-indigo-600"
                             />
                             <MathText>{opt}</MathText>
                           </label>
@@ -484,7 +484,7 @@ export function QuizPage() {
                       <input
                         value={answers[i] || ''}
                         onChange={(e) => setAnswers((p) => ({ ...p, [i]: e.target.value }))}
-                        className="mt-3 w-full rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:border-emerald-500 focus:outline-none"
+                        className="mt-3 w-full rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:border-indigo-500 focus:outline-none"
                         placeholder="Your answer…"
                       />
                     )}
@@ -510,7 +510,7 @@ export function QuizPage() {
               </div>
 
               {result && (
-                <div className="mt-4 rounded-3xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-300">
+                <div className="mt-4 rounded-3xl bg-indigo-500/10 p-4 text-sm font-semibold text-indigo-300 dark:bg-indigo-900/20">
                   {result}
                 </div>
               )}

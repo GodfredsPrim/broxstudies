@@ -13,6 +13,8 @@ from app.models import (
     GoogleAuthRequest,
     PaymentManualRequest,
     SubscriptionStatusResponse,
+    UserProgressResponse,
+    UserProgressUpdate,
 )
 from app.services.auth_service import AuthService
 from datetime import datetime, timezone
@@ -99,6 +101,27 @@ async def login_with_google(request: GoogleAuthRequest):
 @router.get("/me", response_model=AuthUser)
 async def get_me(current_user: AuthUser = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/progress", response_model=UserProgressResponse)
+async def get_progress(current_user: AuthUser = Depends(get_current_user)):
+    """Return the authenticated user's gamification progress."""
+    data = auth_service.get_user_progress(current_user.id)
+    return UserProgressResponse(**data)
+
+
+@router.patch("/progress", response_model=UserProgressResponse)
+async def update_progress(
+    body: UserProgressUpdate,
+    current_user: AuthUser = Depends(get_current_user),
+):
+    """Sync gamification progress from the client."""
+    patch = body.model_dump(exclude_unset=True)
+    if not patch:
+        data = auth_service.get_user_progress(current_user.id)
+        return UserProgressResponse(**data)
+    data = auth_service.upsert_user_progress(current_user.id, patch)
+    return UserProgressResponse(**data)
 
 
 # ── Subscription routes ───────────────────────────────────────────────────────

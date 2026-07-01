@@ -3,9 +3,10 @@ import json
 import logging
 import tempfile
 from io import BytesIO
-from typing import List, Optional
+from typing import AsyncIterator, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.models import (
     AuthUser,
@@ -115,6 +116,92 @@ async def ask_tutor(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+async def _stream_tutor_answer(
+    *,
+    question: str,
+    subject: Optional[str],
+    context: Optional[str],
+    is_main_concept_only: bool,
+    history: list,
+    current_user: Optional[AuthUser],
+) -> AsyncIterator[str]:
+    full_parts: list[str] = []
+    try:
+        async for token in tutor_service.stream_explanation(
+            question,
+            subject=subject or "general",
+            context=context,
+            is_main_concept_only=is_main_concept_only,
+            history=history,
+        ):
+            full_parts.append(token)
+            yield _sse({"token": token})
+    except Exception as exc:
+        logger.exception("Tutor stream failed: %s", exc)
+        yield _sse({"error": str(exc)})
+        return
+
+    explanation = "".join(full_parts)
+    yield _sse({"done": True, "explanation": explanation})
+
+    if current_user and explanation.strip():
+        try:
+            auth_service.save_chat_message(
+                user_id=current_user.id,
+                role="user",
+                content=question,
+                subject=subject,
+            )
+            auth_service.save_chat_message(
+                user_id=current_user.id,
+                role="ai",
+                content=explanation,
+                subject=subject,
+            )
+        except Exception as hist_err:
+            logger.warning("Failed to save streamed chat history: %s", hist_err)
+
+
+@router.post("/ask/stream")
+async def ask_tutor_stream(
+    request: TutorRequest,
+    current_user: Optional[AuthUser] = Depends(_get_optional_user),
+):
+    """Stream AI tutor tokens via Server-Sent Events (text questions only)."""
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+    history = []
+    if request.history:
+        history = [
+            ChatHistoryMessage(id=0, role=m.get("role", "user"), content=m.get("content", ""), created_at="")
+            for m in request.history
+        ]
+    elif current_user:
+        history = auth_service.get_chat_history(current_user.id, limit=10)
+
+    return StreamingResponse(
+        _stream_tutor_answer(
+            question=request.question,
+            subject=request.subject,
+            context=request.context,
+            is_main_concept_only=request.is_main_concept_only,
+            history=history,
+            current_user=current_user,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/interpret-image", response_model=TutorResponse)

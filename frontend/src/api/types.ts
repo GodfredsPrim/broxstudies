@@ -17,6 +17,20 @@ export interface AuthResponse {
   user: AuthUser
 }
 
+export interface UserProgress {
+  xp: number
+  level: number
+  coins: number
+  streak: number
+  last_study_date: string | null
+  badges: string[]
+  daily_goal_minutes: number
+  daily_minutes_studied: number
+  weekly_goal_days: number
+  weekly_days_completed: number
+  updated_at?: string | null
+}
+
 export interface AuthConfigResponse {
   google_client_id?: string | null
   google_enabled?: boolean

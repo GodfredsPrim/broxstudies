@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, getToken } from './client'
 import type {
   AccessCodeRecord,
   AdminAnalytics,
@@ -28,6 +28,7 @@ import type {
   PracticeMarkResponse,
   SubjectsResponse,
   TutorResponse,
+  UserProgress,
 } from './types'
 
 /* ------------------------------ AUTH ------------------------------ */
@@ -40,6 +41,9 @@ export const authApi = {
   google: (body: { credential: string }) =>
     api.post<AuthResponse>('/api/auth/google', body).then(r => r.data),
   me: () => api.get<AuthUser>('/api/auth/me').then(r => r.data),
+  getProgress: () => api.get<UserProgress>('/api/auth/progress').then(r => r.data),
+  patchProgress: (body: Partial<UserProgress>) =>
+    api.patch<UserProgress>('/api/auth/progress', body).then(r => r.data),
   verifyCode: (code: string, track?: string | null) =>
     api.post<AuthUser>('/api/auth/verify-code', { code, track }).then(r => r.data),
   paymentRequest: (body: { momo_name: string; momo_number: string; reference?: string }) =>
@@ -168,6 +172,13 @@ export const liveQuizApi = {
 }
 
 /* ------------------------------ TUTOR ------------------------------ */
+export type TutorStreamEvent = {
+  token?: string
+  done?: boolean
+  explanation?: string
+  error?: string
+}
+
 export const tutorApi = {
   ask: (body: {
     question: string
@@ -175,6 +186,57 @@ export const tutorApi = {
     is_main_concept_only?: boolean
     history?: Array<{ role: 'user' | 'ai'; content: string }>
   }) => api.post<TutorResponse>('/api/tutor/ask', body).then(r => r.data),
+
+  askStream: async (
+    body: {
+      question: string
+      subject?: string
+      is_main_concept_only?: boolean
+      history?: Array<{ role: 'user' | 'ai'; content: string }>
+    },
+    onEvent: (event: TutorStreamEvent) => void,
+    signal?: AbortSignal,
+  ) => {
+    const token = getToken()
+    const res = await fetch('/api/tutor/ask/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    })
+    if (!res.ok) {
+      let detail = res.statusText
+      try {
+        const data = await res.json()
+        if (typeof data?.detail === 'string') detail = data.detail
+      } catch { /* noop */ }
+      throw new Error(detail)
+    }
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('Streaming is not supported in this browser.')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() ?? ''
+      for (const part of parts) {
+        const line = part.trim()
+        if (!line.startsWith('data:')) continue
+        try {
+          onEvent(JSON.parse(line.replace(/^data:\s*/, '')) as TutorStreamEvent)
+        } catch { /* noop */ }
+      }
+    }
+  },
+
   askWithFiles: (opts: {
     question: string
     files: File[]

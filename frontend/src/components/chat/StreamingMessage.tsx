@@ -4,15 +4,21 @@ import { MarkdownMessage } from '@/components/chat/MarkdownMessage'
 interface StreamingMessageProps {
   content: string
   animate?: boolean
+  live?: boolean
   onComplete?: () => void
 }
 
-export function StreamingMessage({ content, animate = true, onComplete }: StreamingMessageProps) {
-  const [visible, setVisible] = useState(animate ? '' : content)
+export function StreamingMessage({ content, animate = true, live = false, onComplete }: StreamingMessageProps) {
+  const [visible, setVisible] = useState(animate && !live ? '' : content)
 
   useEffect(() => {
+    if (live) {
+      setVisible(content)
+      return
+    }
     if (!animate) {
       setVisible(content)
+      onComplete?.()
       return
     }
     setVisible('')
@@ -27,7 +33,7 @@ export function StreamingMessage({ content, animate = true, onComplete }: Stream
       }
     }, 16)
     return () => clearInterval(id)
-  }, [content, animate, onComplete])
+  }, [content, animate, live, onComplete])
 
   return (
     <div aria-live="polite" aria-atomic="false">

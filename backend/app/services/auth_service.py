@@ -323,6 +323,26 @@ class AuthService:
                 """
             )
 
+            # ── User gamification progress ─────────────────────────────────────
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS user_progress (
+                    user_id INTEGER PRIMARY KEY,
+                    xp INTEGER NOT NULL DEFAULT 0,
+                    level INTEGER NOT NULL DEFAULT 1,
+                    coins INTEGER NOT NULL DEFAULT 0,
+                    streak INTEGER NOT NULL DEFAULT 0,
+                    last_study_date TEXT,
+                    badges_json TEXT NOT NULL DEFAULT '[]',
+                    daily_goal_minutes INTEGER NOT NULL DEFAULT 30,
+                    daily_minutes_studied INTEGER NOT NULL DEFAULT 0,
+                    weekly_goal_days INTEGER NOT NULL DEFAULT 5,
+                    weekly_days_completed INTEGER NOT NULL DEFAULT 0,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+
             if not self.is_postgres:
                 conn.commit()
 
@@ -967,6 +987,107 @@ class AuthService:
             )
             for r in reversed(rows)
         ]
+
+    # ── gamification progress methods ─────────────────────────────────────────
+
+    def _default_progress(self) -> dict:
+        return {
+            "xp": 0,
+            "level": 1,
+            "coins": 0,
+            "streak": 0,
+            "last_study_date": None,
+            "badges": [],
+            "daily_goal_minutes": 30,
+            "daily_minutes_studied": 0,
+            "weekly_goal_days": 5,
+            "weekly_days_completed": 0,
+        }
+
+    def get_user_progress(self, user_id: int) -> dict:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                """
+                SELECT xp, level, coins, streak, last_study_date, badges_json,
+                       daily_goal_minutes, daily_minutes_studied, weekly_goal_days,
+                       weekly_days_completed, updated_at
+                FROM user_progress
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+
+        if not row:
+            return self._default_progress()
+
+        badges: list[str] = []
+        try:
+            badges = json.loads(row["badges_json"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            badges = []
+
+        return {
+            "xp": int(row["xp"] or 0),
+            "level": int(row["level"] or 1),
+            "coins": int(row["coins"] or 0),
+            "streak": int(row["streak"] or 0),
+            "last_study_date": row["last_study_date"],
+            "badges": badges,
+            "daily_goal_minutes": int(row["daily_goal_minutes"] or 30),
+            "daily_minutes_studied": int(row["daily_minutes_studied"] or 0),
+            "weekly_goal_days": int(row["weekly_goal_days"] or 5),
+            "weekly_days_completed": int(row["weekly_days_completed"] or 0),
+            "updated_at": row["updated_at"],
+        }
+
+    def upsert_user_progress(self, user_id: int, patch: dict) -> dict:
+        current = self.get_user_progress(user_id)
+        merged = {**current, **patch}
+        badges = merged.get("badges") or []
+        if not isinstance(badges, list):
+            badges = list(badges)
+        now = datetime.now(timezone.utc).isoformat()
+
+        with self._connect() as conn:
+            self._execute(
+                conn,
+                """
+                INSERT INTO user_progress (
+                    user_id, xp, level, coins, streak, last_study_date, badges_json,
+                    daily_goal_minutes, daily_minutes_studied, weekly_goal_days,
+                    weekly_days_completed, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    xp = excluded.xp,
+                    level = excluded.level,
+                    coins = excluded.coins,
+                    streak = excluded.streak,
+                    last_study_date = excluded.last_study_date,
+                    badges_json = excluded.badges_json,
+                    daily_goal_minutes = excluded.daily_goal_minutes,
+                    daily_minutes_studied = excluded.daily_minutes_studied,
+                    weekly_goal_days = excluded.weekly_goal_days,
+                    weekly_days_completed = excluded.weekly_days_completed,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    user_id,
+                    int(merged.get("xp") or 0),
+                    int(merged.get("level") or 1),
+                    int(merged.get("coins") or 0),
+                    int(merged.get("streak") or 0),
+                    merged.get("last_study_date"),
+                    json.dumps(badges),
+                    int(merged.get("daily_goal_minutes") or 30),
+                    int(merged.get("daily_minutes_studied") or 0),
+                    int(merged.get("weekly_goal_days") or 5),
+                    int(merged.get("weekly_days_completed") or 0),
+                    now,
+                ),
+            )
+
+        return self.get_user_progress(user_id)
 
     # ── exam history methods ───────────────────────────────────────────────────
 

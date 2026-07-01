@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import { Send, Plus, AlertTriangle, Paperclip, X, PanelLeft } from 'lucide-react'
+import { Send, Plus, AlertTriangle, Paperclip, X, PanelLeft, Mic, MicOff } from 'lucide-react'
 import { tutorApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -44,10 +44,13 @@ export function StudyPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
+  const [streamingLive, setStreamingLive] = useState(false)
+  const [listening, setListening] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
     if (!isAuth) return
@@ -89,6 +92,7 @@ export function StudyPage() {
     setPendingFiles([])
     setFileError('')
     setStreamingId(null)
+    setStreamingLive(false)
   }
 
   const addFiles = (incoming: FileList | File[]) => {
@@ -145,19 +149,46 @@ export function StudyPage() {
     setLoading(true)
 
     try {
-      let res
       if (sentFiles.length > 0) {
-        res = await tutorApi.askWithFiles({ question: text, files: sentFiles, history })
+        const res = await tutorApi.askWithFiles({ question: text, files: sentFiles, history })
+        const aiId = `a-${Date.now()}`
+        setMessages(prev => [...prev, {
+          id: aiId,
+          role: 'ai',
+          content: res.explanation,
+        }])
+        setStreamingId(aiId)
+        setStreamingLive(false)
       } else {
-        res = await tutorApi.ask({ question: text, history })
+        const aiId = `a-${Date.now()}`
+        setMessages(prev => [...prev, { id: aiId, role: 'ai', content: '' }])
+        setStreamingId(aiId)
+        setStreamingLive(true)
+
+        await tutorApi.askStream(
+          { question: text, history },
+          event => {
+            if (event.error) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, content: event.error!, error: true } : m,
+              ))
+              setStreamingLive(false)
+              return
+            }
+            if (event.token) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, content: m.content + event.token } : m,
+              ))
+            }
+            if (event.done && event.explanation) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, content: event.explanation! } : m,
+              ))
+              setStreamingLive(false)
+            }
+          },
+        )
       }
-      const aiId = `a-${Date.now()}`
-      setMessages(prev => [...prev, {
-        id: aiId,
-        role: 'ai',
-        content: res.explanation,
-      }])
-      setStreamingId(aiId)
       recordStudy(3)
       if (messages.length === 0) awardBadge('first-chat')
     } catch (err) {
@@ -169,7 +200,36 @@ export function StudyPage() {
       }])
     } finally {
       setLoading(false)
+      setStreamingLive(false)
     }
+  }
+
+  const toggleVoice = () => {
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    if (!SpeechRecognitionCtor) {
+      setError('Voice input is not supported in this browser.')
+      return
+    }
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop()
+      setListening(false)
+      return
+    }
+    const recognition = new SpeechRecognitionCtor()
+    recognition.lang = 'en-GH'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0]?.[0]?.transcript?.trim()
+      if (transcript) setInput(prev => (prev ? `${prev} ${transcript}` : transcript))
+    }
+    recognition.onerror = () => setListening(false)
+    recognition.onend = () => setListening(false)
+    recognitionRef.current = recognition
+    recognition.start()
+    setListening(true)
+    setError('')
   }
 
   const onSubmit = (e: FormEvent) => {
@@ -257,10 +317,11 @@ export function StudyPage() {
                     key={m.id}
                     msg={m}
                     streaming={m.id === streamingId && m.role === 'ai'}
+                    streamingLive={m.id === streamingId && streamingLive}
                   />
                 ))}
               </AnimatePresence>
-              {loading && <TypingBubble />}
+              {loading && !streamingLive && <TypingBubble />}
             </div>
           )}
         </div>
@@ -331,6 +392,20 @@ export function StudyPage() {
             {/* Paperclip button */}
             <button
               type="button"
+              onClick={toggleVoice}
+              disabled={outOfChats || loading}
+              title={listening ? 'Stop voice input' : 'Speak your question'}
+              className={`grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl border transition disabled:pointer-events-none disabled:opacity-40 ${
+                listening
+                  ? 'border-rose-400/50 bg-rose-500/10 text-rose-400'
+                  : 'border-border bg-card text-muted-foreground hover:border-indigo-400 hover:text-indigo-400'
+              }`}
+            >
+              {listening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={outOfChats || loading}
               title="Attach image, PDF, DOCX, or TXT"
@@ -373,7 +448,7 @@ export function StudyPage() {
             <span>
               <kbd className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{' '}
               to send · <kbd className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-0.5 font-mono text-[10px]">Shift+Enter</kbd>{' '}
-              new line · 📎 paste or drag files
+              new line · 🎤 voice · 📎 paste or drag files
             </span>
             <span className="hidden sm:inline text-[var(--fg-2)]">Tip: attach a photo of a question for step-by-step help</span>
           </div>

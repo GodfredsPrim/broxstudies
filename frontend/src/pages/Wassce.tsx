@@ -123,7 +123,7 @@ function GeneratingScreen({
               style={{ transition: 'stroke-dashoffset 0.3s ease' }}
             />
           </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-lg font-black text-emerald-700">
+          <span className="absolute inset-0 flex items-center justify-center text-lg font-black text-indigo-400">
             {displayPct}%
           </span>
         </div>
@@ -138,11 +138,11 @@ function GeneratingScreen({
         <div className="mt-6 space-y-2 text-left">
           {stages.map((stage, i) => (
             <div key={i} className={`flex items-center gap-3 text-sm transition-all duration-300 ${
-              i < currentStageIdx ? 'text-emerald-600' : i === currentStageIdx ? 'font-semibold text-foreground' : 'text-muted-foreground/40'
+              i < currentStageIdx ? 'text-indigo-400' : i === currentStageIdx ? 'font-semibold text-foreground' : 'text-muted-foreground/40'
             }`}>
               <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                i < currentStageIdx ? 'bg-emerald-100 text-emerald-700' :
-                i === currentStageIdx ? 'bg-emerald-600 text-white' :
+                i < currentStageIdx ? 'bg-indigo-500/15 text-indigo-400' :
+                i === currentStageIdx ? 'bg-indigo-600 text-white' :
                 'bg-slate-100 text-slate-400'
               }`}>
                 {i < currentStageIdx ? '✓' : i + 1}
@@ -436,7 +436,7 @@ export function WassceePage() {
         width="narrow"
         noHeaderBorder
       >
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300">
           <Shield className="h-3.5 w-3.5" />
           {examLabel}
         </div>
@@ -455,7 +455,7 @@ export function WassceePage() {
             <select
               value={selectedName}
               onChange={e => setSelectedName(e.target.value)}
-              className="mt-2 block w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="mt-2 block w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               required
             >
               {uniqueNames.length === 0 && <option value="">Loading subjects…</option>}
@@ -478,8 +478,8 @@ export function WassceePage() {
                   onClick={() => setSelectedYear(y)}
                   className={`flex-1 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition
                     ${selectedYear === y
-                      ? 'border-emerald-600 bg-emerald-600 text-white'
-                      : 'border-input bg-background text-foreground hover:border-emerald-400'
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-input bg-background text-foreground hover:border-indigo-400'
                     }`}
                 >
                   {y}
@@ -826,7 +826,7 @@ export function WassceePage() {
       <button
         type="button"
         onClick={handleReset}
-        className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+        className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
       >
         <RotateCcw size={14} />
         New {curriculumName} simulation

@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { authApi } from '@/api/endpoints'
+import { getToken } from '@/api/client'
+import type { UserProgress } from '@/api/types'
 import { celebrateAchievement } from '@/utils/confetti'
 
 const STORAGE_KEY = 'brox.gamification'
@@ -70,8 +73,72 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function fromServer(data: UserProgress): GamificationState {
+  return {
+    xp: data.xp,
+    level: data.level,
+    coins: data.coins,
+    streak: data.streak,
+    lastStudyDate: data.last_study_date,
+    badges: data.badges ?? [],
+    dailyGoalMinutes: data.daily_goal_minutes,
+    dailyMinutesStudied: data.daily_minutes_studied,
+    weeklyGoalDays: data.weekly_goal_days,
+    weeklyDaysCompleted: data.weekly_days_completed,
+  }
+}
+
+function toServer(state: GamificationState): UserProgress {
+  return {
+    xp: state.xp,
+    level: state.level,
+    coins: state.coins,
+    streak: state.streak,
+    last_study_date: state.lastStudyDate,
+    badges: state.badges,
+    daily_goal_minutes: state.dailyGoalMinutes,
+    daily_minutes_studied: state.dailyMinutesStudied,
+    weekly_goal_days: state.weeklyGoalDays,
+    weekly_days_completed: state.weeklyDaysCompleted,
+  }
+}
+
+function mergeProgress(local: GamificationState, remote: GamificationState): GamificationState {
+  const badges = Array.from(new Set([...local.badges, ...remote.badges]))
+  const xp = Math.max(local.xp, remote.xp)
+  const level = Math.max(levelFromXp(xp).level, local.level, remote.level)
+  return {
+    xp,
+    level,
+    coins: Math.max(local.coins, remote.coins),
+    streak: Math.max(local.streak, remote.streak),
+    lastStudyDate: remote.lastStudyDate ?? local.lastStudyDate,
+    badges,
+    dailyGoalMinutes: remote.dailyGoalMinutes || local.dailyGoalMinutes,
+    dailyMinutesStudied: Math.max(local.dailyMinutesStudied, remote.dailyMinutesStudied),
+    weeklyGoalDays: remote.weeklyGoalDays || local.weeklyGoalDays,
+    weeklyDaysCompleted: Math.max(local.weeklyDaysCompleted, remote.weeklyDaysCompleted),
+  }
+}
+
 export function useGamification() {
   const [state, setState] = useState<GamificationState>(load)
+  const hydrated = useRef(false)
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const scheduleSync = useCallback((next: GamificationState) => {
+    if (!getToken()) return
+    if (syncTimer.current) clearTimeout(syncTimer.current)
+    syncTimer.current = setTimeout(() => {
+      authApi.patchProgress(toServer(next)).catch(() => {})
+    }, 600)
+  }, [])
+
+  const persist = useCallback((next: GamificationState, sync = true) => {
+    save(next)
+    if (sync) scheduleSync(next)
+    return next
+  }, [scheduleSync])
 
   useEffect(() => {
     const s = load()
@@ -89,12 +156,27 @@ export function useGamification() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!getToken()) {
+      hydrated.current = true
+      return
+    }
+    let active = true
+    authApi.getProgress()
+      .then(data => {
+        if (!active) return
+        const remote = fromServer(data)
+        setState(prev => persist(mergeProgress(prev, remote), false))
+        hydrated.current = true
+      })
+      .catch(() => {
+        hydrated.current = true
+      })
+    return () => { active = false }
+  }, [persist])
+
   const update = (patch: Partial<GamificationState>) => {
-    setState(prev => {
-      const next = { ...prev, ...patch }
-      save(next)
-      return next
-    })
+    setState(prev => persist({ ...prev, ...patch }))
   }
 
   const addXp = useCallback((amount: number) => {
@@ -104,11 +186,10 @@ export function useGamification() {
       const { level } = levelFromXp(xp)
       const coins = prev.coins + Math.floor(amount / 5)
       const next = { ...prev, xp, level, coins }
-      save(next)
       if (level > prevLevel) void celebrateAchievement('level')
-      return next
+      return persist(next)
     })
-  }, [])
+  }, [persist])
 
   const recordStudy = useCallback((minutes = 5) => {
     setState(prev => {
@@ -121,22 +202,20 @@ export function useGamification() {
       }
       const dailyMinutesStudied = (prev.lastStudyDate === t ? prev.dailyMinutesStudied : 0) + minutes
       const next = { ...prev, streak, lastStudyDate: t, dailyMinutesStudied }
-      save(next)
       if (streak === 3 || streak === 7) void celebrateAchievement('streak')
-      return next
+      return persist(next)
     })
     addXp(minutes * 2)
-  }, [addXp])
+  }, [addXp, persist])
 
   const awardBadge = useCallback((id: string) => {
     setState(prev => {
       if (prev.badges.includes(id)) return prev
       const next = { ...prev, badges: [...prev.badges, id] }
-      save(next)
       void celebrateAchievement('badge')
-      return next
+      return persist(next)
     })
-  }, [])
+  }, [persist])
 
   const { level, progress, next } = levelFromXp(state.xp)
 
@@ -149,5 +228,6 @@ export function useGamification() {
     recordStudy,
     awardBadge,
     update,
+    synced: hydrated.current,
   }
 }
