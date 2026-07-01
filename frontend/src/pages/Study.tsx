@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import { Send, Plus, AlertTriangle, Paperclip, X } from 'lucide-react'
+import { Send, Plus, AlertTriangle, Paperclip, X, PanelLeft } from 'lucide-react'
 import { tutorApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -13,6 +13,7 @@ import {
   EmptyChat, MessageBubble, TypingBubble, DragOverlay, AttachmentIcon,
   type ChatMessage, type ChatAttachment,
 } from '@/components/chat/ChatComponents'
+import { ChatSidebar } from '@/components/chat/ChatSidebar'
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 24 * 1024 * 1024
@@ -41,6 +42,8 @@ export function StudyPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [streamingId, setStreamingId] = useState<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -85,6 +88,7 @@ export function StudyPage() {
     setError('')
     setPendingFiles([])
     setFileError('')
+    setStreamingId(null)
   }
 
   const addFiles = (incoming: FileList | File[]) => {
@@ -147,11 +151,13 @@ export function StudyPage() {
       } else {
         res = await tutorApi.ask({ question: text, history })
       }
+      const aiId = `a-${Date.now()}`
       setMessages(prev => [...prev, {
-        id: `a-${Date.now()}`,
+        id: aiId,
         role: 'ai',
         content: res.explanation,
       }])
+      setStreamingId(aiId)
       recordStudy(3)
       if (messages.length === 0) awardBadge('first-chat')
     } catch (err) {
@@ -203,16 +209,32 @@ export function StudyPage() {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-1 flex-col"
+      className="flex h-full min-h-0 flex-1"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      {/* Drag-over overlay */}
+      <ChatSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onSelectPrompt={text => { void send(text); setSidebarOpen(false) }}
+      />
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {isDragging && <DragOverlay />}
 
-      {/* Messages */}
-      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-y-auto">
+      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-y-auto" role="log" aria-live="polite" aria-relevant="additions">
+        <div className="absolute left-4 top-4 z-10 flex gap-2 sm:left-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(v => !v)}
+            leading={<PanelLeft size={13} />}
+            aria-label="Toggle chat history"
+          >
+            <span className="hidden sm:inline">History</span>
+          </Button>
+        </div>
         <div className="absolute right-4 top-4 z-10 sm:right-6">
           <Button
             variant="ghost"
@@ -231,7 +253,11 @@ export function StudyPage() {
             <div className="space-y-6">
               <AnimatePresence initial={false}>
                 {messages.map(m => (
-                  <MessageBubble key={m.id} msg={m} />
+                  <MessageBubble
+                    key={m.id}
+                    msg={m}
+                    streaming={m.id === streamingId && m.role === 'ai'}
+                  />
                 ))}
               </AnimatePresence>
               {loading && <TypingBubble />}
@@ -352,6 +378,7 @@ export function StudyPage() {
             <span className="hidden sm:inline text-[var(--fg-2)]">Tip: attach a photo of a question for step-by-step help</span>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

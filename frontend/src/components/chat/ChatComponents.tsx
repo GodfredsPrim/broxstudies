@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Sparkles, FileImage, FileText, File, Paperclip } from 'lucide-react'
 import { MarkdownMessage } from '@/components/chat/MarkdownMessage'
+import { StreamingMessage } from '@/components/chat/StreamingMessage'
 import { SuggestedPrompts } from '@/components/chat/SuggestedPrompts'
 import { cn } from '@/lib/cn'
 
@@ -47,7 +48,7 @@ export function EmptyChat({ onPromptSelect, disabled }: { onPromptSelect?: (p: s
   )
 }
 
-export function MessageBubble({ msg }: { msg: ChatMessage }) {
+export function MessageBubble({ msg, streaming = false }: { msg: ChatMessage; streaming?: boolean }) {
   const isUser = msg.role === 'user'
   return (
     <motion.div
@@ -93,6 +94,8 @@ export function MessageBubble({ msg }: { msg: ChatMessage }) {
           >
             {isUser ? (
               <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{msg.content}</p>
+            ) : streaming ? (
+              <StreamingMessage content={msg.content} />
             ) : (
               <MarkdownMessage content={msg.content} />
             )}

@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useGamification } from '@/hooks/useGamification'
 import { useGuestChats } from '@/hooks/useGuestChats'
+import { useStudentAnalytics } from '@/hooks/useStudentAnalytics'
 import { competitionsApi } from '@/api/endpoints'
 import { TrackSelector } from '@/components/TrackSelector'
 import { PageTransition, FadeIn } from '@/components/shared/PageTransition'
@@ -27,18 +28,8 @@ const QUICK_ACTIONS = [
   { to: '/quiz', label: 'Live Quiz', icon: Zap, color: 'from-amber-500 to-orange-500' },
 ]
 
-const SUBJECTS = [
-  { name: 'Core Mathematics', progress: 72, color: 'indigo' as const },
-  { name: 'Integrated Science', progress: 58, color: 'emerald' as const },
-  { name: 'English Language', progress: 85, color: 'purple' as const },
-  { name: 'Social Studies', progress: 45, color: 'amber' as const },
-]
-
-const RECENT_ACTIVITY = [
-  { action: 'Completed practice set', subject: 'Core Mathematics', time: '2 hours ago', xp: 40 },
-  { action: 'AI tutoring session', subject: 'Chemistry', time: '5 hours ago', xp: 20 },
-  { action: 'Won live quiz', subject: 'General Knowledge', time: 'Yesterday', xp: 60 },
-  { action: 'Read chapter 4', subject: 'Things Fall Apart', time: '2 days ago', xp: 15 },
+const FALLBACK_SUBJECTS = [
+  { name: 'Start practicing', progress: 0, color: 'indigo' as const, attempts: 0 },
 ]
 
 export function DashboardPage() {
@@ -46,6 +37,7 @@ export function DashboardPage() {
   const { selectedTrack, setSelectedTrack, loading: trackLoading } = useAcademicTrack()
   const { streak, computedLevel, levelProgress, levelNext, dailyMinutesStudied, dailyGoalMinutes, badges } = useGamification()
   const { remaining, limit } = useGuestChats()
+  const analytics = useStudentAnalytics()
   const [leaderboard, setLeaderboard] = useState<{ name: string; score: number; rank: number }[]>([])
 
   const firstName = (user?.full_name || user?.email || 'student').split(/[\s@]/)[0]
@@ -85,7 +77,9 @@ export function DashboardPage() {
   }
 
   const dailyPct = Math.min(100, (dailyMinutesStudied / dailyGoalMinutes) * 100)
-  const examReadiness = Math.round(SUBJECTS.reduce((a, s) => a + s.progress, 0) / SUBJECTS.length)
+  const subjects = analytics.subjects.length > 0 ? analytics.subjects : FALLBACK_SUBJECTS
+  const examReadiness = analytics.examReadiness
+  const recentActivity = analytics.recentActivity
 
   return (
     <PageTransition className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
@@ -196,7 +190,7 @@ export function DashboardPage() {
                 </Link>
               </CardHeader>
               <CardContent className="space-y-3">
-                {SUBJECTS.slice(0, 2).map(s => (
+                {subjects.slice(0, 2).map(s => (
                   <div key={s.name} className="flex items-center gap-4 rounded-xl bg-[var(--bg-2)] p-4">
                     <ProgressRing value={s.progress} size={48} strokeWidth={4} color={s.color} />
                     <div className="flex-1">
@@ -222,7 +216,7 @@ export function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <WeeklyStudyChart />
+                <WeeklyStudyChart data={analytics.weeklyData} />
               </CardContent>
             </Card>
           </FadeIn>
@@ -235,7 +229,7 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {SUBJECTS.map(s => (
+                  {subjects.map(s => (
                     <div key={s.name} className="rounded-xl border border-border p-4">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">{s.name}</span>
@@ -343,7 +337,7 @@ export function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {RECENT_ACTIVITY.map((a, i) => (
+                {recentActivity.length > 0 ? recentActivity.map((a, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-400" />
                     <div className="flex-1 min-w-0">
@@ -352,7 +346,9 @@ export function DashboardPage() {
                     </div>
                     <span className="text-xs font-bold text-emerald-400">+{a.xp} XP</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-muted-foreground">Complete a practice session to see activity here.</p>
+                )}
               </CardContent>
             </Card>
           </FadeIn>

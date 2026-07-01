@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { celebrateAchievement } from '@/utils/confetti'
 
 const STORAGE_KEY = 'brox.gamification'
 
@@ -96,18 +97,20 @@ export function useGamification() {
     })
   }
 
-  const addXp = (amount: number) => {
+  const addXp = useCallback((amount: number) => {
     setState(prev => {
       const xp = prev.xp + amount
+      const prevLevel = levelFromXp(prev.xp).level
       const { level } = levelFromXp(xp)
       const coins = prev.coins + Math.floor(amount / 5)
       const next = { ...prev, xp, level, coins }
       save(next)
+      if (level > prevLevel) void celebrateAchievement('level')
       return next
     })
-  }
+  }, [])
 
-  const recordStudy = (minutes = 5) => {
+  const recordStudy = useCallback((minutes = 5) => {
     setState(prev => {
       const t = today()
       let streak = prev.streak
@@ -119,19 +122,21 @@ export function useGamification() {
       const dailyMinutesStudied = (prev.lastStudyDate === t ? prev.dailyMinutesStudied : 0) + minutes
       const next = { ...prev, streak, lastStudyDate: t, dailyMinutesStudied }
       save(next)
+      if (streak === 3 || streak === 7) void celebrateAchievement('streak')
       return next
     })
     addXp(minutes * 2)
-  }
+  }, [addXp])
 
-  const awardBadge = (id: string) => {
+  const awardBadge = useCallback((id: string) => {
     setState(prev => {
       if (prev.badges.includes(id)) return prev
       const next = { ...prev, badges: [...prev.badges, id] }
       save(next)
+      void celebrateAchievement('badge')
       return next
     })
-  }
+  }, [])
 
   const { level, progress, next } = levelFromXp(state.xp)
 

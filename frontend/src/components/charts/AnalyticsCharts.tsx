@@ -1,21 +1,19 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { cn } from '@/lib/cn'
 
-const PERF_DATA = [
-  { week: 'W1', score: 62 },
-  { week: 'W2', score: 68 },
-  { week: 'W3', score: 65 },
-  { week: 'W4', score: 72 },
-  { week: 'W5', score: 70 },
-  { week: 'W6', score: 78 },
-  { week: 'W7', score: 74 },
-  { week: 'W8', score: 82 },
-]
+interface PerformanceChartProps {
+  data?: { week: string; score: number }[]
+}
 
-export function PerformanceChart() {
+export function PerformanceChart({ data }: PerformanceChartProps) {
+  const chartData = data && data.length > 0 ? data : [
+    { week: 'W1', score: 0 },
+    { week: 'W2', score: 0 },
+  ]
+
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <AreaChart data={PERF_DATA}>
+      <AreaChart data={chartData}>
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#818CF8" stopOpacity={0.3} />
@@ -37,21 +35,43 @@ export function PerformanceChart() {
 
 const HEATMAP_WEEKS = 12
 const HEATMAP_DAYS = 7
-
-function generateHeatmapData() {
-  const data: { week: number; day: number; value: number }[] = []
-  for (let w = 0; w < HEATMAP_WEEKS; w++) {
-    for (let d = 0; d < HEATMAP_DAYS; d++) {
-      data.push({ week: w, day: d, value: Math.random() > 0.3 ? Math.floor(Math.random() * 5) : 0 })
-    }
-  }
-  return data
-}
-
-const HEATMAP = generateHeatmapData()
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-export function StudyHeatmap() {
+function buildHeatmapFromEntries(entries: { created_at: string }[]) {
+  const grid: { week: number; day: number; value: number }[] = []
+  const counts = new Map<string, number>()
+
+  for (const e of entries) {
+    const d = new Date(e.created_at)
+    const key = d.toISOString().slice(0, 10)
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
+
+  for (let w = 0; w < HEATMAP_WEEKS; w++) {
+    for (let d = 0; d < HEATMAP_DAYS; d++) {
+      const date = new Date()
+      date.setDate(date.getDate() - ((HEATMAP_WEEKS - 1 - w) * 7 + (6 - d)))
+      const key = date.toISOString().slice(0, 10)
+      const count = counts.get(key) || 0
+      grid.push({ week: w, day: d, value: Math.min(4, count) })
+    }
+  }
+  return grid
+}
+
+interface StudyHeatmapProps {
+  entries?: { created_at: string }[]
+}
+
+export function StudyHeatmap({ entries = [] }: StudyHeatmapProps) {
+  const heatmap = entries.length > 0
+    ? buildHeatmapFromEntries(entries)
+    : Array.from({ length: HEATMAP_WEEKS * HEATMAP_DAYS }, (_, i) => ({
+        week: Math.floor(i / HEATMAP_DAYS),
+        day: i % HEATMAP_DAYS,
+        value: 0,
+      }))
+
   const getColor = (v: number) => {
     if (v === 0) return 'bg-[var(--bg-3)]'
     if (v === 1) return 'bg-indigo-500/20'
@@ -72,7 +92,7 @@ export function StudyHeatmap() {
           {Array.from({ length: HEATMAP_WEEKS }, (_, w) => (
             <div key={w} className="flex flex-col gap-1">
               {Array.from({ length: HEATMAP_DAYS }, (_, d) => {
-                const cell = HEATMAP.find(c => c.week === w && c.day === d)
+                const cell = heatmap.find(c => c.week === w && c.day === d)
                 return (
                   <div
                     key={d}

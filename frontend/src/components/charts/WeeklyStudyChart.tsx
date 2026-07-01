@@ -1,19 +1,25 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
-const DATA = [
-  { day: 'Mon', minutes: 25 },
-  { day: 'Tue', minutes: 45 },
-  { day: 'Wed', minutes: 30 },
-  { day: 'Thu', minutes: 60 },
-  { day: 'Fri', minutes: 20 },
-  { day: 'Sat', minutes: 75 },
-  { day: 'Sun', minutes: 40 },
+const FALLBACK = [
+  { day: 'Mon', minutes: 0 },
+  { day: 'Tue', minutes: 0 },
+  { day: 'Wed', minutes: 0 },
+  { day: 'Thu', minutes: 0 },
+  { day: 'Fri', minutes: 0 },
+  { day: 'Sat', minutes: 0 },
+  { day: 'Sun', minutes: 0 },
 ]
 
-export function WeeklyStudyChart() {
+interface WeeklyStudyChartProps {
+  data?: { day: string; minutes: number }[]
+}
+
+export function WeeklyStudyChart({ data }: WeeklyStudyChartProps) {
+  const chartData = data && data.some(d => d.minutes > 0) ? data : FALLBACK
+
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={DATA} barSize={28}>
+      <BarChart data={chartData} barSize={28}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
         <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'var(--fg-3)', fontSize: 12 }} />
         <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--fg-3)', fontSize: 12 }} width={30} />
