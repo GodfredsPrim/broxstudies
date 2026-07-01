@@ -2,7 +2,7 @@ services:
   - type: web
     name: broxstudies-unified
     env: python
-    buildCommand: npm install --prefix frontend && npm run build --prefix frontend && pip install -r backend/requirements.txt
+    buildCommand: cp backend/.env.example backend/.env 2>/dev/null || true && npm install --prefix frontend && npm run build --prefix frontend && pip install -r backend/requirements.txt
     startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL

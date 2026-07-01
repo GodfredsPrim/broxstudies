@@ -37,6 +37,7 @@ An AI-powered web application that helps students learn, generate practice quest
 ├── frontend/         # React + Vite SPA (production UI)
 ├── Dockerfile        # Unified backend + frontend build
 ├── render.yaml       # Render.com deployment config
+├── setup-env.sh      # Copy .env.example → .env (macOS/Linux)
 └── start_system.ps1  # Local dev helper (Windows)
 ```
 
@@ -52,7 +53,14 @@ From the repository root, you can start the system more systematically with:
 .\start_system.ps1
 ```
 
-Optional flags:
+On macOS/Linux, create local env files first:
+
+```bash
+chmod +x setup-env.sh
+./setup-env.sh
+```
+
+Optional flags (Windows):
 
 ```powershell
 .\start_system.ps1 -SkipInstall
@@ -94,12 +102,14 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-5. Create `.env` file:
+5. Create `.env` from the template:
+
 ```bash
 cp .env.example .env
+# or from repo root: ./setup-env.sh
 ```
 
-6. Add your API keys and configuration to `.env`:
+6. Add your API keys and configuration to `backend/.env`:
 ```
 OPENAI_API_KEY=your-api-key-here
 DATABASE_URL=sqlite:///./gh_shs.db
@@ -126,7 +136,12 @@ cd frontend
 npm install
 ```
 
-3. Start development server:
+3. (Optional) Local env overrides:
+```bash
+cp .env.example .env
+```
+
+4. Start development server:
 ```bash
 npm run dev
 ```
