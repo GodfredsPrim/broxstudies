@@ -239,10 +239,10 @@ function PaymentsPanel() {
       />
 
       {lastConfirm?.access_code && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-4">
+        <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-200">
+              <p className="text-sm font-medium text-indigo-400 dark:text-indigo-200">
                 Payment confirmed — code minted
               </p>
               <code className="mt-2 inline-block rounded-lg bg-[var(--bg-2)] px-3 py-2 font-mono text-lg font-bold text-ink-0">
@@ -258,7 +258,7 @@ function PaymentsPanel() {
             <button
               type="button"
               onClick={() => void navigator.clipboard.writeText(lastConfirm.access_code!)}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-300"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-indigo-500 hover:bg-indigo-500/10 dark:text-indigo-400"
             >
               <Copy size={12} /> Copy code
             </button>
@@ -424,13 +424,13 @@ function CodesPanel() {
         {genError && <div className="mt-3"><InlineError message={genError} /></div>}
 
         {newlyMinted.length > 0 && (
-          <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+          <div className="mt-4 rounded-lg border border-indigo-500/30 bg-indigo-500/5 p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="v2-eyebrow !text-[10px]">Just minted ({newlyMinted.length})</span>
               <button
                 type="button"
                 onClick={() => void navigator.clipboard.writeText(newlyMinted.join('\n'))}
-                className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+                className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-400 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 <Copy size={12} /> Copy all
               </button>
@@ -620,7 +620,7 @@ function CompetitionCreateForm({ onCreated }: { onCreated: () => Promise<void> |
         </div>
         {err && <div className="md:col-span-2"><InlineError message={err} /></div>}
         {ok && (
-          <div className="md:col-span-2 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+          <div className="md:col-span-2 flex items-center gap-2 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-500 dark:text-indigo-400">
             <Check size={14} /> Competition created. Upload a PDF or image from the row below.
           </div>
         )}
@@ -677,8 +677,8 @@ function CompetitionRow({ comp, onChange }: { comp: Competition; onChange: () =>
       </Td>
       <Td className="text-xs text-ink-300">
         <div className="flex flex-col gap-0.5">
-          <span>{comp.pdf_url ? <a href={comp.pdf_url} className="text-emerald-600 hover:underline dark:text-emerald-300">PDF</a> : 'No PDF'}</span>
-          <span>{comp.image_url ? <a href={comp.image_url} className="text-emerald-600 hover:underline dark:text-emerald-300">Image</a> : 'No image'}</span>
+          <span>{comp.pdf_url ? <a href={comp.pdf_url} className="text-indigo-500 hover:underline dark:text-indigo-400">PDF</a> : 'No PDF'}</span>
+          <span>{comp.image_url ? <a href={comp.image_url} className="text-indigo-500 hover:underline dark:text-indigo-400">Image</a> : 'No image'}</span>
         </div>
       </Td>
       <Td className="text-right">
@@ -855,13 +855,13 @@ function NewsCreateForm({ onCreated }: { onCreated: () => Promise<void> | void }
             type="checkbox"
             checked={isPublished}
             onChange={e => setIsPublished(e.target.checked)}
-            className="h-4 w-4 rounded border-[var(--line)] text-emerald-600"
+            className="h-4 w-4 rounded border-[var(--line)] text-indigo-500"
           />
           <label htmlFor="publish-toggle" className="text-sm text-ink-200">Publish immediately</label>
         </div>
         {err && <InlineError message={err} />}
         {ok && (
-          <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+          <div className="flex items-center gap-2 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-500 dark:text-indigo-400">
             <Check size={14} /> Article published.
           </div>
         )}
@@ -981,7 +981,7 @@ function LabeledField({ label, children }: { label: string; children: ReactNode 
 function LoadingBlock({ label }: { label: string }) {
   return (
     <Card className="flex items-center gap-3 py-10 text-sm text-ink-300">
-      <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--line)] border-t-emerald-500" />
+      <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--line)] border-t-indigo-500" />
       {label}
     </Card>
   )

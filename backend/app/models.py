@@ -425,6 +425,35 @@ class ChatHistoryResponse(BaseModel):
     messages: List[ChatHistoryMessage]
 
 
+# ── Gamification progress models ───────────────────────────────────────────────
+
+class UserProgressResponse(BaseModel):
+    xp: int = 0
+    level: int = 1
+    coins: int = 0
+    streak: int = 0
+    last_study_date: Optional[str] = None
+    badges: List[str] = []
+    daily_goal_minutes: int = 30
+    daily_minutes_studied: int = 0
+    weekly_goal_days: int = 5
+    weekly_days_completed: int = 0
+    updated_at: Optional[str] = None
+
+
+class UserProgressUpdate(BaseModel):
+    xp: Optional[int] = None
+    level: Optional[int] = None
+    coins: Optional[int] = None
+    streak: Optional[int] = None
+    last_study_date: Optional[str] = None
+    badges: Optional[List[str]] = None
+    daily_goal_minutes: Optional[int] = None
+    daily_minutes_studied: Optional[int] = None
+    weekly_goal_days: Optional[int] = None
+    weekly_days_completed: Optional[int] = None
+
+
 # ── Admin & Competition models ────────────────────────────────────────────────
 
 class AdminAnalytics(BaseModel):

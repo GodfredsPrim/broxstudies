@@ -3,7 +3,7 @@ import {
   BookOpen, Loader2, CheckCircle2, XCircle,
   RotateCcw, Trophy, ChevronRight, BookMarked,
   FileText, ClipboardList, ScrollText, Download, Share2,
-  Upload, FileUp,
+  Upload, FileUp, Timer,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { analysisApi } from '@/api/endpoints'
@@ -11,6 +11,9 @@ import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useToast } from '@/hooks/useToast'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
+import { usePracticeTimer } from '@/hooks/usePracticeTimer'
+import { useGamification } from '@/hooks/useGamification'
+import { Progress } from '@/components/ui/progress'
 import { MathText } from '@/components/MathText'
 import { QuestionCard } from '@/components/exam/QuestionCard'
 import { ScoreHero } from '@/components/exam/ScoreHero'
@@ -87,6 +90,8 @@ export function PracticePage() {
 
   // Offline history persistence
   const { saveLocal } = useOfflineHistory()
+  const { formatted: timerDisplay, reset: resetTimer } = usePracticeTimer(phase === 'practice')
+  const { addXp, awardBadge } = useGamification()
 
   // Generation and notifications
   const { toasts, removeToast, success, error, info } = useToast()
@@ -96,6 +101,7 @@ export function PracticePage() {
         setQuestions(job.result_data.questions)
         setSourceUsed(job.result_data.source_used || '')
         setPhase('practice')
+        resetTimer()
         success('Questions generated successfully!')
       }
     },
@@ -242,6 +248,9 @@ export function PracticePage() {
       setPercentage(res.percentage)
       setMarkResults((res.results as unknown as MarkResult[]) || [])
       setPhase('results')
+      addXp(Math.round(res.percentage))
+      if (res.percentage >= 80) awardBadge('wassce-ready')
+      if (questions.length >= 10) awardBadge('practice-10')
 
       // Save result locally (offline-safe) and sync to server
       const histEntry = {
@@ -277,6 +286,7 @@ export function PracticePage() {
     setUploadedFile(null)
     setUploadResults(null)
     setUploadError('')
+    resetTimer()
   }
 
   const handleUploadAnswers = async () => {
@@ -380,9 +390,9 @@ export function PracticePage() {
                     onClick={() => setSelectedYear(y)}
                     className={`flex-1 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition
                       ${selectedYear === y
-                        ? 'border-emerald-600 bg-emerald-600 text-white'
+                        ? 'border-indigo-500 bg-indigo-500 text-white'
                         : available
-                          ? 'border-input bg-background text-foreground hover:border-emerald-400'
+                          ? 'border-input bg-background text-foreground hover:border-indigo-400'
                           : 'cursor-not-allowed border-input bg-muted/30 text-muted-foreground opacity-40'
                       }`}
                   >
@@ -418,7 +428,7 @@ export function PracticePage() {
                               setSelectedTopics(prev => prev.filter(t => t !== topic))
                             }
                           }}
-                          className="rounded border-input text-emerald-600 focus:ring-emerald-500"
+                          className="rounded border-input text-indigo-500 focus:ring-indigo-500"
                         />
                         <span className="text-foreground">{topic}</span>
                       </label>
@@ -430,7 +440,7 @@ export function PracticePage() {
                       {selectedTopics.map((topic) => (
                         <span
                           key={topic}
-                          className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                          className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300"
                         >
                           {topic}
                         </span>
@@ -461,7 +471,7 @@ export function PracticePage() {
                 const v = parseInt(e.target.value)
                 if (!isNaN(v)) setNumQuestions(Math.max(1, Math.min(50, v)))
               }}
-              className="mt-2 block w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="mt-2 block w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -487,8 +497,25 @@ export function PracticePage() {
 
   /* ── Practice ── */
   const renderPractice = () => {
+    const progressPct = questions.length ? (answered / questions.length) * 100 : 0
     return (
       <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-8">
+        {/* Timer & progress bar */}
+        <div className="sticky top-0 z-10 -mx-4 border-b border-border bg-[var(--bg-0)]/90 px-4 py-3 backdrop-blur-xl sm:-mx-8 sm:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm font-mono font-semibold text-indigo-400">
+              <Timer size={16} />
+              {timerDisplay}
+            </div>
+            <div className="flex-1 max-w-xs">
+              <Progress value={progressPct} />
+            </div>
+            <span className="text-sm text-muted-foreground">
+              <span className="font-bold text-foreground">{answered}</span>/{questions.length}
+            </span>
+          </div>
+        </div>
+
         <div className="mt-8 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-black text-foreground">{selectedName}</h1>
@@ -543,8 +570,8 @@ export function PracticePage() {
               answer={answers[i] || ''}
               onAnswer={opt => setAnswers(prev => ({ ...prev, [i]: opt }))}
               answered={i in answers}
-              accentColor="#059669"
-              accentTint="rgba(5, 150, 105, 0.12)"
+              accentColor="#6366F1"
+              accentTint="rgba(99, 102, 241, 0.12)"
             />
           ))}
         </div>
@@ -557,7 +584,7 @@ export function PracticePage() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting || answered === 0}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy size={16} />}
           {submitting

@@ -72,7 +72,7 @@ if (-not $SkipInstall) {
 if (-not $FrontendOnly) {
     Write-Step "Starting backend server"
     Start-InNewWindow `
-        -WindowTitle "BisaME Backend" `
+        -WindowTitle "BroxStudies Backend" `
         -WorkingDirectory $BackendDir `
         -Command "uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
 }
@@ -80,7 +80,7 @@ if (-not $FrontendOnly) {
 if (-not $BackendOnly) {
     Write-Step "Starting frontend server"
     Start-InNewWindow `
-        -WindowTitle "BisaME Frontend" `
+        -WindowTitle "BroxStudies Frontend" `
         -WorkingDirectory $FrontendDir `
         -Command "npm run dev"
 }

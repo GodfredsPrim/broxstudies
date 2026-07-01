@@ -1,47 +1,37 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Sparkles, Plus, AlertTriangle, Paperclip, X, FileText, FileImage, File } from 'lucide-react'
+import { AnimatePresence } from 'framer-motion'
+import { Send, Plus, AlertTriangle, Paperclip, X, PanelLeft, Mic, MicOff } from 'lucide-react'
 import { tutorApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useGuestChats } from '@/hooks/useGuestChats'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
-import { MathText } from '@/components/MathText'
+import { useGamification } from '@/hooks/useGamification'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/cn'
+import {
+  EmptyChat, MessageBubble, TypingBubble, DragOverlay, AttachmentIcon,
+  type ChatMessage, type ChatAttachment,
+} from '@/components/chat/ChatComponents'
+import { ChatSidebar } from '@/components/chat/ChatSidebar'
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 24 * 1024 * 1024
 const ACCEPT = 'image/*,application/pdf,.docx,.txt,.md'
 
-interface Attachment {
-  name: string
-  mime: string
-}
+interface Attachment extends ChatAttachment {}
 
-interface Msg {
-  id: string
-  role: 'user' | 'ai'
-  content: string
-  error?: boolean
-  attachments?: Attachment[]
-}
+type Msg = ChatMessage
 
 function formatBytes(n: number) {
   return n < 1024 * 1024 ? `${(n / 1024).toFixed(0)} KB` : `${(n / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function AttachmentIcon({ mime }: { mime: string }) {
-  if (mime.startsWith('image/')) return <FileImage size={12} className="shrink-0" />
-  if (mime === 'application/pdf') return <FileText size={12} className="shrink-0" />
-  return <File size={12} className="shrink-0" />
 }
 
 export function StudyPage() {
   const { user } = useAuth()
   const { selectedTrack, loading: trackLoading } = useAcademicTrack()
   const guest = useGuestChats()
+  const { recordStudy, awardBadge } = useGamification()
   const isAuth = Boolean(user)
 
   const [messages, setMessages] = useState<Msg[]>([])
@@ -52,10 +42,15 @@ export function StudyPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [streamingId, setStreamingId] = useState<string | null>(null)
+  const [streamingLive, setStreamingLive] = useState(false)
+  const [listening, setListening] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
     if (!isAuth) return
@@ -96,6 +91,8 @@ export function StudyPage() {
     setError('')
     setPendingFiles([])
     setFileError('')
+    setStreamingId(null)
+    setStreamingLive(false)
   }
 
   const addFiles = (incoming: FileList | File[]) => {
@@ -152,17 +149,48 @@ export function StudyPage() {
     setLoading(true)
 
     try {
-      let res
       if (sentFiles.length > 0) {
-        res = await tutorApi.askWithFiles({ question: text, files: sentFiles, history })
+        const res = await tutorApi.askWithFiles({ question: text, files: sentFiles, history })
+        const aiId = `a-${Date.now()}`
+        setMessages(prev => [...prev, {
+          id: aiId,
+          role: 'ai',
+          content: res.explanation,
+        }])
+        setStreamingId(aiId)
+        setStreamingLive(false)
       } else {
-        res = await tutorApi.ask({ question: text, history })
+        const aiId = `a-${Date.now()}`
+        setMessages(prev => [...prev, { id: aiId, role: 'ai', content: '' }])
+        setStreamingId(aiId)
+        setStreamingLive(true)
+
+        await tutorApi.askStream(
+          { question: text, history },
+          event => {
+            if (event.error) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, content: event.error!, error: true } : m,
+              ))
+              setStreamingLive(false)
+              return
+            }
+            if (event.token) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, content: m.content + event.token } : m,
+              ))
+            }
+            if (event.done && event.explanation) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, content: event.explanation! } : m,
+              ))
+              setStreamingLive(false)
+            }
+          },
+        )
       }
-      setMessages(prev => [...prev, {
-        id: `a-${Date.now()}`,
-        role: 'ai',
-        content: res.explanation,
-      }])
+      recordStudy(3)
+      if (messages.length === 0) awardBadge('first-chat')
     } catch (err) {
       setMessages(prev => [...prev, {
         id: `e-${Date.now()}`,
@@ -172,7 +200,36 @@ export function StudyPage() {
       }])
     } finally {
       setLoading(false)
+      setStreamingLive(false)
     }
+  }
+
+  const toggleVoice = () => {
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    if (!SpeechRecognitionCtor) {
+      setError('Voice input is not supported in this browser.')
+      return
+    }
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop()
+      setListening(false)
+      return
+    }
+    const recognition = new SpeechRecognitionCtor()
+    recognition.lang = 'en-GH'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0]?.[0]?.transcript?.trim()
+      if (transcript) setInput(prev => (prev ? `${prev} ${transcript}` : transcript))
+    }
+    recognition.onerror = () => setListening(false)
+    recognition.onend = () => setListening(false)
+    recognitionRef.current = recognition
+    recognition.start()
+    setListening(true)
+    setError('')
   }
 
   const onSubmit = (e: FormEvent) => {
@@ -212,23 +269,32 @@ export function StudyPage() {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-1 flex-col"
+      className="flex h-full min-h-0 flex-1"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      {/* Drag-over overlay */}
-      {isDragging && (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-          <div className="rounded-3xl border-2 border-dashed border-emerald-400 bg-emerald-500/10 px-12 py-8 text-center backdrop-blur-sm">
-            <Paperclip size={28} className="mx-auto mb-2 text-emerald-400" />
-            <p className="text-sm font-semibold text-emerald-300">Drop files to attach</p>
-          </div>
-        </div>
-      )}
+      <ChatSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onSelectPrompt={text => { void send(text); setSidebarOpen(false) }}
+      />
 
-      {/* Messages */}
-      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {isDragging && <DragOverlay />}
+
+      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-y-auto" role="log" aria-live="polite" aria-relevant="additions">
+        <div className="absolute left-4 top-4 z-10 flex gap-2 sm:left-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(v => !v)}
+            leading={<PanelLeft size={13} />}
+            aria-label="Toggle chat history"
+          >
+            <span className="hidden sm:inline">History</span>
+          </Button>
+        </div>
         <div className="absolute right-4 top-4 z-10 sm:right-6">
           <Button
             variant="ghost"
@@ -242,15 +308,20 @@ export function StudyPage() {
         </div>
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
           {empty ? (
-            <EmptyChat />
+            <EmptyChat onPromptSelect={text => void send(text)} disabled={outOfChats || loading} />
           ) : (
             <div className="space-y-6">
               <AnimatePresence initial={false}>
                 {messages.map(m => (
-                  <MessageBubble key={m.id} msg={m} />
+                  <MessageBubble
+                    key={m.id}
+                    msg={m}
+                    streaming={m.id === streamingId && m.role === 'ai'}
+                    streamingLive={m.id === streamingId && streamingLive}
+                  />
                 ))}
               </AnimatePresence>
-              {loading && <TypingBubble />}
+              {loading && !streamingLive && <TypingBubble />}
             </div>
           )}
         </div>
@@ -283,11 +354,11 @@ export function StudyPage() {
               {pendingFiles.map((f, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-500/10 px-2.5 py-1 text-[12px] text-emerald-700 dark:border-emerald-700/40 dark:text-emerald-300"
+                  className="flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[12px] text-indigo-300"
                 >
                   <AttachmentIcon mime={f.type} />
                   <span className="max-w-[120px] truncate font-medium">{f.name}</span>
-                  <span className="text-emerald-500/70 dark:text-emerald-500">({formatBytes(f.size)})</span>
+                  <span className="text-indigo-400/70">({formatBytes(f.size)})</span>
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
@@ -321,10 +392,24 @@ export function StudyPage() {
             {/* Paperclip button */}
             <button
               type="button"
+              onClick={toggleVoice}
+              disabled={outOfChats || loading}
+              title={listening ? 'Stop voice input' : 'Speak your question'}
+              className={`grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl border transition disabled:pointer-events-none disabled:opacity-40 ${
+                listening
+                  ? 'border-rose-400/50 bg-rose-500/10 text-rose-400'
+                  : 'border-border bg-card text-muted-foreground hover:border-indigo-400 hover:text-indigo-400'
+              }`}
+            >
+              {listening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={outOfChats || loading}
               title="Attach image, PDF, DOCX, or TXT"
-              className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] text-[var(--fg-2)] transition hover:border-emerald-400 hover:text-emerald-500 disabled:pointer-events-none disabled:opacity-40"
+              className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl border border-border bg-card text-muted-foreground transition hover:border-indigo-400 hover:text-indigo-400 disabled:pointer-events-none disabled:opacity-40"
             >
               <Paperclip size={18} />
             </button>
@@ -363,121 +448,13 @@ export function StudyPage() {
             <span>
               <kbd className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{' '}
               to send · <kbd className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-0.5 font-mono text-[10px]">Shift+Enter</kbd>{' '}
-              new line · 📎 paste or drag files
+              new line · 🎤 voice · 📎 paste or drag files
             </span>
             <span className="hidden sm:inline text-[var(--fg-2)]">Tip: attach a photo of a question for step-by-step help</span>
           </div>
         </div>
       </div>
+      </div>
     </div>
-  )
-}
-
-function EmptyChat() {
-  return (
-    <div className="py-10">
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center"
-      >
-        <div className="relative mx-auto mb-6 grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-glow-md">
-          <div className="v2-mesh" style={{ inset: 0, filter: 'blur(8px)', opacity: 0.9 }} />
-          <Sparkles size={22} className="relative text-[#02180F]" />
-        </div>
-        <h1 className="v2-display text-[44px] leading-[1.04] tracking-tighter text-[var(--fg-0)] sm:text-[54px]">
-          Ask anything.
-        </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-[var(--fg-1)]">
-          Tuned for WASSCE. Add{' '}
-          <em className="not-italic font-semibold text-emerald-600 dark:text-emerald-300">"step by step"</em> or{' '}
-          <em className="not-italic font-semibold text-emerald-600 dark:text-emerald-300">"in detail"</em> for full working.{' '}
-          Tap <Paperclip size={13} className="inline -mt-0.5" /> to attach a photo, PDF, or notes.
-        </p>
-      </motion.div>
-    </div>
-  )
-}
-
-function MessageBubble({ msg }: { msg: Msg }) {
-  const isUser = msg.role === 'user'
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-      className={cn('flex gap-3', isUser && 'flex-row-reverse')}
-    >
-      <div
-        className={cn(
-          'mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-bold',
-          isUser
-            ? 'bg-[var(--bg-2)] text-[var(--fg-0)] ring-1 ring-[var(--line)]'
-            : 'bg-gradient-to-br from-emerald-400 to-emerald-700 text-[#02180F]',
-        )}
-      >
-        {isUser ? 'You' : 'Bx'}
-      </div>
-      <div className={cn('min-w-0 max-w-[85%]', isUser && 'text-right')}>
-        {/* Attachment chips (user messages only) */}
-        {isUser && msg.attachments && msg.attachments.length > 0 && (
-          <div className={cn('mb-1.5 flex flex-wrap gap-1', isUser && 'justify-end')}>
-            {msg.attachments.map((a, i) => (
-              <span
-                key={i}
-                className="flex items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:border-emerald-700/40 dark:text-emerald-300"
-              >
-                <AttachmentIcon mime={a.mime} />
-                <span className="max-w-[100px] truncate">{a.name}</span>
-              </span>
-            ))}
-          </div>
-        )}
-        {msg.content && (
-          <div
-            className={cn(
-              'inline-block whitespace-pre-wrap rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed text-left',
-              isUser
-                ? 'bg-[var(--bg-2)] text-[var(--fg-0)]'
-                : msg.error
-                  ? 'border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200'
-                  : 'v2-card !p-4 text-[var(--fg-0)]',
-            )}
-          >
-            <MathText>{msg.content}</MathText>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-function TypingBubble() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex gap-3"
-    >
-      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-700 text-[11px] font-bold text-[#02180F]">
-        Bx
-      </div>
-      <div className="v2-card flex items-center gap-1.5 !p-4">
-        <Dot delay={0} />
-        <Dot delay={0.15} />
-        <Dot delay={0.3} />
-      </div>
-    </motion.div>
-  )
-}
-
-function Dot({ delay }: { delay: number }) {
-  return (
-    <motion.span
-      className="block h-1.5 w-1.5 rounded-full bg-emerald-500"
-      animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
-      transition={{ duration: 1, repeat: Infinity, delay, ease: 'easeInOut' }}
-    />
   )
 }

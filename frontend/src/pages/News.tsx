@@ -74,7 +74,7 @@ function ArticleCard({ article }: { article: NewsArticle }) {
         <button
           type="button"
           onClick={() => setExpanded(e => !e)}
-          className="mt-3 flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-300"
+          className="mt-3 flex items-center gap-1 text-xs font-semibold text-indigo-500 hover:text-indigo-400 dark:text-indigo-300"
         >
           {expanded ? <><ChevronUp size={13} /> Show less</> : <><ChevronDown size={13} /> Read more</>}
         </button>
@@ -179,7 +179,7 @@ export function NewsPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-xs font-semibold uppercase tracking-wide text-ink-400">Prize</div>
-                    <div className="font-display text-2xl text-emerald-600 dark:text-emerald-300">{comp.prize}</div>
+                    <div className="font-display text-2xl text-indigo-500 dark:text-indigo-300">{comp.prize}</div>
                     <Badge tone={comp.is_active ? 'accent' : undefined} className="mt-2">
                       {comp.is_active ? 'Active' : 'Ended'}
                     </Badge>

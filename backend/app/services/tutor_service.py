@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import Optional, List
+from typing import AsyncIterator, Optional, List
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pathlib import Path
@@ -196,6 +196,41 @@ Helpful textbook context:
 
         return prompt.strip(), mode
 
+    def _build_explanation_messages(
+        self,
+        *,
+        question: str,
+        subject: Optional[str],
+        context: Optional[str] = None,
+        is_main_concept_only: bool = False,
+        history: Optional[List] = None,
+    ) -> tuple[list, str, str, str]:
+        year_key, subject_id, subject_label = self._normalize_subject_details(subject)
+        textbook_dir = settings.SITE_RESOURCE_DIR / "textbooks" / year_key / subject_id
+        textbook_context = self._extract_excerpts_from_directory(textbook_dir, max_docs=3)
+        if not textbook_context:
+            textbook_context = "No direct textbook excerpts found for this specific subject. Please use general SHS academic standards."
+
+        system_prompt, mode = self._build_system_prompt(
+            question=question,
+            subject_label=subject_label,
+            subject_id=subject_id,
+            textbook_context=textbook_context,
+            context=context,
+            is_main_concept_only=is_main_concept_only,
+        )
+        user_msg = f"Question: {question}"
+
+        messages = [SystemMessage(content=system_prompt)]
+        if history:
+            for msg in history:
+                if msg.role == "user":
+                    messages.append(HumanMessage(content=msg.content))
+                elif msg.role == "ai":
+                    messages.append(AIMessage(content=msg.content))
+        messages.append(HumanMessage(content=user_msg))
+        return messages, mode, subject_label, subject_id
+
     def _parse_response(self, content: str, mode: str) -> TutorResponse:
         extracted_text = None
         study_tips: List[str] = []
@@ -261,34 +296,13 @@ Helpful textbook context:
         logger.info(f"🤖 Tutor Request Start - Subject: {subject}, Main Concept: {is_main_concept_only}")
         try:
             llm = self._get_llm()
-            year_key, subject_id, subject_label = self._normalize_subject_details(subject)
-            textbook_dir = settings.SITE_RESOURCE_DIR / "textbooks" / year_key / subject_id
-            textbook_context = self._extract_excerpts_from_directory(textbook_dir, max_docs=3)
-
-            if not textbook_context:
-                textbook_context = "No direct textbook excerpts found for this specific subject. Please use general SHS academic standards."
-
-            system_prompt, mode = self._build_system_prompt(
+            messages, mode, subject_label, _subject_id = self._build_explanation_messages(
                 question=question,
-                subject_label=subject_label,
-                subject_id=subject_id,
-                textbook_context=textbook_context,
+                subject=subject,
                 context=context,
-                is_main_concept_only=is_main_concept_only
+                is_main_concept_only=is_main_concept_only,
+                history=history,
             )
-            user_msg = f"Question: {question}"
-
-            messages = [SystemMessage(content=system_prompt)]
-            
-            # Inject history if available
-            if history:
-                for msg in history:
-                    if msg.role == "user":
-                        messages.append(HumanMessage(content=msg.content))
-                    elif msg.role == "ai":
-                        messages.append(AIMessage(content=msg.content))
-            
-            messages.append(HumanMessage(content=user_msg))
 
             response = await asyncio.wait_for(llm.ainvoke(messages), timeout=60.0)
             content = response.content if isinstance(response.content, str) else str(response.content)
@@ -309,6 +323,36 @@ Helpful textbook context:
         except Exception as e:
             logger.error(f"Error in TutorService: {str(e)}")
             return TutorResponse(explanation=f"Textbook Error: {str(e)}")
+
+    async def stream_explanation(
+        self,
+        question: str,
+        subject: str,
+        context: Optional[str] = None,
+        is_main_concept_only: bool = False,
+        history: Optional[List] = None,
+    ) -> AsyncIterator[str]:
+        """Stream LLM tokens for a text-only tutor question."""
+        logger.info(f"🤖 Tutor Stream Start - Subject: {subject}")
+        try:
+            llm = self._get_llm()
+            messages, _mode, _subject_label, _subject_id = self._build_explanation_messages(
+                question=question,
+                subject=subject,
+                context=context,
+                is_main_concept_only=is_main_concept_only,
+                history=history,
+            )
+            async for chunk in llm.astream(messages):
+                content = chunk.content if isinstance(chunk.content, str) else str(chunk.content or "")
+                if content:
+                    yield content
+        except asyncio.TimeoutError:
+            logger.error("Tutor stream timed out.")
+            yield "Timeout: Unable to retrieve textbook insight right now."
+        except Exception as e:
+            logger.error(f"Error in TutorService stream: {str(e)}")
+            yield f"Textbook Error: {str(e)}"
 
     async def get_image_explanation(
         self,

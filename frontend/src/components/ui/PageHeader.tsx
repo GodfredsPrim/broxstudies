@@ -23,11 +23,11 @@ export function PageHeader({ eyebrow, title, subtitle, actions, className, tight
       <div className="min-w-0 max-w-3xl">
         {eyebrow && (
           <div className="mb-3 flex items-center gap-2">
-            <span className="v2-dot" />
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)]" />
             <Eyebrow>{eyebrow}</Eyebrow>
           </div>
         )}
-        <h1 className="v2-display text-[40px] leading-[1.04] tracking-tighter text-ink-0 sm:text-[52px]">
+        <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
           {title}
         </h1>
         {subtitle && (

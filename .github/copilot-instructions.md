@@ -1,80 +1,26 @@
-# Ghana SHS Curriculum AI Question Generator
+# BroxStudies
 
-## Project Overview
-Web application that generates AI-powered exam questions for Ghana Secondary School students based on:
-- Course syllabi (PDF)
-- Historical past questions (PDF)
-- Textbook content (PDF)
+## Overview
+Ghana SHS/TVET EdTech platform: AI tutor, practice generation, WASSCE prep, library, gamification, and admin tools.
 
-Uses RAG (Retrieval-Augmented Generation) to analyze patterns in past questions and generate realistic practice questions.
+## Active codebase
+- **`backend/`** — FastAPI app (`app/main.py`), SQLite/Postgres via `auth_service`, LangChain tutor, RAG question generation
+- **`frontend/`** — React 18 + Vite + TypeScript SPA; built to `frontend/dist` and served by FastAPI in production
 
-## Tech Stack
-- **Backend**: FastAPI with LangChain for RAG
-- **Frontend**: React + Vite
-- **Database**: SQLite (local)
-- **PDF Processing**: PyPDF2, pydantic
-- **LLM**: OpenAI API
-- **Vector Store**: FAISS for embeddings
-
-## Project Structure
-```
-.
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   ├── config.py
-│   │   ├── routes/
-│   │   │   ├── questions.py
-│   │   │   ├── uploads.py
-│   │   │   └── analysis.py
-│   │   ├── services/
-│   │   │   ├── pdf_processor.py
-│   │   │   ├── rag_engine.py
-│   │   │   └── question_generator.py
-│   │   └── utils/
-│   │       └── embeddings.py
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── components/
-│   │   │   ├── UploadPDF.tsx
-│   │   │   ├── QuestionGenerator.tsx
-│   │   │   └── AnalysisDashboard.tsx
-│   │   ├── services/
-│   │   │   └── api.ts
-│   │   └── index.css
-│   ├── package.json
-│   └── vite.config.ts
-├── README.md
-└── .gitignore
-```
-
-## Setup Instructions
-
-### Backend Setup
+## Local development
 ```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate  # Windows
-pip install -r requirements.txt
+# Backend
+cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload
+
+# Frontend
+cd frontend && npm install && npm run dev
 ```
 
-### Frontend Setup
-```bash
-cd frontend
-npm install
-```
+## Key routes (frontend)
+- `/welcome` — landing (public)
+- `/dashboard` — student hub
+- `/` — AI tutor (Study)
+- `/practice`, `/wassce`, `/quiz`, `/library`, `/analytics`, `/admin`
 
-### Environment Setup
-Create `.env` file in backend folder with:
-```
-OPENAI_API_KEY=your-key-here
-DATABASE_URL=sqlite:///./gh_shs.db
-```
-
-## Commands
-- `npm run dev` - Start frontend dev server
-- `uvicorn app.main:app --reload` - Start backend server
+## Do not recreate
+Legacy folders (`frontend-old`, `frontend-v2`, `broxstudies/`, `examprep-gh/`) were removed. All UI work goes in `frontend/`.

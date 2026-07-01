@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BookOpen, Search, Grid3X3, List, ChevronRight, Star,
-  ExternalLink, BookMarked, X, CheckCircle2, XCircle,
+  ExternalLink, BookMarked, X, CheckCircle2, XCircle, Bookmark, Clock,
 } from 'lucide-react'
+import { useLibraryProgress } from '@/hooks/useLibraryProgress'
+import { Progress } from '@/components/ui/progress'
 import { extractError } from '@/api/client'
 import { libraryApi } from '@/api/endpoints'
 import { PageLayout } from '@/components/ui/PageLayout'
@@ -473,6 +475,7 @@ export function LibraryPage() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { recent, bookmarks, openBook, toggleBookmark, isBookmarked, getProgress } = useLibraryProgress()
 
   const filteredLocalBooks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -513,7 +516,10 @@ export function LibraryPage() {
     return () => { active = false; window.clearTimeout(timer) }
   }, [searchQuery, selectedCategory, filteredLocalBooks])
 
-  const openBook = (book: Book) => setSelectedBook(book)
+  const handleOpenBook = (book: Book) => {
+    openBook(book.id, book.title, book.author, getProgress(book.id))
+    setSelectedBook(book)
+  }
   const closeBook = () => setSelectedBook(null)
 
   return (
@@ -524,6 +530,61 @@ export function LibraryPage() {
       width="wide"
       noHeaderBorder
     >
+      {/* Continue reading & bookmarks */}
+      {(recent.length > 0 || bookmarks.length > 0) && (
+        <div className="mb-8 grid gap-6 lg:grid-cols-2">
+          {recent.length > 0 && (
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <Clock size={14} /> Continue Reading
+              </h2>
+              <div className="space-y-2">
+                {recent.map(item => {
+                  const book = books.find(b => b.id === item.bookId) || MOCK_BOOKS.find(b => b.id === item.bookId)
+                  if (!book) return null
+                  return (
+                    <button
+                      key={item.bookId}
+                      onClick={() => handleOpenBook(book)}
+                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-indigo-500/30"
+                    >
+                      <BookCover book={book} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{item.title}</p>
+                        <Progress value={item.progress} className="mt-2" />
+                      </div>
+                      <ChevronRight size={16} className="text-muted-foreground" />
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+          {bookmarks.length > 0 && (
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <Bookmark size={14} className="fill-current text-amber-400" /> Bookmarks
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {bookmarks.map(item => {
+                  const book = books.find(b => b.id === item.bookId) || MOCK_BOOKS.find(b => b.id === item.bookId)
+                  if (!book) return null
+                  return (
+                    <button
+                      key={item.bookId}
+                      onClick={() => handleOpenBook(book)}
+                      className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium transition hover:border-indigo-500/30"
+                    >
+                      {item.title}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" size={18} />
         <Input
@@ -550,13 +611,13 @@ export function LibraryPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode('grid')}
-            className={`rounded-lg p-2 ${viewMode === 'grid' ? 'bg-emerald-100 text-emerald-700' : 'border border-input text-muted-foreground hover:bg-background'}`}
+            className={`rounded-lg p-2 ${viewMode === 'grid' ? 'bg-indigo-500/15 text-indigo-400' : 'border border-input text-muted-foreground hover:bg-background'}`}
           >
             <Grid3X3 size={18} />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`rounded-lg p-2 ${viewMode === 'list' ? 'bg-emerald-100 text-emerald-700' : 'border border-input text-muted-foreground hover:bg-background'}`}
+            className={`rounded-lg p-2 ${viewMode === 'list' ? 'bg-indigo-500/15 text-indigo-400' : 'border border-input text-muted-foreground hover:bg-background'}`}
           >
             <List size={18} />
           </button>
@@ -575,15 +636,23 @@ export function LibraryPage() {
         ) : viewMode === 'grid' ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {books.map(book => (
-              <button
-                key={book.id}
-                onClick={() => openBook(book)}
-                className="group rounded-2xl border border-input bg-card p-4 text-left transition hover:border-emerald-300 hover:shadow-lg"
+              <div key={book.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); toggleBookmark(book.id, book.title, book.author) }}
+                  className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full bg-card/90 text-muted-foreground transition hover:text-amber-400"
+                  aria-label="Bookmark"
+                >
+                  <Bookmark size={14} className={isBookmarked(book.id) ? 'fill-amber-400 text-amber-400' : ''} />
+                </button>
+                <button
+                onClick={() => handleOpenBook(book)}
+                className="group w-full rounded-2xl border border-input bg-card p-4 text-left transition hover:border-indigo-500/30 hover:shadow-glow-sm"
               >
                 <div className="mb-4 flex justify-center">
                   <BookCover book={book} size="md" />
                 </div>
-                <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-emerald-600">{book.title}</h3>
+                <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-indigo-400">{book.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{book.author}</p>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-1">
@@ -592,10 +661,11 @@ export function LibraryPage() {
                   </div>
                   <span className="text-xs text-muted-foreground">{book.pages ?? '—'} pages</span>
                 </div>
-                <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 group-hover:gap-2">
+                <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-400 group-hover:gap-2">
                   Open book <ChevronRight size={14} />
                 </div>
               </button>
+              </div>
             ))}
           </div>
         ) : (
@@ -603,8 +673,8 @@ export function LibraryPage() {
             {books.map(book => (
               <button
                 key={book.id}
-                onClick={() => openBook(book)}
-                className="w-full rounded-2xl border border-input bg-card p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50/30"
+                onClick={() => handleOpenBook(book)}
+                className="w-full rounded-2xl border border-input bg-card p-4 text-left transition hover:border-indigo-500/30 hover:bg-indigo-500/5"
               >
                 <div className="flex gap-4">
                   <BookCover book={book} size="sm" />
@@ -623,7 +693,7 @@ export function LibraryPage() {
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="flex-shrink-0 self-center text-emerald-600" />
+                  <ChevronRight className="flex-shrink-0 self-center text-indigo-400" />
                 </div>
               </button>
             ))}

@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
-  WifiOff, Download,
+  WifiOff, Download, LayoutDashboard, BarChart3,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,24 +13,27 @@ import { usePWA } from '@/hooks/usePWA'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
 import { useGuestChats } from '@/hooks/useGuestChats'
+import { GamificationBar } from '@/components/gamification/GamificationWidgets'
 
 interface NavDef {
   to: string
   label: string
   short?: string
   icon: typeof Brain
-  group?: 'primary' | 'compete' | 'prep'
+  group?: 'home' | 'primary' | 'compete' | 'prep' | 'insights'
 }
 
 const NAV: NavDef[] = [
-  { to: '/',         label: 'Study with AI',            short: 'Study',     icon: Brain,       group: 'primary' },
-  { to: '/practice', label: 'Practice Questions',       short: 'Practice',  icon: FileText,    group: 'primary' },
-  { to: '/wassce',   label: 'Likely WASSCE Questions',  short: 'Likely',    icon: TrendingUp,  group: 'primary' },
-  { to: '/quiz',     label: 'Quiz Challenge',           short: 'Quiz',      icon: Zap,         group: 'compete' },
-  { to: '/news',     label: 'News & Updates',           short: 'News',      icon: Megaphone,   group: 'compete' },
-  { to: '/rankings', label: 'Rankings',                 short: 'Rankings',  icon: Trophy,      group: 'compete' },
-  { to: '/library',  label: 'Library',                  short: 'Library',   icon: BookOpen,    group: 'prep' },
-  { to: '/history',  label: 'History',                  short: 'History',   icon: Clock,       group: 'prep' },
+  { to: '/dashboard', label: 'Dashboard',           short: 'Home',      icon: LayoutDashboard, group: 'home' },
+  { to: '/',          label: 'AI Tutor',            short: 'Tutor',     icon: Brain,           group: 'primary' },
+  { to: '/practice',  label: 'Practice Questions',  short: 'Practice',  icon: FileText,        group: 'primary' },
+  { to: '/wassce',    label: 'Likely WASSCE',       short: 'Likely',    icon: TrendingUp,      group: 'primary' },
+  { to: '/quiz',      label: 'Quiz Challenge',      short: 'Quiz',      icon: Zap,             group: 'compete' },
+  { to: '/news',      label: 'News & Updates',      short: 'News',      icon: Megaphone,       group: 'compete' },
+  { to: '/rankings',  label: 'Rankings',            short: 'Rankings',  icon: Trophy,          group: 'compete' },
+  { to: '/library',   label: 'Library',             short: 'Library',   icon: BookOpen,        group: 'prep' },
+  { to: '/history',   label: 'History',             short: 'History',   icon: Clock,           group: 'prep' },
+  { to: '/analytics', label: 'Analytics',           short: 'Analytics', icon: BarChart3,         group: 'insights' },
 ]
 
 export function AppShell() {
@@ -93,18 +96,28 @@ export function AppShell() {
           <Brand collapsed={collapsed} selectedTrack={selectedTrack} />
 
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-2">
-            <NavGroup label="Studio" collapsed={collapsed}>
+            <NavGroup label="Home" collapsed={collapsed}>
+              {pageNav.filter(n => n.group === 'home').map(item => (
+                <NavItem key={item.to} item={item} collapsed={collapsed} />
+              ))}
+            </NavGroup>
+            <NavGroup label="Learn" collapsed={collapsed}>
               {pageNav.filter(n => n.group === 'primary').map(item => (
                 <NavItem key={item.to} item={item} collapsed={collapsed} />
               ))}
             </NavGroup>
             <NavGroup label="Compete" collapsed={collapsed}>
-              {NAV.filter(n => n.group === 'compete').map(item => (
+              {pageNav.filter(n => n.group === 'compete').map(item => (
                 <NavItem key={item.to} item={item} collapsed={collapsed} />
               ))}
             </NavGroup>
             <NavGroup label="Prep" collapsed={collapsed}>
-              {NAV.filter(n => n.group === 'prep').map(item => (
+              {pageNav.filter(n => n.group === 'prep').map(item => (
+                <NavItem key={item.to} item={item} collapsed={collapsed} />
+              ))}
+            </NavGroup>
+            <NavGroup label="Insights" collapsed={collapsed}>
+              {pageNav.filter(n => n.group === 'insights').map(item => (
                 <NavItem key={item.to} item={item} collapsed={collapsed} />
               ))}
             </NavGroup>
@@ -214,18 +227,28 @@ export function AppShell() {
                   </button>
                 </div>
                 <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3">
-                  <NavGroup label="Studio" collapsed={false}>
+                  <NavGroup label="Home" collapsed={false}>
+                    {pageNav.filter(n => n.group === 'home').map(item => (
+                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                    ))}
+                  </NavGroup>
+                  <NavGroup label="Learn" collapsed={false}>
                     {pageNav.filter(n => n.group === 'primary').map(item => (
                       <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                   <NavGroup label="Compete" collapsed={false}>
-                    {NAV.filter(n => n.group === 'compete').map(item => (
+                    {pageNav.filter(n => n.group === 'compete').map(item => (
                       <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                   <NavGroup label="Prep" collapsed={false}>
-                    {NAV.filter(n => n.group === 'prep').map(item => (
+                    {pageNav.filter(n => n.group === 'prep').map(item => (
+                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                    ))}
+                  </NavGroup>
+                  <NavGroup label="Insights" collapsed={false}>
+                    {pageNav.filter(n => n.group === 'insights').map(item => (
                       <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
@@ -313,6 +336,11 @@ export function AppShell() {
             <span className="text-[var(--fg-1)]">{currentTitle}</span>
           </div>
           <div className="flex-1" />
+          {user && (
+            <div className="hidden md:block">
+              <GamificationBar />
+            </div>
+          )}
           {!user && !isStudyPage && (
             <Badge tone="accent" className="hidden sm:inline-flex">
               <Sparkles size={10} /> {remaining}/{limit} free
@@ -390,16 +418,15 @@ export function AppShell() {
 
 function Brand({ collapsed, selectedTrack }: { collapsed: boolean; selectedTrack: string | null }) {
   return (
-    <NavLink to="/" className={cn('flex items-center gap-3 px-5 pb-5 pt-6', collapsed && 'justify-center px-0')}>
-      <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-glow-sm">
-        <div className="v2-mesh" style={{ inset: 0, filter: 'blur(8px)', opacity: 0.8 }} />
-        <span className="relative font-display text-lg text-[#02180F]">Bx</span>
+    <NavLink to="/dashboard" className={cn('flex items-center gap-3 px-5 pb-5 pt-6', collapsed && 'justify-center px-0')}>
+      <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-glow-sm">
+        <Sparkles size={16} className="relative text-white" />
       </div>
        {!collapsed && (
          <div className="min-w-0">
-           <div className="truncate font-display text-[20px] leading-none text-[var(--fg-0)]">BroxStudies</div>
-           <div className="mt-1 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
-             {selectedTrack ? `for ${selectedTrack.toUpperCase()}` : 'for SHS & TVET'}
+           <div className="truncate text-[18px] font-bold leading-none text-[var(--fg-0)]">BroxStudies</div>
+           <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-400">
+             {selectedTrack ? `${selectedTrack.toUpperCase()} Track` : 'SHS & TVET'}
            </div>
          </div>
        )}
@@ -445,7 +472,7 @@ function NavItem({ item, collapsed, onNavigate }: NavItemProps) {
         cn(
           'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors',
           isActive
-            ? 'bg-emerald-500/10 text-emerald-200'
+            ? 'bg-indigo-500/10 text-indigo-300'
             : 'text-ink-300 hover:bg-white/5 hover:text-ink-0',
           collapsed && 'justify-center px-0',
         )
@@ -455,7 +482,7 @@ function NavItem({ item, collapsed, onNavigate }: NavItemProps) {
       {({ isActive }) => (
         <>
           {isActive && !collapsed && (
-            <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
+            <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
           )}
           <Icon size={16} className="shrink-0" />
           {!collapsed && <span className="flex-1 truncate">{item.label}</span>}

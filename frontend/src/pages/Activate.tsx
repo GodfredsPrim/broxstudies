@@ -190,7 +190,7 @@ export function ActivatePage() {
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
       <div className="pointer-events-none absolute inset-0">
         <div className="v2-mesh" style={{ opacity: 0.55 }} />
-        <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
         <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl" />
       </div>
 
@@ -201,7 +201,7 @@ export function ActivatePage() {
         className="relative w-full max-w-2xl"
       >
         <Link to="/" className="mb-8 flex items-center gap-3">
-          <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-glow-sm">
+          <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-700 shadow-glow-sm">
             <span className="relative font-display text-[18px] text-[#02180F]">Bx</span>
           </div>
           <div>
@@ -212,7 +212,7 @@ export function ActivatePage() {
 
         <Card padded={false} className="overflow-hidden border-[var(--line-strong)] shadow-xl shadow-black/5">
           {/* Hero */}
-          <div className="border-b border-[var(--line)] bg-gradient-to-br from-emerald-500/8 via-transparent to-amber-400/8 px-7 py-8 sm:px-9">
+          <div className="border-b border-[var(--line)] bg-gradient-to-br from-indigo-500/8 via-transparent to-amber-400/8 px-7 py-8 sm:px-9">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <Eyebrow className="mb-2">Go Premium</Eyebrow>
@@ -230,7 +230,7 @@ export function ActivatePage() {
               <div className="flex flex-col items-end gap-2">
                 <Badge tone="gold">GH₵ {price}</Badge>
                 {config.sms_enabled && (
-                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-300">
+                  <span className="inline-flex items-center gap-1 text-xs text-indigo-500 dark:text-indigo-400">
                     <MessageSquare size={12} /> Code sent by SMS
                   </span>
                 )}
@@ -252,7 +252,7 @@ export function ActivatePage() {
                       className={cn(
                         'flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-left transition-all',
                         active
-                          ? 'bg-emerald-500/15 ring-1 ring-emerald-500/25'
+                          ? 'bg-indigo-500/15 ring-1 ring-indigo-500/25'
                           : done
                             ? 'bg-[var(--bg-2)] opacity-80'
                             : 'bg-[var(--bg-2)]/60 opacity-60',
@@ -262,7 +262,7 @@ export function ActivatePage() {
                         className={cn(
                           'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
                           active || done
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-indigo-500 text-white'
                             : 'bg-[var(--bg-3)] text-ink-400',
                         )}
                       >
@@ -293,7 +293,7 @@ export function ActivatePage() {
                   className="space-y-5"
                 >
                   {verifyLoading && (
-                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                    <div className="flex items-center gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
                       <Loader2 size={18} className="shrink-0 animate-spin" />
                       Verifying your payment…
                     </div>
@@ -386,8 +386,8 @@ export function ActivatePage() {
                     <FeatureChip icon={<Sparkles size={14} />} title="Unlock all" body={`${months} months premium`} />
                   </div>
 
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
-                    Try promo code <strong className="font-mono text-emerald-800 dark:text-emerald-200">BROX</strong>{' '}
+                  <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
+                    Try promo code <strong className="font-mono text-indigo-400 dark:text-indigo-300">BROX</strong>{' '}
                     for 7 days free — skip payment and go straight to activation.
                   </div>
 
@@ -485,21 +485,21 @@ export function ActivatePage() {
                   transition={{ duration: 0.25 }}
                 >
                   {paystackSuccess && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium">Payment confirmed!</p>
-                        <p className="mt-0.5 text-emerald-600/90 dark:text-emerald-300/90">{paystackSuccess}</p>
+                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">{paystackSuccess}</p>
                       </div>
                     </div>
                   )}
 
                   {paymentSubmitted && !paystackSuccess && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium">Payment submitted!</p>
-                        <p className="mt-0.5 text-emerald-600/90 dark:text-emerald-300/90">
+                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">
                           {config.sms_enabled
                             ? 'Once approved, your access code will arrive by SMS. Enter it below when you receive it.'
                             : 'Once approved, enter the access code you receive.'}
@@ -509,7 +509,7 @@ export function ActivatePage() {
                   )}
 
                   {selectedTrack && (
-                    <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                    <div className="mb-5 flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
                       <Lock size={14} className="shrink-0" />
                       <span>
                         Locks account to <strong>{selectedTrack.toUpperCase()}</strong>
@@ -547,7 +547,7 @@ export function ActivatePage() {
                       </div>
                     )}
                     {success && (
-                      <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+                      <div className="flex items-center gap-2 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-500 dark:text-indigo-400">
                         <Check size={16} /> Activated — redirecting…
                       </div>
                     )}
@@ -577,7 +577,7 @@ export function ActivatePage() {
               <span>
                 Signed in as <span className="text-ink-100">{user?.email}</span>
               </span>
-              <Link to="/" className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-300">
+              <Link to="/" className="font-medium text-indigo-500 hover:text-indigo-400 dark:text-indigo-400">
                 Skip — continue with limited access
               </Link>
             </div>
@@ -599,7 +599,7 @@ function FeatureChip({
 }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)]/80 p-3.5">
-      <div className="mb-2 text-emerald-600 dark:text-emerald-300">{icon}</div>
+      <div className="mb-2 text-indigo-500 dark:text-indigo-400">{icon}</div>
       <div className="text-[13px] font-semibold text-ink-100">{title}</div>
       <div className="mt-0.5 text-xs text-ink-400">{body}</div>
     </div>

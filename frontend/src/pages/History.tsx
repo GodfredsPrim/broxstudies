@@ -108,14 +108,14 @@ export function HistoryPage() {
       onClick={() => setTab(t)}
       className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
         tab === t
-          ? 'border-emerald-600 text-emerald-700'
+          ? 'border-indigo-500 text-indigo-400'
           : 'border-transparent text-muted-foreground hover:text-foreground'
       }`}
     >
       {label}
       {count !== undefined && (
         <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-          tab === t ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
+          tab === t ? 'bg-indigo-500/15 text-indigo-400' : 'bg-muted text-muted-foreground'
         }`}>{count}</span>
       )}
     </button>
@@ -307,7 +307,7 @@ export function HistoryPage() {
                         <User size={12} />
                       </span>
                     ) : (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
                         <Bot size={12} />
                       </span>
                     )}
