@@ -32,41 +32,15 @@ An AI-powered web application that helps students learn, generate practice quest
 
 ```
 .
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI application entry
-│   │   ├── config.py            # Configuration and settings
-│   │   ├── models.py            # Pydantic models
-│   │   ├── routes/              # API endpoints
-│   │   │   ├── uploads.py       # File upload endpoints
-│   │   │   ├── questions.py     # Question generation endpoints
-│   │   │   └── analysis.py      # Pattern analysis endpoints
-│   │   ├── services/            # Business logic
-│   │   │   ├── pdf_processor.py # PDF text extraction
-│   │   │   ├── rag_engine.py    # RAG pipeline
-│   │   │   └── question_generator.py  # Question generation
-│   │   └── utils/
-│   │       └── embeddings.py    # Embedding utilities
-│   ├── requirements.txt         # Python dependencies
-│   └── .env.example            # Environment template
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx             # Main app component
-│   │   ├── main.tsx            # React entry point
-│   │   ├── index.css           # Global styles
-│   │   ├── components/
-│   │   │   ├── UploadPDF.tsx   # File upload component
-│   │   │   ├── QuestionGenerator.tsx  # Question generation UI
-│   │   │   └── AnalysisDashboard.tsx # Pattern analysis UI
-│   │   └── services/
-│   │       └── api.ts          # API client
-│   ├── package.json            # Node dependencies
-│   ├── vite.config.ts          # Vite configuration
-│   ├── tsconfig.json           # TypeScript config
-│   └── index.html             # HTML template
-├── README.md                   # This file
-└── .gitignore                 # Git ignore rules
+├── backend/          # FastAPI API, services, and data loading
+│   └── app/
+├── frontend/         # React + Vite SPA (production UI)
+├── Dockerfile        # Unified backend + frontend build
+├── render.yaml       # Render.com deployment config
+└── start_system.ps1  # Local dev helper (Windows)
 ```
+
+The active frontend is **`frontend/`** only. The FastAPI backend serves the built SPA from `frontend/dist` in production.
 
 ## Getting Started
 
@@ -85,8 +59,6 @@ Optional flags:
 .\start_system.ps1 -BackendOnly
 .\start_system.ps1 -FrontendOnly
 ```
-
-See [SYSTEM_WORKFLOW.md](./SYSTEM_WORKFLOW.md) for the recommended operating flow when adding new features.
 
 ### Prerequisites
 
@@ -159,7 +131,7 @@ npm install
 npm run dev
 ```
 
-Frontend will be available at `http://localhost:5173`
+Frontend will be available at `http://localhost:5175`
 
 ## API Endpoints
 

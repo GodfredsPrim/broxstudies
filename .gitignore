@@ -86,6 +86,7 @@ Thumbs.db
 temp/
 *.tmp
 .venv/
+.claude/
 backend/data/
 backend/run_logs/
 frontend/run_logs/
