@@ -6,13 +6,13 @@ import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AuthLayout, Field } from './Login'
+import { AuthLayout, Field } from '@/components/auth/AuthLayout'
 
 export function SignupPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const next = params.get('next') || '/'
+  const next = params.get('next') || '/dashboard'
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -113,7 +113,7 @@ export function SignupPage() {
         Already have one?{' '}
         <Link
           to={`/login?next=${encodeURIComponent(next)}`}
-          className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+          className="font-semibold text-indigo-400 hover:text-indigo-300"
         >
           Log in
         </Link>

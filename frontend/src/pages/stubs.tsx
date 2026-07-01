@@ -198,14 +198,23 @@ export function NotFoundPage() {
   return (
     <div className="grid min-h-[70dvh] place-items-center px-6">
       <div className="text-center">
-        <div className="v2-eyebrow mb-3">404</div>
-        <h1 className="v2-display text-[56px] leading-[1.02] tracking-tighter text-ink-0">
-          Page not found.
+        <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
+          <span className="text-4xl font-extrabold gradient-text">404</span>
+        </div>
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Page not found
         </h1>
-        <p className="mt-4 text-ink-300">That route doesn't exist yet — or you wandered off the map.</p>
-        <Link to="/" className="v2-btn v2-btn-primary mt-6 inline-flex">
-          Back home
-        </Link>
+        <p className="mx-auto mt-4 max-w-md text-muted-foreground">
+          That route doesn't exist yet — or you wandered off the map. Let's get you back on track.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/dashboard" className="v2-btn v2-btn-primary inline-flex">
+            Go to dashboard
+          </Link>
+          <Link to="/welcome" className="v2-btn v2-btn-ghost inline-flex">
+            Back to home
+          </Link>
+        </div>
       </div>
     </div>
   )

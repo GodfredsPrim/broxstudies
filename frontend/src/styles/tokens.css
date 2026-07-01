@@ -308,3 +308,11 @@ html.light .text-ink-400 { color: var(--fg-3); }
 html.light .border-white\/5 { border-color: var(--line); }
 html.light .bg-\[var\(--bg-1\)\] { background: var(--bg-1); }
 html.light .bg-\[var\(--bg-2\)\] { background: var(--bg-2); }
+
+/* Page layout shells */
+.page-shell {
+  @apply mx-auto w-full px-4 pb-16 sm:px-6 lg:px-8;
+}
+.page-narrow { @apply max-w-2xl; }
+.page-medium { @apply max-w-4xl; }
+.page-wide { @apply max-w-7xl; }

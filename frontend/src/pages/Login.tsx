@@ -1,20 +1,18 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { Mail, KeyRound, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
-import { Eyebrow } from '@/components/ui/Eyebrow'
+import { AuthLayout, Field } from '@/components/auth/AuthLayout'
 
 export function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const next = params.get('next') || '/'
+  const next = params.get('next') || '/dashboard'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -100,7 +98,7 @@ export function LoginPage() {
         New to BroxStudies?{' '}
         <Link
           to={`/signup?next=${encodeURIComponent(next)}`}
-          className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+          className="font-semibold text-indigo-400 hover:text-indigo-300"
         >
           Create an account
         </Link>
@@ -109,58 +107,4 @@ export function LoginPage() {
   )
 }
 
-/* ─────────────────────────────── shared pieces ────────────────────────────── */
-
-export function AuthLayout({
-  eyebrow,
-  title,
-  subtitle,
-  children,
-}: {
-  eyebrow: string
-  title: React.ReactNode
-  subtitle: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
-      <div className="v2-mesh" style={{ opacity: 0.5 }} />
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-md"
-      >
-        <Link to="/" className="mb-8 flex items-center gap-3">
-          <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-glow-sm">
-            <div className="v2-mesh" style={{ inset: 0, filter: 'blur(8px)', opacity: 0.8 }} />
-            <span className="relative font-display text-[18px] text-[#02180F]">Bx</span>
-          </div>
-           <div>
-             <div className="font-display text-lg leading-none text-ink-0">BroxStudies</div>
-           </div>
-        </Link>
-
-        <Card padded={false} className="overflow-hidden">
-          <div className="relative p-7 sm:p-9">
-            <Eyebrow className="mb-3 block">{eyebrow}</Eyebrow>
-            <h1 className="v2-display text-[38px] leading-[1.05] tracking-tighter text-ink-0">{title}</h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-ink-300">{subtitle}</p>
-
-            <div className="mt-8">{children}</div>
-          </div>
-        </Card>
-      </motion.div>
-    </div>
-  )
-}
-
-export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-[13px] font-medium text-ink-100">{label}</label>
-      {children}
-      {hint && <p className="mt-1 text-xs text-ink-400">{hint}</p>}
-    </div>
-  )
-}
+export { AuthLayout, Field } from '@/components/auth/AuthLayout'
