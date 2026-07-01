@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react'
 type Theme = 'dark' | 'light'
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>('light')
+  const [theme, setThemeState] = useState<Theme>('dark')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem('brox.theme') as Theme | null
-    const initial: Theme = saved === 'dark' || saved === 'light' ? saved : 'light'
+    const initial: Theme = saved === 'dark' || saved === 'light' ? saved : 'dark'
     setThemeState(initial)
     applyTheme(initial)
   }, [])

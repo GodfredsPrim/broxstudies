@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#059669" />
-    <meta name="description" content="BroxStudies for SHS — AI-powered WASSCE exam prep built for Ghanaian Senior High School students." />
+    <meta name="theme-color" content="#030712" />
+    <meta name="description" content="BroxStudies — AI-powered learning platform for Ghanaian SHS and TVET students. Master WASSCE with AI tutoring, practice exams, and personalized study." />
 
     <!-- PWA -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
@@ -16,17 +16,16 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 
-    <title>BroxStudies for SHS — Master WASSCE</title>
+    <title>BroxStudies — AI-Powered Learning for Ghanaian Students</title>
     <script>
-      // Apply saved theme before React paints — prevents flash.
       (function () {
         try {
           var saved = localStorage.getItem('brox.theme');
-          var theme = saved === 'dark' || saved === 'light' ? saved : 'light';
-          if (theme === 'dark') document.documentElement.classList.add('dark');
-        } catch (_) { /* no-op */ }
+          var theme = saved === 'light' ? 'light' : 'dark';
+          document.documentElement.classList.add(theme === 'light' ? 'light' : 'dark');
+        } catch (_) { document.documentElement.classList.add('dark'); }
       })();
     </script>
   </head>

@@ -17,12 +17,18 @@ import { NewsPage } from '@/pages/News'
 import { RankingsPage } from '@/pages/Rankings'
 import { LibraryPage } from '@/pages/Library'
 import { HistoryPage } from '@/pages/History'
+import { LandingPage } from '@/pages/Landing'
+import { DashboardPage } from '@/pages/Dashboard'
+import { AnalyticsPage } from '@/pages/Analytics'
 import { NotFoundPage } from '@/pages/stubs'
 
 export default function App() {
   return (
     <BootGate>
       <Routes>
+        {/* Public marketing landing */}
+        <Route path="/welcome" element={<LandingPage />} />
+
         {/* Public auth pages */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
@@ -38,10 +44,13 @@ export default function App() {
 
         {/* Main app shell */}
         <Route element={<AppShell />}>
-          {/* Study is the landing page — open to guests with a 3-chat meter */}
+          {/* Dashboard is the home for signed-in users */}
+          <Route path="/dashboard" element={<DashboardPage />} />
+
+          {/* AI Tutor */}
           <Route index element={<StudyPage />} />
 
-          {/* Admin dashboard — access-code gate (POST /api/admin/login-secret) */}
+          {/* Admin dashboard */}
           <Route
             path="/admin"
             element={
@@ -51,31 +60,41 @@ export default function App() {
             }
           />
 
+          {/* Analytics */}
+          <Route
+            path="/analytics"
+            element={
+              <Gate requireSubscription={false} label="Analytics" pitch="Track your performance and get AI recommendations when you sign in.">
+                <AnalyticsPage />
+              </Gate>
+            }
+          />
+
           {/* Auth-gated destinations */}
-           <Route
-             path="/practice"
-             element={
-               <Gate label="Practice Questions" pitch="Unlimited generated papers, per-question feedback, and full history — yours when you activate.">
-                 <PracticePage />
-               </Gate>
-             }
-           />
-           <Route
-             path="/wassce"
-             element={
-               <Gate label="Likely WASSCE Questions" pitch="Topic-by-topic likelihood scores from years of past-paper analysis — unlock when you activate.">
-                 <WassceePage />
-               </Gate>
-             }
-           />
-           <Route
-             path="/quiz"
-             element={
-               <Gate label="Quiz Challenge" pitch="Host or join live, timed quizzes with classmates. Subscribed students can create rooms.">
-                 <QuizPage />
-               </Gate>
-             }
-           />
+          <Route
+            path="/practice"
+            element={
+              <Gate label="Practice Questions" pitch="Unlimited generated papers, per-question feedback, and full history — yours when you activate.">
+                <PracticePage />
+              </Gate>
+            }
+          />
+          <Route
+            path="/wassce"
+            element={
+              <Gate label="Likely WASSCE Questions" pitch="Topic-by-topic likelihood scores from years of past-paper analysis — unlock when you activate.">
+                <WassceePage />
+              </Gate>
+            }
+          />
+          <Route
+            path="/quiz"
+            element={
+              <Gate label="Quiz Challenge" pitch="Host or join live, timed quizzes with classmates. Subscribed students can create rooms.">
+                <QuizPage />
+              </Gate>
+            }
+          />
           <Route
             path="/news"
             element={
@@ -95,7 +114,7 @@ export default function App() {
           <Route
             path="/library"
             element={
-              <Gate requireSubscription={false} label="Library" pitch="Browse a premium global library powered by local favorites and OpenLibrary discovery. Find Ghanaian classics, global bestsellers, study guides, and post-reading quizzes.">
+              <Gate requireSubscription={false} label="Library" pitch="Browse a premium global library powered by local favorites and OpenLibrary discovery.">
                 <LibraryPage />
               </Gate>
             }
@@ -110,9 +129,9 @@ export default function App() {
           />
         </Route>
 
-        {/* Old paths that existed in slice 1 → send to Study */}
+        {/* Legacy redirects */}
         <Route path="/study" element={<Navigate to="/" replace />} />
-        <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route path="/home" element={<Navigate to="/dashboard" replace />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
