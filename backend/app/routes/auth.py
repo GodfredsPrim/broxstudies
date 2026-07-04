@@ -11,6 +11,8 @@ from app.models import (
     AuthSignupRequest,
     AuthUser,
     GoogleAuthRequest,
+    OtpRequestBody,
+    OtpVerifyBody,
     PaymentManualRequest,
     SubscriptionStatusResponse,
     UserProgressResponse,
@@ -51,10 +53,19 @@ def get_optional_user(authorization: str | None = Header(default=None)) -> AuthU
         return None
 
 
+def require_active_subscription(current_user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    if current_user.is_admin:
+        return current_user
+    if current_user.subscription_status != "active":
+        raise HTTPException(status_code=403, detail="An active subscription is required for this feature.")
+    return current_user
+
+
 @router.get("/config", response_model=AuthConfigResponse)
 async def get_auth_config():
     from app.services.sms_service import sms_service
     from app.services.paystack_service import paystack_service
+    from app.services.moolre_payment_service import moolre_payment_service
 
     return AuthConfigResponse(
         google_client_id=settings.GOOGLE_CLIENT_ID,
@@ -68,6 +79,8 @@ async def get_auth_config():
         sms_enabled=sms_service.enabled and settings.SMS_ENABLED,
         paystack_enabled=paystack_service.enabled and settings.PAYSTACK_ENABLED,
         paystack_public_key=settings.PAYSTACK_PUBLIC_KEY if paystack_service.enabled else "",
+        moolre_payment_enabled=moolre_payment_service.enabled,
+        phone_otp_enabled=sms_service.enabled and settings.SMS_ENABLED,
     )
 
 
@@ -96,6 +109,28 @@ async def login_with_google(request: GoogleAuthRequest):
         return AuthResponse(access_token=token, user=user)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/request-otp")
+async def request_otp(body: OtpRequestBody):
+    """Send a 6-digit OTP to the given Ghana phone number via Moolre SMS."""
+    from app.services.sms_service import sms_service
+    if not sms_service.enabled:
+        raise HTTPException(status_code=503, detail="SMS service is not configured.")
+    try:
+        auth_service.create_otp(body.phone.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "message": "OTP sent. Check your phone."}
+
+
+@router.post("/verify-otp", response_model=AuthResponse)
+async def verify_otp(body: OtpVerifyBody):
+    """Verify the OTP and return a JWT. Creates a new account if the phone is not registered."""
+    result = auth_service.verify_otp(body.phone.strip(), body.code.strip())
+    if not result:
+        raise HTTPException(status_code=400, detail="Invalid or expired code. Please try again.")
+    return AuthResponse(access_token=result["token"], user=result["user"])
 
 
 @router.get("/me", response_model=AuthUser)

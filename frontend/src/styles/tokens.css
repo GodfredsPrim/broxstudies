@@ -3,52 +3,53 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   BROXSTUDIES — Premium EdTech Design System
-   Dark-first · Indigo · Purple · Blue · Emerald
+   BROXSTUDIES — Chalkboard Precision
+   Graphite · Chalk-ochre · Chalk-teal · Classroom-grounded, technical, exact
    ========================================================================== */
 
 :root {
-  /* surfaces */
-  --bg-0: #F8FAFC;
+  /* surfaces — "daylight classroom": cool grey-green paper, not warm cream */
+  --bg-0: #F4F5F1;
   --bg-1: #FFFFFF;
-  --bg-2: #F1F5F9;
-  --bg-3: #E2E8F0;
-  --line: rgba(15, 23, 42, 0.08);
-  --line-strong: rgba(15, 23, 42, 0.14);
+  --bg-2: #ECEEE8;
+  --bg-3: #DFE2D9;
+  --line: rgba(28, 36, 34, 0.10);
+  --line-strong: rgba(28, 36, 34, 0.16);
 
-  /* text */
-  --fg-0: #0F172A;
-  --fg-1: #334155;
-  --fg-2: #64748B;
-  --fg-3: #94A3B8;
+  /* text — ink on paper */
+  --fg-0: #1C2422;
+  --fg-1: #3E4A45;
+  --fg-2: #6B7670;
+  --fg-3: #9AA39C;
 
-  /* brand — indigo primary */
-  --primary: #6366F1;
-  --primary-strong: #4F46E5;
-  --primary-tint: rgba(99, 102, 241, 0.12);
-  --primary-glow: rgba(99, 102, 241, 0.35);
+  /* brand — chalk ochre primary */
+  --primary: #B8842A;
+  --primary-strong: #96691E;
+  --primary-tint: rgba(184, 132, 42, 0.12);
+  --primary-glow: rgba(184, 132, 42, 0.30);
 
-  /* accent — purple */
-  --accent: #8B5CF6;
-  --accent-strong: #7C3AED;
-  --accent-tint: rgba(139, 92, 246, 0.12);
-  --accent-glow: rgba(139, 92, 246, 0.3);
+  /* accent — chalk teal-green */
+  --accent: #3F7D63;
+  --accent-strong: #2E5F4A;
+  --accent-tint: rgba(63, 125, 99, 0.12);
+  --accent-glow: rgba(63, 125, 99, 0.28);
 
-  /* success — emerald */
-  --success: #10B981;
-  --success-strong: #059669;
-  --success-tint: rgba(16, 185, 129, 0.12);
+  /* success — chalk green */
+  --success: #2E8350;
+  --success-strong: #256B41;
+  --success-tint: rgba(46, 131, 80, 0.12);
 
-  /* blue — info */
-  --info: #3B82F6;
-  --info-tint: rgba(59, 130, 246, 0.12);
+  /* info — chalk sky-blue */
+  --info: #2E6FB0;
+  --info-tint: rgba(46, 111, 176, 0.12);
 
-  /* gold — rewards */
-  --gold: #F59E0B;
-  --gold-tint: rgba(245, 158, 11, 0.12);
+  /* gold — rewards/XP */
+  --gold: #C9971F;
+  --gold-tint: rgba(201, 151, 31, 0.12);
 
-  --danger: #EF4444;
-  --danger-tint: rgba(239, 68, 68, 0.1);
+  /* danger — chalk rust */
+  --danger: #C1432E;
+  --danger-tint: rgba(193, 67, 46, 0.10);
 
   /* shadcn compat */
   --background: var(--bg-0);
@@ -63,51 +64,53 @@
   --input: var(--line);
   --ring: var(--primary);
   --destructive: var(--danger);
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
-  --radius-2xl: 28px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
 }
 
 html.dark {
-  --bg-0: #030712;
-  --bg-1: #0A0F1E;
-  --bg-2: #111827;
-  --bg-3: #1A2235;
-  --line: rgba(255, 255, 255, 0.06);
-  --line-strong: rgba(255, 255, 255, 0.1);
+  /* surfaces — the chalkboard */
+  --bg-0: #1B2020;
+  --bg-1: #22282A;
+  --bg-2: #2A3133;
+  --bg-3: #333C3E;
+  --line: rgba(236, 234, 226, 0.08);
+  --line-strong: rgba(236, 234, 226, 0.14);
 
-  --fg-0: #F8FAFC;
-  --fg-1: #CBD5E1;
-  --fg-2: #94A3B8;
-  --fg-3: #64748B;
+  /* text — chalk */
+  --fg-0: #ECEAE2;
+  --fg-1: #C9CDC5;
+  --fg-2: #98A099;
+  --fg-3: #6D7570;
 
-  --primary: #818CF8;
-  --primary-strong: #6366F1;
-  --primary-tint: rgba(129, 140, 248, 0.15);
-  --primary-glow: rgba(129, 140, 248, 0.4);
+  --primary: #E3B23C;
+  --primary-strong: #C99527;
+  --primary-tint: rgba(227, 178, 60, 0.15);
+  --primary-glow: rgba(227, 178, 60, 0.35);
 
-  --accent: #A78BFA;
-  --accent-strong: #8B5CF6;
-  --accent-tint: rgba(167, 139, 250, 0.15);
-  --accent-glow: rgba(167, 139, 250, 0.35);
+  --accent: #6FB39A;
+  --accent-strong: #4F8E77;
+  --accent-tint: rgba(111, 179, 154, 0.15);
+  --accent-glow: rgba(111, 179, 154, 0.30);
 
-  --success: #34D399;
-  --success-strong: #10B981;
-  --success-tint: rgba(52, 211, 153, 0.12);
+  --success: #5FBE8A;
+  --success-strong: #4AA173;
+  --success-tint: rgba(95, 190, 138, 0.12);
 
-  --info: #60A5FA;
-  --info-tint: rgba(96, 165, 250, 0.12);
+  --info: #6FA3D8;
+  --info-tint: rgba(111, 163, 216, 0.12);
 
-  --gold: #FBBF24;
-  --gold-tint: rgba(251, 191, 36, 0.12);
+  --gold: #F0C25C;
+  --gold-tint: rgba(240, 194, 92, 0.12);
 
-  --danger: #F87171;
-  --danger-tint: rgba(248, 113, 113, 0.12);
+  --danger: #E2694F;
+  --danger-tint: rgba(226, 105, 79, 0.12);
 
   --background: var(--bg-0);
   --foreground: var(--fg-0);
@@ -129,7 +132,7 @@ html {
 html.light { color-scheme: light; }
 
 body {
-  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: 'ss01', 'cv11';
   background:
     radial-gradient(ellipse 80% 50% at 50% -20%, var(--primary-tint), transparent),
@@ -193,9 +196,10 @@ body {
   }
   .v2-btn-primary {
     background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-    color: white;
+    color: #14201B;
     box-shadow: 0 4px 14px -4px var(--primary-glow);
   }
+  html.dark .v2-btn-primary { color: #14201B; }
   .v2-btn-primary:hover:not(:disabled) {
     filter: brightness(1.08);
     transform: translateY(-1px);
@@ -222,7 +226,7 @@ body {
   }
 
   .v2-input {
-    @apply w-full rounded-xl border bg-[var(--bg-2)] px-4 py-2.5 text-sm text-[var(--fg-0)] transition-colors;
+    @apply w-full rounded-lg border bg-[var(--bg-2)] px-4 py-2.5 text-sm text-[var(--fg-0)] transition-colors;
     border-color: var(--line);
   }
   .v2-input::placeholder { color: var(--fg-3); }
@@ -249,9 +253,14 @@ body {
   }
 
   .v2-display {
-    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
     font-weight: 800;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
+  }
+
+  .v2-data {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
   }
 
   .v2-eyebrow {
@@ -263,6 +272,13 @@ body {
     @apply h-1.5 w-1.5 rounded-full;
     background: var(--success);
     box-shadow: 0 0 8px var(--success);
+  }
+
+  /* signature detail: dashed chalk-line rule — use sparingly, at section
+     boundaries and table headers, not as a general-purpose border */
+  .v2-chalk-rule {
+    border-style: dashed;
+    border-color: var(--line-strong);
   }
 
   .v2-mesh {
@@ -280,7 +296,7 @@ body {
 
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, var(--primary) 0%, var(--accent) 50%, var(--info) 100%);
+    background-image: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   }
 
   .gradient-border {

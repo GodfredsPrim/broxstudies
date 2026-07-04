@@ -74,7 +74,7 @@ export function TrackSelector({ selectedTrack, onSelect }: TrackSelectorProps) {
                 <span
                   className={cn(
                     'grid h-12 w-12 place-items-center rounded-2xl text-white',
-                    option.tone === 'emerald' ? 'bg-emerald-500' : 'bg-sky-500',
+                    option.tone === 'emerald' ? 'bg-emerald-500' : 'bg-[var(--info)]',
                   )}
                 >
                   <Icon size={20} />

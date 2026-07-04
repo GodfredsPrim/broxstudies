@@ -440,7 +440,7 @@ export function QuizPage() {
                 </div>
                 <div className="flex items-center gap-2 self-start rounded-2xl bg-indigo-500/10 px-4 py-2 sm:self-auto dark:bg-indigo-900/20">
                   <Clock size={14} className="text-indigo-500 dark:text-indigo-400" />
-                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-red-600 dark:text-red-400' : 'text-indigo-400 dark:text-indigo-300'}`}>
+                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-400 dark:text-indigo-300'}`}>
                     {fmtTime}
                   </span>
                 </div>

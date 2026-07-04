@@ -15,7 +15,7 @@ import type { LeaderboardEntry } from '@/api/types'
 const PODIUM_META = [
   { rank: 1, icon: Trophy, ring: 'ring-amber-400/40', bg: 'bg-gradient-to-b from-amber-400/20 to-transparent', text: 'text-amber-600 dark:text-amber-300', height: 'h-28' },
   { rank: 2, icon: Medal, ring: 'ring-slate-400/30', bg: 'bg-gradient-to-b from-slate-400/15 to-transparent', text: 'text-slate-600 dark:text-slate-300', height: 'h-20' },
-  { rank: 3, icon: Award, ring: 'ring-orange-400/30', bg: 'bg-gradient-to-b from-orange-400/15 to-transparent', text: 'text-orange-600 dark:text-orange-300', height: 'h-16' },
+  { rank: 3, icon: Award, ring: 'ring-amber-600/30', bg: 'bg-gradient-to-b from-amber-600/15 to-transparent', text: 'text-amber-700 dark:text-amber-500', height: 'h-16' },
 ] as const
 
 export function RankingsPage() {

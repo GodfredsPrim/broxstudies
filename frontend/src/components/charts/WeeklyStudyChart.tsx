@@ -35,8 +35,8 @@ export function WeeklyStudyChart({ data }: WeeklyStudyChartProps) {
         <Bar dataKey="minutes" fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
         <defs>
           <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#818CF8" />
-            <stop offset="100%" stopColor="#A78BFA" />
+            <stop offset="0%" stopColor="var(--primary)" />
+            <stop offset="100%" stopColor="var(--accent)" />
           </linearGradient>
         </defs>
       </BarChart>

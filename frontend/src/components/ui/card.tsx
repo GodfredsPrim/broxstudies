@@ -8,7 +8,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
-  { className, interactive, grain, padded = true, ...rest },
+  { className, interactive, grain, padded = true, children, ...rest },
   ref,
 ) {
   return (
@@ -17,11 +17,14 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       className={cn(
         'v2-card relative',
         interactive && 'v2-card-interactive cursor-pointer',
-        grain && 'v2-grain overflow-hidden',
+        grain && 'overflow-hidden',
         padded && 'p-5 sm:p-6',
         className,
       )}
       {...rest}
-    />
+    >
+      {grain && <div className="v2-grain" />}
+      {children}
+    </div>
   )
 })

@@ -48,7 +48,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 const SOURCES = [
   { Icon: BookOpen,      label: 'Books & Textbooks',         color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-  { Icon: FileText,      label: 'Past Exam Questions',       color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-50 dark:bg-blue-900/20'        },
+  { Icon: FileText,      label: 'Past Exam Questions',       color: 'text-[var(--info)]',                     bg: 'bg-[var(--info-tint)]'                 },
   { Icon: ScrollText,    label: 'Syllabi',                   color: 'text-purple-600 dark:text-purple-400',   bg: 'bg-purple-50 dark:bg-purple-900/20'    },
   { Icon: ClipboardList, label: "Chief Examiners' Report",   color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-50 dark:bg-amber-900/20'      },
 ]
@@ -570,14 +570,14 @@ export function PracticePage() {
               answer={answers[i] || ''}
               onAnswer={opt => setAnswers(prev => ({ ...prev, [i]: opt }))}
               answered={i in answers}
-              accentColor="#6366F1"
-              accentTint="rgba(99, 102, 241, 0.12)"
+              accentColor="var(--primary)"
+              accentTint="var(--primary-tint)"
             />
           ))}
         </div>
 
         {submitError && (
-          <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>
+          <div className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{submitError}</div>
         )}
 
         <button
@@ -637,13 +637,13 @@ export function PracticePage() {
             <article
               key={i}
               className={`rounded-3xl border p-5 ${
-                isCorrect ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/50 dark:bg-emerald-900/15' : 'border-red-200 bg-red-50/20 dark:border-red-800/50 dark:bg-red-900/10'
+                isCorrect ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/50 dark:bg-emerald-900/15' : 'border-rose-200 bg-rose-50/20 dark:border-rose-800/50 dark:bg-rose-900/10'
               }`}
             >
               <div className="flex items-start gap-3">
                 {isCorrect
                   ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                  : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+                  : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" />
                 }
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-relaxed text-foreground">
@@ -651,7 +651,7 @@ export function PracticePage() {
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                     }`}>
                       Your answer: <MathText>{myAnswer}</MathText>
                     </span>
@@ -712,7 +712,7 @@ export function PracticePage() {
             )}
           </div>
           {uploadError && (
-            <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+            <p className="mt-2 text-sm text-rose-600">{uploadError}</p>
           )}
           <button
             type="button"

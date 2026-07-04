@@ -55,6 +55,34 @@ if (-not (Test-Path $BackendEnvFile)) {
     Write-Step "Creating backend .env from template"
     Copy-Item $BackendEnvExampleFile $BackendEnvFile
     Write-Host "Created backend\\.env. Add your API keys before using AI features." -ForegroundColor Yellow
+} else {
+    Write-Step "Syncing new keys from .env.example into .env"
+    $existingLines = Get-Content $BackendEnvFile
+    $existingKeys = @{}
+    foreach ($line in $existingLines) {
+        if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=') {
+            $existingKeys[$Matches[1]] = $true
+        }
+    }
+
+    $newLines = @()
+    foreach ($line in Get-Content $BackendEnvExampleFile) {
+        if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=') {
+            $key = $Matches[1]
+            if (-not $existingKeys.ContainsKey($key)) {
+                $newLines += $line
+            }
+        }
+    }
+
+    if ($newLines.Count -gt 0) {
+        Add-Content -Path $BackendEnvFile -Value ""
+        Add-Content -Path $BackendEnvFile -Value "# --- auto-synced from .env.example $(Get-Date -Format 'yyyy-MM-dd') ---"
+        Add-Content -Path $BackendEnvFile -Value $newLines
+        Write-Host "Added $($newLines.Count) new key(s) to backend\.env - fill in values before using those features." -ForegroundColor Yellow
+    } else {
+        Write-Host "backend\.env already has every key from .env.example." -ForegroundColor DarkGray
+    }
 }
 
 if (-not $SkipInstall) {

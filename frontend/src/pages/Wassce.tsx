@@ -35,23 +35,23 @@ const PAPER = {
   paper_1: {
     label: 'Paper 1',
     subtitle: 'Objective Test (MCQ)',
-    hex: '#2563EB',
-    light: '#EFF6FF',
-    border: '#BFDBFE',
+    hex: 'var(--info)',
+    light: 'var(--info-tint)',
+    border: 'var(--info)',
   },
   paper_2: {
     label: 'Paper 2',
     subtitle: 'Theory / Essay',
-    hex: '#7C3AED',
-    light: '#F5F3FF',
-    border: '#DDD6FE',
+    hex: 'var(--accent)',
+    light: 'var(--accent-tint)',
+    border: 'var(--accent)',
   },
   paper_3: {
     label: 'Paper 3',
     subtitle: 'Practical / Alternative',
-    hex: '#B45309',
-    light: '#FFFBEB',
-    border: '#FDE68A',
+    hex: 'var(--gold)',
+    light: 'var(--gold-tint)',
+    border: 'var(--gold)',
   },
 } as const
 
@@ -111,11 +111,11 @@ function GeneratingScreen({
       <div className="w-full max-w-sm text-center">
         <div className="relative mx-auto mb-6 h-20 w-20">
           <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#e2e8f0" strokeWidth="6" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="var(--line)" strokeWidth="6" />
             <circle
               cx="40" cy="40" r="34"
               fill="none"
-              stroke="#059669"
+              stroke="var(--success)"
               strokeWidth="6"
               strokeLinecap="round"
               strokeDasharray={`${2 * Math.PI * 34}`}
@@ -557,7 +557,7 @@ export function WassceePage() {
         {fsWarning && (
           <div
             className="shrink-0 flex items-center justify-between gap-3 px-5 py-2 text-sm font-semibold text-white"
-            style={{ backgroundColor: '#DC2626' }}
+            style={{ backgroundColor: 'var(--danger)' }}
           >
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -629,7 +629,7 @@ export function WassceePage() {
               onClick={handleSubmit}
               disabled={submitting}
               className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
-              style={{ backgroundColor: '#059669' }}
+              style={{ backgroundColor: 'var(--success)' }}
             >
               {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy size={13} />}
               {submitting ? 'Submitting…' : 'Finish & Submit'}
@@ -651,7 +651,7 @@ export function WassceePage() {
                 className="flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition"
                 style={{
                   borderBottomColor: isActive ? m.hex : 'transparent',
-                  color: isActive ? m.hex : '#6B7280',
+                  color: isActive ? m.hex : 'var(--fg-2)',
                 }}
               >
                 {m.label}
@@ -717,13 +717,13 @@ export function WassceePage() {
                 </button>
               ))}
             </div>
-            {submitError && <p className="text-xs text-red-600 shrink-0">{submitError}</p>}
+            {submitError && <p className="text-xs text-rose-600 shrink-0">{submitError}</p>}
             <button
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
               className="inline-flex shrink-0 items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60"
-              style={{ backgroundColor: '#059669' }}
+              style={{ backgroundColor: 'var(--success)' }}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight size={15} />}
               {submitting ? 'Submitting…' : 'Finish & Submit'}
@@ -783,14 +783,14 @@ export function WassceePage() {
                       key={gi}
                       className="rounded-3xl border p-5"
                       style={{
-                        borderColor: isCorrect ? '#6EE7B7' : '#FECACA',
-                        backgroundColor: isCorrect ? '#ECFDF520' : '#FEF2F220',
+                        borderColor: isCorrect ? 'color-mix(in oklab, var(--success) 40%, transparent)' : 'color-mix(in oklab, var(--danger) 40%, transparent)',
+                        backgroundColor: isCorrect ? 'var(--success-tint)' : 'var(--danger-tint)',
                       }}
                     >
                       <div className="flex items-start gap-3">
                         {isCorrect
                           ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                          : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+                          : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" />
                         }
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold leading-relaxed text-foreground">
@@ -798,7 +798,7 @@ export function WassceePage() {
                           </p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                              isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                             }`}>
                               Your answer: <MathText>{myAnswer}</MathText>
                             </span>

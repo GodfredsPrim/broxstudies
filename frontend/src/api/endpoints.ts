@@ -19,6 +19,8 @@ import type {
   LiveQuizStateResponse,
   LiveQuizSubmitResponse,
   LoadingProgress,
+  MoolreInitiateResponse,
+  MoolreStatusResponse,
   NewsArticle,
   NewsArticleCreateBody,
   PaystackInitResponse,
@@ -40,6 +42,10 @@ export const authApi = {
     api.post<AuthResponse>('/api/auth/login', body).then(r => r.data),
   google: (body: { credential: string }) =>
     api.post<AuthResponse>('/api/auth/google', body).then(r => r.data),
+  requestOtp: (phone: string) =>
+    api.post<{ ok: boolean; message: string }>('/api/auth/request-otp', { phone }).then(r => r.data),
+  verifyOtp: (phone: string, code: string) =>
+    api.post<AuthResponse>('/api/auth/verify-otp', { phone, code }).then(r => r.data),
   me: () => api.get<AuthUser>('/api/auth/me').then(r => r.data),
   getProgress: () => api.get<UserProgress>('/api/auth/progress').then(r => r.data),
   patchProgress: (body: Partial<UserProgress>) =>
@@ -55,6 +61,14 @@ export const authApi = {
 }
 
 export const paymentsApi = {
+  // Moolre (primary payment provider)
+  moolreInitiate: (momo_number: string) =>
+    api.post<MoolreInitiateResponse>('/api/payments/moolre/initiate', { momo_number }).then(r => r.data),
+  moolreSubmitOtp: (external_ref: string, otp_code: string) =>
+    api.post<{ status: string; message?: string }>('/api/payments/moolre/submit-otp', { external_ref, otp_code }).then(r => r.data),
+  moolreStatus: (external_ref: string) =>
+    api.get<MoolreStatusResponse>(`/api/payments/moolre/status/${encodeURIComponent(external_ref)}`).then(r => r.data),
+  // Paystack (legacy / disabled by default)
   paystackInitialize: (body: { momo_number: string; callback_url?: string }) =>
     api.post<PaystackInitResponse>('/api/payments/paystack/initialize', body).then(r => r.data),
   paystackVerify: (reference: string) =>

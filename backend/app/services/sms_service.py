@@ -96,5 +96,12 @@ class MoolreSmsService:
         message = build_access_code_message(access_code, months)
         return self.send_sms(recipient, message)
 
+    def send_otp(self, recipient: str, otp_code: str) -> SmsResult:
+        message = (
+            f"BroxStudies: Your verification code is {otp_code}. "
+            f"Valid {settings.OTP_EXPIRE_MINUTES} minutes. Do not share this code."
+        )[:160]
+        return self.send_sms(recipient, message)
+
 
 sms_service = MoolreSmsService()

@@ -175,13 +175,13 @@ function BookCover({ book, size = 'md' }: { book: Book; size?: 'sm' | 'md' | 'lg
   // Color-coded fallback based on category
   const gradients: Record<string, string> = {
     ghanaian: 'from-amber-200 to-amber-400',
-    african: 'from-orange-200 to-red-300',
-    novel: 'from-blue-200 to-indigo-300',
-    storybook: 'from-pink-200 to-rose-300',
-    entrepreneur: 'from-emerald-200 to-teal-300',
-    subject: 'from-violet-200 to-purple-300',
+    african: 'from-rose-400 to-rose-600',
+    novel: 'from-indigo-300 to-indigo-500',
+    storybook: 'from-purple-300 to-purple-500',
+    entrepreneur: 'from-emerald-300 to-emerald-500',
+    subject: 'from-[var(--info-tint)] to-[var(--info)]',
   }
-  const grad = gradients[book.category] || 'from-emerald-100 to-blue-100'
+  const grad = gradients[book.category] || 'from-emerald-300 to-emerald-500'
 
   return (
     <div className={`${sizeClass} flex-shrink-0 rounded-lg bg-gradient-to-br ${grad} flex items-center justify-center shadow-sm`}>
@@ -274,7 +274,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
               <h2 className="text-xl font-bold text-foreground">{book.title}</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">{book.author}</p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                <Star size={12} className="fill-amber-400 text-amber-400" />
                 <span className="font-semibold">{book.rating}</span>
                 {book.pages && <span>· {book.pages} pages</span>}
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700 capitalize">
@@ -346,7 +346,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                   Test your understanding of this book after reading.
                 </p>
                 {quizError && (
-                  <p className="mt-2 text-xs text-red-600">{quizError}</p>
+                  <p className="mt-2 text-xs text-rose-600">{quizError}</p>
                 )}
                 <button
                   type="button"
@@ -383,7 +383,7 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                       <div key={qi} className={`rounded-xl border p-4 ${
                         quiz.submitted
                           ? isCorrect ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20' :
-                            isWrong ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20' : 'border-[var(--line)] bg-[var(--bg-1)]'
+                            isWrong ? 'border-rose-200 bg-rose-50 dark:border-rose-800/50 dark:bg-rose-900/20' : 'border-[var(--line)] bg-[var(--bg-1)]'
                           : 'border-[var(--line)] bg-[var(--bg-1)]'
                       }`}>
                         <p className="text-sm font-semibold text-foreground">
@@ -407,12 +407,12 @@ function BookReader({ book, onClose }: { book: Book; onClose: () => void }) {
                                       : isSelected && !quiz.submitted
                                         ? 'border-emerald-500 bg-emerald-50 font-semibold dark:bg-emerald-900/20'
                                         : isSelected && isWrong
-                                          ? 'border-red-400 bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                          ? 'border-rose-400 bg-rose-50 text-rose-800 dark:bg-rose-900/20 dark:text-rose-400'
                                           : 'border-[var(--line)] bg-[var(--bg-1)] hover:border-emerald-300'
                                   }`}
                                 >
                                   {quiz.submitted && isAnswer && <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />}
-                                  {quiz.submitted && isSelected && isWrong && <XCircle size={14} className="shrink-0 text-red-500" />}
+                                  {quiz.submitted && isSelected && isWrong && <XCircle size={14} className="shrink-0 text-rose-500" />}
                                   {opt}
                                 </button>
                               )
@@ -656,7 +656,7 @@ export function LibraryPage() {
                 <p className="mt-1 text-sm text-muted-foreground">{book.author}</p>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                    <Star size={14} className="fill-amber-400 text-amber-400" />
                     <span className="text-xs font-semibold text-foreground">{book.rating}</span>
                   </div>
                   <span className="text-xs text-muted-foreground">{book.pages ?? '—'} pages</span>
@@ -684,7 +684,7 @@ export function LibraryPage() {
                     <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{book.description}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
                       <div className="flex items-center gap-1">
-                        <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                        <Star size={12} className="fill-amber-400 text-amber-400" />
                         <span className="font-semibold">{book.rating}</span>
                       </div>
                       <span className="text-muted-foreground">{book.pages ?? '—'} pages</span>

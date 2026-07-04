@@ -2,6 +2,7 @@ export interface AuthUser {
   id: number
   email: string
   full_name?: string | null
+  phone?: string | null
   is_verified?: boolean
   has_access?: boolean
   subscription_status?: string
@@ -43,6 +44,22 @@ export interface AuthConfigResponse {
   sms_enabled?: boolean
   paystack_enabled?: boolean
   paystack_public_key?: string
+  moolre_payment_enabled?: boolean
+  phone_otp_enabled?: boolean
+}
+
+export interface MoolreInitiateResponse {
+  status: 'pending' | 'otp_required' | 'error'
+  external_ref: string
+  message?: string
+}
+
+export interface MoolreStatusResponse {
+  status: 'pending' | 'success' | 'failed'
+  access_code?: string | null
+  sms_sent?: boolean
+  sms_message?: string | null
+  already_fulfilled?: boolean
 }
 
 export interface Subject {

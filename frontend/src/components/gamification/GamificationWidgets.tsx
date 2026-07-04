@@ -67,7 +67,7 @@ export function StreakCard() {
             {streak} <span className="text-lg font-medium text-muted-foreground">days</span>
           </p>
         </div>
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/20">
           <Flame size={28} className="text-amber-400" />
         </div>
       </div>
@@ -91,7 +91,7 @@ export function LeaderboardPreview({ entries }: { entries: { name: string; score
             'grid h-7 w-7 place-items-center rounded-lg text-xs font-bold',
             e.rank === 1 ? 'bg-amber-500/20 text-amber-400' :
             e.rank === 2 ? 'bg-slate-400/20 text-slate-300' :
-            e.rank === 3 ? 'bg-orange-700/20 text-orange-400' :
+            e.rank === 3 ? 'bg-amber-600/20 text-amber-400' :
             'bg-[var(--bg-3)] text-muted-foreground',
           )}>
             {e.rank <= 3 ? <Trophy size={14} /> : e.rank}

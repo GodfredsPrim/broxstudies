@@ -26,6 +26,20 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+const SUBSCRIPTION_REQUIRED_DETAIL = 'An active subscription is required for this feature.'
+
+api.interceptors.response.use(
+  (response) => response,
+  (err) => {
+    if (err instanceof AxiosError && err.response?.status === 403 && err.response.data?.detail === SUBSCRIPTION_REQUIRED_DETAIL) {
+      if (window.location.pathname !== '/activate') {
+        window.location.assign('/activate')
+      }
+    }
+    return Promise.reject(err)
+  }
+)
+
 export function extractError(err: unknown, fallback = 'Something went wrong'): string {
   if (err instanceof AxiosError) {
     const detail = err.response?.data?.detail

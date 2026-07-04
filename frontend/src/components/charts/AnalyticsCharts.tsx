@@ -16,8 +16,8 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
       <AreaChart data={chartData}>
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#818CF8" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="#818CF8" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
@@ -27,7 +27,7 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
           contentStyle={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '12px', fontSize: '13px' }}
           formatter={(v) => [`${v ?? 0}%`, 'Avg. Score']}
         />
-        <Area type="monotone" dataKey="score" stroke="#818CF8" strokeWidth={2} fill="url(#areaGradient)" />
+        <Area type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={2} fill="url(#areaGradient)" />
       </AreaChart>
     </ResponsiveContainer>
   )

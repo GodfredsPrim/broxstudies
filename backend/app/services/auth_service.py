@@ -121,6 +121,7 @@ class AuthService:
                 for alter_sql in (
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_id TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS track TEXT",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT",
                 ):
                     try:
                         self._execute(conn, alter_sql)
@@ -134,7 +135,7 @@ class AuthService:
                         except Exception:
                             pass
             else:
-                for col in ("session_id", "track"):
+                for col in ("session_id", "track", "phone"):
                     try:
                         self._execute(conn, f"ALTER TABLE users ADD COLUMN {col} TEXT")
                     except sqlite3.OperationalError:
@@ -220,6 +221,42 @@ class AuthService:
                 )
                 """
             )
+
+            # ── Moolre payment transactions ────────────────────────────────────
+            self._execute(
+                conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS moolre_transactions (
+                    id {id_type},
+                    user_id INTEGER NOT NULL,
+                    momo_number TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    external_ref TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    moolre_txid TEXT,
+                    access_code TEXT,
+                    sms_sent INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    paid_at TEXT
+                )
+                """
+            )
+
+            # ── OTP codes (phone-based auth) ───────────────────────────────────
+            self._execute(
+                conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS otp_codes (
+                    id {id_type},
+                    phone TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    used INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_codes (phone, used, expires_at)")
 
             # ── Competitions table ─────────────────────────────────────────────
             self._execute(conn, 
@@ -382,11 +419,17 @@ class AuthService:
         except (KeyError, IndexError, TypeError):
             row_track = None
 
+        try:
+            row_phone = row["phone"]
+        except (KeyError, IndexError, TypeError):
+            row_phone = None
+
         return AuthUser(
             id=row["id"],
             full_name=row["full_name"],
             email=row["email"],
             provider=row["provider"],
+            phone=row_phone,
             subscription_status=status,
             subscription_expires_at=expires_at,
             is_admin=bool(row["is_admin"]),
@@ -459,7 +502,7 @@ class AuthService:
 
         # Fallback: Check if credentials match the static admin
         if normalized_email == settings.ADMIN_USERNAME.lower() and password == settings.ADMIN_PASSWORD:
-            return self.login_admin_static(settings.ADMIN_USERNAME, settings.ADMIN_PASSWORD)
+            return self._issue_static_admin_token()
 
         with self._connect() as conn:
             row = self._execute(conn, 
@@ -493,7 +536,9 @@ class AuthService:
     def login_admin_with_secret(self, secret: str) -> Tuple[str, AuthUser]:
         if secret != settings.ADMIN_SECRET:
             raise ValueError("Invalid admin access code.")
+        return self._issue_static_admin_token()
 
+    def _issue_static_admin_token(self) -> Tuple[str, AuthUser]:
         # Create virtual admin user
         admin = AuthUser(
             id=0,
@@ -950,6 +995,181 @@ class AuthService:
                 **fulfillment,
                 "status": new_status,
             }
+
+    # ── Moolre payment methods ────────────────────────────────────────────────
+
+    def create_moolre_transaction(
+        self, user_id: int, momo_number: str, amount: str, external_ref: str
+    ) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            query = """
+                INSERT INTO moolre_transactions (user_id, momo_number, amount, external_ref, status, created_at)
+                VALUES (?, ?, ?, ?, 'pending', ?)
+            """
+            if self.is_postgres:
+                query += " RETURNING id"
+            cursor = self._execute(conn, query, (user_id, momo_number, amount, external_ref, now))
+            if self.is_postgres:
+                return cursor.fetchone()["id"]
+            return cursor.lastrowid
+
+    def get_moolre_transaction(self, external_ref: str) -> Optional[dict]:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                "SELECT * FROM moolre_transactions WHERE external_ref = ?",
+                (external_ref,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def complete_moolre_transaction(self, external_ref: str, momo_number: Optional[str] = None) -> dict:
+        """Idempotent fulfillment after Moolre confirms payment."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                "SELECT * FROM moolre_transactions WHERE external_ref = ?",
+                (external_ref,),
+            ).fetchone()
+            if not row:
+                return {"ok": False, "error": "Transaction not found."}
+
+            tx = dict(row)
+            if tx.get("status") == "success" and tx.get("access_code"):
+                return {
+                    "ok": True,
+                    "already_fulfilled": True,
+                    "access_code": tx["access_code"],
+                    "sms_sent": bool(tx.get("sms_sent")),
+                    "user_id": tx["user_id"],
+                }
+
+            phone = momo_number or tx.get("momo_number") or ""
+            fulfillment = self.fulfill_subscription_payment(int(tx["user_id"]), phone)
+
+            self._execute(
+                conn,
+                """
+                UPDATE moolre_transactions
+                SET status = 'success', paid_at = ?, access_code = ?, sms_sent = ?,
+                    momo_number = COALESCE(?, momo_number)
+                WHERE external_ref = ?
+                """,
+                (
+                    now,
+                    fulfillment["access_code"],
+                    1 if fulfillment.get("sms_sent") else 0,
+                    momo_number,
+                    external_ref,
+                ),
+            )
+
+            return {**fulfillment, "already_fulfilled": False, "external_ref": external_ref}
+
+    def update_moolre_transaction_txid(self, external_ref: str, moolre_txid: str) -> None:
+        with self._connect() as conn:
+            self._execute(
+                conn,
+                "UPDATE moolre_transactions SET moolre_txid = ? WHERE external_ref = ?",
+                (moolre_txid, external_ref),
+            )
+
+    # ── OTP auth methods ──────────────────────────────────────────────────────
+
+    def _cleanup_expired_otps(self, conn: Any, phone: str) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self._execute(conn, "DELETE FROM otp_codes WHERE phone = ? AND expires_at < ?", (phone, now))
+
+    def create_otp(self, phone: str) -> str:
+        """Generate a 6-digit OTP, store it, send via SMS. Returns the code (for testing only)."""
+        from app.services.sms_service import normalize_ghana_phone, sms_service
+        phone = normalize_ghana_phone(phone)
+        code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
+
+        with self._connect() as conn:
+            self._cleanup_expired_otps(conn, phone)
+            # Limit to 1 active OTP per phone (invalidate previous)
+            self._execute(conn, "UPDATE otp_codes SET used = 1 WHERE phone = ? AND used = 0", (phone,))
+            self._execute(
+                conn,
+                "INSERT INTO otp_codes (phone, code, expires_at, used, created_at) VALUES (?, ?, ?, 0, ?)",
+                (phone, code, expires_at, now),
+            )
+
+        sms_result = sms_service.send_otp(phone, code)
+        if not sms_result.success:
+            logger.warning("OTP SMS failed for %s: %s", phone, sms_result.message)
+        return code
+
+    def verify_otp(self, phone: str, code: str) -> Optional[dict]:
+        """Validate OTP and return user dict (creating account if new). Returns None if invalid."""
+        from app.services.sms_service import normalize_ghana_phone
+        try:
+            phone = normalize_ghana_phone(phone)
+        except ValueError:
+            return None
+
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                """
+                SELECT * FROM otp_codes
+                WHERE phone = ? AND code = ? AND used = 0 AND expires_at > ?
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (phone, code, now),
+            ).fetchone()
+            if not row:
+                return None
+
+            self._execute(conn, "UPDATE otp_codes SET used = 1 WHERE id = ?", (row["id"],))
+
+            new_session_id = secrets.token_hex(16)
+
+            # Look up or create user by phone
+            user_row = self._execute(
+                conn, "SELECT * FROM users WHERE phone = ?", (phone,)
+            ).fetchone()
+
+            if user_row:
+                user = self._row_to_user(user_row)
+                # Update last_login_at and rotate session_id so this device becomes
+                # the sole active session (matches email/Google login behavior).
+                login_ts = datetime.now(timezone.utc).isoformat()
+                self._execute(
+                    conn,
+                    "UPDATE users SET last_login_at = ?, session_id = ? WHERE id = ?",
+                    (login_ts, new_session_id, user.id),
+                )
+            else:
+                # Create a new account identified by phone number
+                created_at = datetime.now(timezone.utc).isoformat()
+                display_name = phone  # Will be updatable later
+                query = """
+                    INSERT INTO users (full_name, email, provider, provider_subject, phone, created_at, last_login_at, subscription_status, session_id)
+                    VALUES (?, ?, 'phone', ?, ?, ?, ?, 'inactive', ?)
+                """
+                if self.is_postgres:
+                    query += " RETURNING id"
+                # Use phone as synthetic email placeholder (unique, non-colliding)
+                synthetic_email = f"phone_{phone}@broxstudies.local"
+                cursor = self._execute(
+                    conn, query,
+                    (display_name, synthetic_email, phone, phone, created_at, created_at, new_session_id),
+                )
+                if self.is_postgres:
+                    new_id = cursor.fetchone()["id"]
+                else:
+                    new_id = cursor.lastrowid
+                user_row = self._execute(conn, "SELECT * FROM users WHERE id = ?", (new_id,)).fetchone()
+                user = self._row_to_user(user_row)
+
+            token = self._issue_token(user, session_id=new_session_id)
+            return {"token": token, "user": user}
 
     # ── chat history methods ───────────────────────────────────────────────────
 

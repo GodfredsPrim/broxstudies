@@ -601,7 +601,7 @@ class BookLibraryService:
             llm = ChatOpenAI(
                 model=settings.resolved_llm_model,
                 openai_api_key=settings.OPENAI_API_KEY,
-                openai_api_base=settings.OPENAI_API_BASE or None,
+                openai_api_base=settings.OPENAI_BASE_URL or None,
                 temperature=0.5,
                 max_tokens=1000,
             )

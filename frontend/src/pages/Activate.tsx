@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -12,8 +12,8 @@ import {
   MessageSquare,
   Sparkles,
   ChevronRight,
-  CreditCard,
   Loader2,
+  Phone,
 } from 'lucide-react'
 import { authApi, paymentsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
@@ -27,11 +27,11 @@ import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
 import type { AuthConfigResponse } from '@/api/types'
 
-type Step = 'pay' | 'confirm' | 'activate'
+type Step = 'pay' | 'otp' | 'activate'
 
 const STEPS: { id: Step; label: string; num: string }[] = [
   { id: 'pay', label: 'Pay', num: '1' },
-  { id: 'confirm', label: 'Confirm', num: '2' },
+  { id: 'otp', label: 'Confirm', num: '2' },
   { id: 'activate', label: 'Activate', num: '3' },
 ]
 
@@ -40,9 +40,11 @@ const DEFAULT_CONFIG: AuthConfigResponse = {
   subscription_months: 3,
   momo_payment_number: '0248317900',
   sms_enabled: false,
-  paystack_enabled: false,
-  paystack_public_key: '',
+  moolre_payment_enabled: false,
 }
+
+const POLL_INTERVAL_MS = 4000
+const POLL_MAX_ATTEMPTS = 30 // ~2 minutes
 
 export function ActivatePage() {
   const { user, refresh } = useAuth()
@@ -55,18 +57,31 @@ export function ActivatePage() {
   const [config, setConfig] = useState<AuthConfigResponse>(DEFAULT_CONFIG)
   const [copied, setCopied] = useState(false)
 
-  const [momoName, setMomoName] = useState(user?.full_name || '')
+  // Moolre payment state
   const [momoNumber, setMomoNumber] = useState('')
-  const [reference, setReference] = useState('')
-  const [paymentSubmitted, setPaymentSubmitted] = useState(false)
-  const [paymentError, setPaymentError] = useState('')
-  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [moolreLoading, setMoolreLoading] = useState(false)
+  const [moolreError, setMoolreError] = useState('')
+  const [externalRef, setExternalRef] = useState('')
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'otp_required' | 'success' | 'failed' | ''>('')
+  const [paymentMessage, setPaymentMessage] = useState('')
 
-  const [paystackPhone, setPaystackPhone] = useState('')
-  const [paystackLoading, setPaystackLoading] = useState(false)
-  const [verifyLoading, setVerifyLoading] = useState(false)
-  const [paystackSuccess, setPaystackSuccess] = useState('')
+  // OTP confirmation state
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
 
+  // Polling
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollAttempts = useRef(0)
+
+  // Manual fallback
+  const [momoName, setMomoName] = useState(user?.full_name || '')
+  const [manualRef, setManualRef] = useState('')
+  const [manualLoading, setManualLoading] = useState(false)
+  const [manualSubmitted, setManualSubmitted] = useState(false)
+  const [manualError, setManualError] = useState('')
+
+  // Activation state
   const [code, setCode] = useState('')
   const [activateError, setActivateError] = useState('')
   const [activateLoading, setActivateLoading] = useState(false)
@@ -76,96 +91,133 @@ export function ActivatePage() {
     authApi.config().then(setConfig).catch(() => {})
   }, [])
 
-  const paystackReference = params.get('reference')
-
-  useEffect(() => {
-    if (!paystackReference) return
-    let cancelled = false
-    setVerifyLoading(true)
-    setPaymentError('')
-    paymentsApi
-      .paystackVerify(paystackReference)
-      .then(res => {
-        if (cancelled) return
-        if (res.status === 'success' && res.access_code) {
-          setCode(res.access_code)
-          setStep('activate')
-          setPaystackSuccess(
-            res.sms_sent
-              ? 'Payment confirmed! Your access code was sent by SMS — it’s also filled in below.'
-              : 'Payment confirmed! Enter your access code below to activate.',
-          )
-        } else if (res.status === 'success') {
-          setStep('activate')
-          setPaystackSuccess('Payment confirmed! Enter the access code you received.')
-        } else {
-          setPaymentError(res.sms_message || 'Payment not completed yet. Try again or contact support.')
-        }
-      })
-      .catch(err => {
-        if (!cancelled) {
-          setPaymentError(extractError(err, 'Could not verify payment.'))
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setVerifyLoading(false)
-      })
-    return () => {
-      cancelled = true
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
     }
-  }, [paystackReference])
+  }, [])
+
+  const handlePaymentSuccess = useCallback((accessCode?: string | null, smsSent?: boolean) => {
+    stopPolling()
+    setPaymentStatus('success')
+    if (accessCode) setCode(accessCode)
+    setPaymentMessage(
+      smsSent
+        ? 'Payment confirmed! Your access code was sent by SMS — it\'s also filled in below.'
+        : 'Payment confirmed! Enter your access code below to activate.',
+    )
+    setStep('activate')
+  }, [stopPolling])
+
+  const startPolling = useCallback((ref: string) => {
+    pollAttempts.current = 0
+    pollRef.current = setInterval(async () => {
+      pollAttempts.current++
+      if (pollAttempts.current > POLL_MAX_ATTEMPTS) {
+        stopPolling()
+        setMoolreError('Payment is taking longer than expected. Check your phone and try refreshing.')
+        return
+      }
+      try {
+        const res = await paymentsApi.moolreStatus(ref)
+        if (res.status === 'success') {
+          handlePaymentSuccess(res.access_code, res.sms_sent)
+        } else if (res.status === 'failed') {
+          stopPolling()
+          setPaymentStatus('failed')
+          setMoolreError('Payment failed or was declined. Please try again.')
+        }
+      } catch {
+        // network hiccup — keep polling
+      }
+    }, POLL_INTERVAL_MS)
+  }, [stopPolling, handlePaymentSuccess])
+
+  useEffect(() => () => stopPolling(), [stopPolling])
 
   const price = config.subscription_price_ghs || '20'
-  const paystackEnabled = Boolean(config.paystack_enabled && config.paystack_public_key)
   const months = config.subscription_months || 3
-  const momoNumber_display = config.momo_payment_number || '0248317900'
+  const momoDisplay = config.momo_payment_number || '0248317900'
+  const moolreEnabled = Boolean(config.moolre_payment_enabled)
 
   const copyMomo = async () => {
     try {
-      await navigator.clipboard.writeText(momoNumber_display)
+      await navigator.clipboard.writeText(momoDisplay)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      /* clipboard unavailable */
-    }
+    } catch { /* clipboard unavailable */ }
   }
 
-  const onPaystackPay = async () => {
-    if (!paystackPhone.trim()) {
-      setPaymentError('Enter your MoMo number so we can text your access code.')
+  const onMoolrePay = async () => {
+    if (!momoNumber.trim()) {
+      setMoolreError('Enter your MoMo number so we can collect payment.')
       return
     }
-    setPaymentError('')
-    setPaystackLoading(true)
+    setMoolreError('')
+    setMoolreLoading(true)
     try {
-      const callbackUrl = `${window.location.origin}/activate?next=${encodeURIComponent(next)}`
-      const res = await paymentsApi.paystackInitialize({
-        momo_number: paystackPhone.trim(),
-        callback_url: callbackUrl,
-      })
-      window.location.href = res.authorization_url
+      const res = await paymentsApi.moolreInitiate(momoNumber.trim())
+      setExternalRef(res.external_ref)
+      if (res.status === 'otp_required') {
+        setPaymentStatus('otp_required')
+        setStep('otp')
+      } else if (res.status === 'pending') {
+        setPaymentStatus('pending')
+        setPaymentMessage('Approve the payment prompt on your phone, then wait here.')
+        setStep('otp')
+        startPolling(res.external_ref)
+      } else {
+        setMoolreError(res.message || 'Could not start payment. Please try again.')
+      }
     } catch (err) {
-      setPaymentError(extractError(err, 'Could not start online payment.'))
-      setPaystackLoading(false)
+      setMoolreError(extractError(err, 'Could not start payment.'))
+    } finally {
+      setMoolreLoading(false)
     }
   }
 
-  const onPaymentSubmit = async (e: FormEvent) => {
+  const onOtpSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setPaymentError('')
-    setPaymentLoading(true)
+    if (!otpCode.trim()) return
+    setOtpError('')
+    setOtpLoading(true)
+    try {
+      const res = await paymentsApi.moolreSubmitOtp(externalRef, otpCode.trim())
+      if (res.status === 'pending') {
+        setPaymentStatus('pending')
+        setPaymentMessage('OTP accepted. Approve the payment prompt on your phone, then wait here.')
+        startPolling(externalRef)
+      } else if (res.status === 'otp_required') {
+        setOtpError(res.message || 'Incorrect OTP. Please try again.')
+      } else if (res.status === 'already_paid') {
+        handlePaymentSuccess()
+      } else {
+        setOtpError('Something went wrong. Please try again.')
+      }
+    } catch (err) {
+      setOtpError(extractError(err, 'Could not submit OTP.'))
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const onManualSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setManualError('')
+    setManualLoading(true)
     try {
       await authApi.paymentRequest({
         momo_name: momoName.trim(),
-        momo_number: momoNumber.trim(),
-        reference: reference.trim(),
+        momo_number: momoNumber.trim() || momoDisplay,
+        reference: manualRef.trim(),
       })
-      setPaymentSubmitted(true)
+      setManualSubmitted(true)
       setStep('activate')
     } catch (err) {
-      setPaymentError(extractError(err, 'Could not submit payment details.'))
+      setManualError(extractError(err, 'Could not submit payment details.'))
     } finally {
-      setPaymentLoading(false)
+      setManualLoading(false)
     }
   }
 
@@ -206,7 +258,7 @@ export function ActivatePage() {
           </div>
           <div>
             <div className="font-display text-lg leading-none text-ink-0">BroxStudies</div>
-            <div className="mt-0.5 text-xs text-ink-400">Premium for SHS & TVET</div>
+            <div className="mt-0.5 text-xs text-ink-400">Premium for SHS &amp; TVET</div>
           </div>
         </Link>
 
@@ -242,13 +294,13 @@ export function ActivatePage() {
               {STEPS.map((s, i) => {
                 const active = step === s.id
                 const done =
-                  (s.id === 'pay' && (step === 'confirm' || step === 'activate')) ||
-                  (s.id === 'confirm' && (paymentSubmitted || step === 'activate'))
+                  (s.id === 'pay' && (step === 'otp' || step === 'activate')) ||
+                  (s.id === 'otp' && step === 'activate')
                 return (
                   <div key={s.id} className="flex flex-1 items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => setStep(s.id)}
+                      onClick={() => { if (done) setStep(s.id) }}
                       className={cn(
                         'flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-left transition-all',
                         active
@@ -261,9 +313,7 @@ export function ActivatePage() {
                       <span
                         className={cn(
                           'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
-                          active || done
-                            ? 'bg-indigo-500 text-white'
-                            : 'bg-[var(--bg-3)] text-ink-400',
+                          active || done ? 'bg-indigo-500 text-white' : 'bg-[var(--bg-3)] text-ink-400',
                         )}
                       >
                         {done && !active ? <Check size={12} /> : s.num}
@@ -283,6 +333,7 @@ export function ActivatePage() {
 
           <div className="p-7 sm:p-9">
             <AnimatePresence mode="wait">
+              {/* ── Step 1: Pay ────────────────────────────────────────────── */}
               {step === 'pay' && (
                 <motion.div
                   key="pay"
@@ -292,38 +343,35 @@ export function ActivatePage() {
                   transition={{ duration: 0.25 }}
                   className="space-y-5"
                 >
-                  {verifyLoading && (
-                    <div className="flex items-center gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
-                      <Loader2 size={18} className="shrink-0 animate-spin" />
-                      Verifying your payment…
-                    </div>
-                  )}
-
-                  {paystackEnabled && (
+                  {moolreEnabled ? (
                     <>
                       <div>
-                        <h2 className="font-display text-xl text-ink-0">Pay online</h2>
+                        <h2 className="font-display text-xl text-ink-0">Pay with Mobile Money</h2>
                         <p className="mt-1 text-sm text-ink-400">
-                          Pay <strong className="text-ink-100">GH₵ {price}</strong> with card or MoMo via Paystack.
+                          Pay <strong className="text-ink-100">GH₵ {price}</strong> directly from your MoMo wallet.
                           {config.sms_enabled && ' Your access code is sent by SMS automatically.'}
                         </p>
                       </div>
 
                       <label className="block">
                         <span className="mb-1.5 block text-[13px] font-medium text-ink-100">
-                          MoMo number (for SMS delivery)
+                          Your MoMo number
                         </span>
-                        <Input
-                          type="tel"
-                          value={paystackPhone}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setPaystackPhone(e.target.value)}
-                          placeholder="0241234567"
-                        />
+                        <div className="relative">
+                          <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+                          <Input
+                            type="tel"
+                            value={momoNumber}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoNumber(e.target.value)}
+                            placeholder="0241234567"
+                            className="pl-9"
+                          />
+                        </div>
                       </label>
 
-                      {paymentError && !verifyLoading && (
+                      {moolreError && (
                         <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
-                          {paymentError}
+                          {moolreError}
                         </div>
                       )}
 
@@ -332,11 +380,11 @@ export function ActivatePage() {
                         variant="primary"
                         size="lg"
                         fullWidth
-                        loading={paystackLoading}
-                        leading={<CreditCard size={16} />}
-                        onClick={() => void onPaystackPay()}
+                        loading={moolreLoading}
+                        leading={<Smartphone size={16} />}
+                        onClick={() => void onMoolrePay()}
                       >
-                        Pay GH₵ {price} with Paystack
+                        Pay GH₵ {price} with MoMo
                       </Button>
 
                       <div className="relative py-2">
@@ -348,11 +396,11 @@ export function ActivatePage() {
                         </div>
                       </div>
                     </>
-                  )}
+                  ) : null}
 
                   <div>
                     <h2 className="font-display text-xl text-ink-0">
-                      {paystackEnabled ? 'Manual Mobile Money' : 'Send Mobile Money'}
+                      {moolreEnabled ? 'Manual Mobile Money' : 'Send Mobile Money'}
                     </h2>
                     <p className="mt-1 text-sm text-ink-400">
                       Pay exactly <strong className="text-ink-100">GH₵ {price}</strong> to the number below.
@@ -365,7 +413,7 @@ export function ActivatePage() {
                         <p className="text-xs font-medium uppercase tracking-wide text-amber-700/80 dark:text-amber-300/80">
                           MoMo number
                         </p>
-                        <p className="mt-1 font-display text-3xl tracking-tight text-ink-0">{momoNumber_display}</p>
+                        <p className="mt-1 font-display text-3xl tracking-tight text-ink-0">{momoDisplay}</p>
                         <p className="mt-1 text-xs text-ink-400">Name: BroxStudies</p>
                       </div>
                       <Button
@@ -391,91 +439,141 @@ export function ActivatePage() {
                     for 7 days free — skip payment and go straight to activation.
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    trailing={<ArrowRight size={14} />}
-                    onClick={() => setStep('confirm')}
-                  >
-                    I've sent the payment
-                  </Button>
+                  {!moolreEnabled && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      trailing={<ArrowRight size={14} />}
+                      onClick={() => setStep('otp')}
+                    >
+                      I've sent the payment
+                    </Button>
+                  )}
                 </motion.div>
               )}
 
-              {step === 'confirm' && (
+              {/* ── Step 2: OTP / Confirm ─────────────────────────────────── */}
+              {step === 'otp' && (
                 <motion.div
-                  key="confirm"
+                  key="otp"
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 12 }}
                   transition={{ duration: 0.25 }}
+                  className="space-y-5"
                 >
-                  <div className="mb-5">
-                    <h2 className="font-display text-xl text-ink-0">Confirm your payment</h2>
-                    <p className="mt-1 text-sm text-ink-400">
-                      Tell us which MoMo number you paid from. We'll verify and
-                      {config.sms_enabled ? ' text your access code to that number.' : ' send your access code.'}
-                    </p>
-                  </div>
-
-                  <form onSubmit={onPaymentSubmit} className="space-y-4">
-                    <label className="block">
-                      <span className="mb-1.5 block text-[13px] font-medium text-ink-100">MoMo account name</span>
-                      <Input
-                        value={momoName}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoName(e.target.value)}
-                        placeholder="Name on your MoMo wallet"
-                        required
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1.5 block text-[13px] font-medium text-ink-100">MoMo number (for SMS)</span>
-                      <Input
-                        type="tel"
-                        value={momoNumber}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoNumber(e.target.value)}
-                        placeholder="0241234567"
-                        required
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1.5 block text-[13px] font-medium text-ink-100">
-                        Transaction reference <span className="font-normal text-ink-400">(optional)</span>
-                      </span>
-                      <Input
-                        value={reference}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setReference(e.target.value)}
-                        placeholder="MoMo transaction ID"
-                      />
-                    </label>
-
-                    {paymentError && (
-                      <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
-                        {paymentError}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button type="button" variant="ghost" size="lg" onClick={() => setStep('pay')}>
-                        Back
-                      </Button>
-                      <Button
-                        type="submit"
-                        variant="primary"
-                        size="lg"
-                        loading={paymentLoading}
-                        fullWidth
-                        trailing={<ArrowRight size={14} />}
-                      >
-                        Submit for verification
-                      </Button>
+                  {paymentStatus === 'pending' && (
+                    <div className="flex items-center gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400">
+                      <Loader2 size={18} className="shrink-0 animate-spin" />
+                      <span>{paymentMessage || 'Waiting for payment confirmation…'}</span>
                     </div>
-                  </form>
+                  )}
+
+                  {paymentStatus === 'otp_required' && (
+                    <>
+                      <div>
+                        <h2 className="font-display text-xl text-ink-0">Enter your network OTP</h2>
+                        <p className="mt-1 text-sm text-ink-400">
+                          Your network (MTN / Telecel / AT) sent a one-time PIN to{' '}
+                          <strong className="text-ink-100">{momoNumber}</strong>. Enter it to confirm the payment.
+                        </p>
+                      </div>
+
+                      <form onSubmit={onOtpSubmit} className="space-y-4">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={otpCode}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setOtpCode(e.target.value)}
+                          placeholder="e.g. 123456"
+                          className="font-mono text-lg tracking-widest text-center"
+                          autoFocus
+                          required
+                        />
+
+                        {otpError && (
+                          <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
+                            {otpError}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button type="button" variant="ghost" size="lg" onClick={() => { stopPolling(); setStep('pay') }}>
+                            Back
+                          </Button>
+                          <Button type="submit" variant="primary" size="lg" fullWidth loading={otpLoading} trailing={<ArrowRight size={14} />}>
+                            Confirm Payment
+                          </Button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+
+                  {/* Manual fallback when Moolre is off */}
+                  {!moolreEnabled && (
+                    <>
+                      <div>
+                        <h2 className="font-display text-xl text-ink-0">Confirm your payment</h2>
+                        <p className="mt-1 text-sm text-ink-400">
+                          Tell us which MoMo number you paid from. We'll verify and
+                          {config.sms_enabled ? ' text your access code to that number.' : ' send your access code.'}
+                        </p>
+                      </div>
+
+                      <form onSubmit={onManualSubmit} className="space-y-4">
+                        <label className="block">
+                          <span className="mb-1.5 block text-[13px] font-medium text-ink-100">MoMo account name</span>
+                          <Input
+                            value={momoName}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoName(e.target.value)}
+                            placeholder="Name on your MoMo wallet"
+                            required
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1.5 block text-[13px] font-medium text-ink-100">MoMo number (for SMS)</span>
+                          <Input
+                            type="tel"
+                            value={momoNumber}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoNumber(e.target.value)}
+                            placeholder="0241234567"
+                            required
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1.5 block text-[13px] font-medium text-ink-100">
+                            Transaction reference <span className="font-normal text-ink-400">(optional)</span>
+                          </span>
+                          <Input
+                            value={manualRef}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setManualRef(e.target.value)}
+                            placeholder="MoMo transaction ID"
+                          />
+                        </label>
+
+                        {manualError && (
+                          <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
+                            {manualError}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button type="button" variant="ghost" size="lg" onClick={() => setStep('pay')}>
+                            Back
+                          </Button>
+                          <Button type="submit" variant="primary" size="lg" loading={manualLoading} fullWidth trailing={<ArrowRight size={14} />}>
+                            Submit for verification
+                          </Button>
+                        </div>
+                      </form>
+                    </>
+                  )}
                 </motion.div>
               )}
 
+              {/* ── Step 3: Activate ─────────────────────────────────────── */}
               {step === 'activate' && (
                 <motion.div
                   key="activate"
@@ -484,24 +582,24 @@ export function ActivatePage() {
                   exit={{ opacity: 0, x: 12 }}
                   transition={{ duration: 0.25 }}
                 >
-                  {paystackSuccess && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
+                  {paymentMessage && (
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium">Payment confirmed!</p>
-                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">{paystackSuccess}</p>
+                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">{paymentMessage}</p>
                       </div>
                     </div>
                   )}
 
-                  {paymentSubmitted && !paystackSuccess && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
+                  {manualSubmitted && !paymentMessage && (
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400">
                       <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium">Payment submitted!</p>
                         <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">
                           {config.sms_enabled
-                            ? 'Once approved, your access code will arrive by SMS. Enter it below when you receive it.'
+                            ? 'Once approved, your access code will arrive by SMS. Enter it below.'
                             : 'Once approved, enter the access code you receive.'}
                         </p>
                       </div>
@@ -509,7 +607,7 @@ export function ActivatePage() {
                   )}
 
                   {selectedTrack && (
-                    <div className="mb-5 flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
+                    <div className="mb-5 flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400">
                       <Lock size={14} className="shrink-0" />
                       <span>
                         Locks account to <strong>{selectedTrack.toUpperCase()}</strong>
@@ -553,7 +651,7 @@ export function ActivatePage() {
                     )}
 
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button type="button" variant="ghost" size="lg" onClick={() => setStep(paymentSubmitted ? 'confirm' : 'pay')}>
+                      <Button type="button" variant="ghost" size="lg" onClick={() => setStep(manualSubmitted ? 'otp' : 'pay')}>
                         Back
                       </Button>
                       <Button
@@ -575,7 +673,7 @@ export function ActivatePage() {
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--line)] pt-5 text-xs text-ink-400">
               <span>
-                Signed in as <span className="text-ink-100">{user?.email}</span>
+                Signed in as <span className="text-ink-100">{user?.email || user?.phone}</span>
               </span>
               <Link to="/" className="font-medium text-indigo-500 hover:text-indigo-400 dark:text-indigo-400">
                 Skip — continue with limited access
@@ -588,15 +686,7 @@ export function ActivatePage() {
   )
 }
 
-function FeatureChip({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode
-  title: string
-  body: string
-}) {
+function FeatureChip({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)]/80 p-3.5">
       <div className="mb-2 text-indigo-500 dark:text-indigo-400">{icon}</div>

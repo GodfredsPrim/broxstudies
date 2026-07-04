@@ -1,0 +1,456 @@
+{
+  "source": "https://curriculumresources.edu.gh",
+  "updated_at": "2026-07-02T15:30:01.629808Z",
+  "years": {
+    "year_1": [
+      {
+        "name": "Additional Mathematics",
+        "url": "https://curriculumresources.edu.gh/year1_additional-mathematics/"
+      },
+      {
+        "name": "Agricultural Science",
+        "url": "https://curriculumresources.edu.gh/year1_agricultural-science/"
+      },
+      {
+        "name": "Agriculture",
+        "url": "https://curriculumresources.edu.gh/year1_agriculture/"
+      },
+      {
+        "name": "Applied Technology",
+        "url": "https://curriculumresources.edu.gh/year1_applied-technology/"
+      },
+      {
+        "name": "Arabic",
+        "url": "https://curriculumresources.edu.gh/year1_arabic/"
+      },
+      {
+        "name": "Art and Design Foundation",
+        "url": "https://curriculumresources.edu.gh/year1_art-and-design-foundation/"
+      },
+      {
+        "name": "Arts and Design Studio",
+        "url": "https://curriculumresources.edu.gh/year1_arts-and-design-studio/"
+      },
+      {
+        "name": "Aviation and Aerospace Engineering",
+        "url": "https://curriculumresources.edu.gh/year1_aviation-and-aerospace-engineering/"
+      },
+      {
+        "name": "Biology",
+        "url": "https://curriculumresources.edu.gh/year1_biology/"
+      },
+      {
+        "name": "Biomedical Science",
+        "url": "https://curriculumresources.edu.gh/year1_biomedical-science/"
+      },
+      {
+        "name": "Business Management",
+        "url": "https://curriculumresources.edu.gh/year1_business-studies-business-management/"
+      },
+      {
+        "name": "Accounting",
+        "url": "https://curriculumresources.edu.gh/year1_business-studies-accounting/"
+      },
+      {
+        "name": "Chemistry",
+        "url": "https://curriculumresources.edu.gh/year1_chemistry/"
+      },
+      {
+        "name": "Computing",
+        "url": "https://curriculumresources.edu.gh/year1_computing/"
+      },
+      {
+        "name": "Core Physical Education and Health (PEH)",
+        "url": "https://curriculumresources.edu.gh/year1_core-physical-education-and-health-peh/"
+      },
+      {
+        "name": "Design and Communication Technology",
+        "url": "https://curriculumresources.edu.gh/year1_design-and-communication-technology/"
+      },
+      {
+        "name": "Economics",
+        "url": "https://curriculumresources.edu.gh/year1_economics/"
+      },
+      {
+        "name": "Elective Physical Education and Health (PEH)",
+        "url": "https://curriculumresources.edu.gh/year1_elective-physical-education-and-health-peh/"
+      },
+      {
+        "name": "Engineering",
+        "url": "https://curriculumresources.edu.gh/year1_engineering/"
+      },
+      {
+        "name": "English Language",
+        "url": "https://curriculumresources.edu.gh/year1_english-language/"
+      },
+      {
+        "name": "Geography",
+        "url": "https://curriculumresources.edu.gh/year1_geography/"
+      },
+      {
+        "name": "Government",
+        "url": "https://curriculumresources.edu.gh/year1_government/"
+      },
+      {
+        "name": "History",
+        "url": "https://curriculumresources.edu.gh/year1_history/"
+      },
+      {
+        "name": "Management in Living",
+        "url": "https://curriculumresources.edu.gh/year1_home-economics-management-in-living/"
+      },
+      {
+        "name": "Food and Nutrition",
+        "url": "https://curriculumresources.edu.gh/year1_home-economics-food-and-nutrition/"
+      },
+      {
+        "name": "Clothing and Textiles",
+        "url": "https://curriculumresources.edu.gh/year1_home-economics-clothing-and-textiles/"
+      },
+      {
+        "name": "Information Communication Technology (ICT)",
+        "url": "https://curriculumresources.edu.gh/year1_information-and-communication-technology-ict/"
+      },
+      {
+        "name": "Intervention English",
+        "url": "https://curriculumresources.edu.gh/year1_intervention-english/"
+      },
+      {
+        "name": "Intervention Mathematics",
+        "url": "https://curriculumresources.edu.gh/year1_intervention-mathematics/"
+      },
+      {
+        "name": "Literature-in-English",
+        "url": "https://curriculumresources.edu.gh/year1_literature-in-english/"
+      },
+      {
+        "name": "Manufacturing Engineering",
+        "url": "https://curriculumresources.edu.gh/year1_manufacturing-engineering/"
+      },
+      {
+        "name": "Mathematics",
+        "url": "https://curriculumresources.edu.gh/year1_mathematics/"
+      },
+      {
+        "name": "Music",
+        "url": "https://curriculumresources.edu.gh/year1_music/"
+      },
+      {
+        "name": "Performing Arts",
+        "url": "https://curriculumresources.edu.gh/year1_performing-arts/"
+      },
+      {
+        "name": "Physics",
+        "url": "https://curriculumresources.edu.gh/year1_physics/"
+      },
+      {
+        "name": "Religious Studies (Islamic)",
+        "url": "https://curriculumresources.edu.gh/year1_religious-studies-islamic/"
+      },
+      {
+        "name": "Religious Studies (Christian)",
+        "url": "https://curriculumresources.edu.gh/year1_religious-studies-christian/"
+      },
+      {
+        "name": "Robotics",
+        "url": "https://curriculumresources.edu.gh/year1_robotics/"
+      },
+      {
+        "name": "General Science",
+        "url": "https://curriculumresources.edu.gh/year1_general-science/"
+      },
+      {
+        "name": "Religious and Moral Education",
+        "url": "https://curriculumresources.edu.gh/year1_religious-and-moral-education/"
+      },
+      {
+        "name": "Social Studies",
+        "url": "https://curriculumresources.edu.gh/year1_social-studies/"
+      },
+      {
+        "name": "Spanish",
+        "url": "https://curriculumresources.edu.gh/year1_spanish/"
+      },
+      {
+        "name": "French",
+        "url": "https://curriculumresources.edu.gh/year1_french/"
+      },
+      {
+        "name": "Asante Twi",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_asante-twi/"
+      },
+      {
+        "name": "Akuapem Twi",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_akuapem-twi/"
+      },
+      {
+        "name": "Dangme",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_dangme/"
+      },
+      {
+        "name": "Dagaare",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_dagaare/"
+      },
+      {
+        "name": "Dagbanli",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_dagbani/"
+      },
+      {
+        "name": "Ewe",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_ewe/"
+      },
+      {
+        "name": "Ga",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_ga/"
+      },
+      {
+        "name": "Gonja",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_gonja/"
+      },
+      {
+        "name": "Gurene",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_gurene/"
+      },
+      {
+        "name": "Kasem",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_kasem/"
+      },
+      {
+        "name": "Mfantse",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_mfantse/"
+      },
+      {
+        "name": "Nzema",
+        "url": "https://curriculumresources.edu.gh/year1_ghanaian-language_nzema/"
+      }
+    ],
+    "year_2": [
+      {
+        "name": "Additional Mathematics",
+        "url": "https://curriculumresources.edu.gh/year2_additional-mathematics/"
+      },
+      {
+        "name": "Agricultural Science",
+        "url": "https://curriculumresources.edu.gh/year2_agricultural-science"
+      },
+      {
+        "name": "Agriculture",
+        "url": "https://curriculumresources.edu.gh/year2_agriculture"
+      },
+      {
+        "name": "Automotive and Metal Technology",
+        "url": "https://curriculumresources.edu.gh/year2_automotive-and-metal-technology"
+      },
+      {
+        "name": "Building Construction and Wood Technology",
+        "url": "https://curriculumresources.edu.gh/year2_building-construction-and-wood-technology"
+      },
+      {
+        "name": "Electrical and Electronic Technology",
+        "url": "https://curriculumresources.edu.gh/year2_electrical-and-electronic-technology"
+      },
+      {
+        "name": "Arabic",
+        "url": "https://curriculumresources.edu.gh/year2_arabic/"
+      },
+      {
+        "name": "Art and Design Foundation",
+        "url": "https://curriculumresources.edu.gh/year2_art-and-design-foundation/"
+      },
+      {
+        "name": "Arts and Design Studio",
+        "url": "https://curriculumresources.edu.gh/year2_arts-and-design-studio/"
+      },
+      {
+        "name": "Aviation and Aerospace Engineering",
+        "url": "https://curriculumresources.edu.gh/year2_aviation-and-aerospace-engineering/"
+      },
+      {
+        "name": "Biology",
+        "url": "https://curriculumresources.edu.gh/year2_biology"
+      },
+      {
+        "name": "Accounting",
+        "url": "https://curriculumresources.edu.gh/year2_business-studies-accounting/"
+      },
+      {
+        "name": "Business Management",
+        "url": "https://curriculumresources.edu.gh/year2_business-studies-business-management"
+      },
+      {
+        "name": "Chemistry",
+        "url": "https://curriculumresources.edu.gh/year2_chemistry/"
+      },
+      {
+        "name": "Computing",
+        "url": "https://curriculumresources.edu.gh/year2_computing"
+      },
+      {
+        "name": "Core Physical Education and Health (PEH)",
+        "url": "https://curriculumresources.edu.gh/year2_core-physical-education-and-health-peh"
+      },
+      {
+        "name": "Design and Communication Technology",
+        "url": "https://curriculumresources.edu.gh/year2_design-and-communication-technology/"
+      },
+      {
+        "name": "Economics",
+        "url": "https://curriculumresources.edu.gh/year2_economics"
+      },
+      {
+        "name": "Elective Physical Education and Health (PEH)",
+        "url": "https://curriculumresources.edu.gh/year2_elective-physical-education-and-health-peh"
+      },
+      {
+        "name": "Engineering",
+        "url": "https://curriculumresources.edu.gh/year2_engineering"
+      },
+      {
+        "name": "English Language",
+        "url": "https://curriculumresources.edu.gh/year2_english-language/"
+      },
+      {
+        "name": "French",
+        "url": "https://curriculumresources.edu.gh/year2_french/"
+      },
+      {
+        "name": "General Science",
+        "url": "https://curriculumresources.edu.gh/year2_general-science/"
+      },
+      {
+        "name": "Geography",
+        "url": "https://curriculumresources.edu.gh/year2_geography"
+      },
+      {
+        "name": "Government",
+        "url": "https://curriculumresources.edu.gh/year2_government"
+      },
+      {
+        "name": "History",
+        "url": "https://curriculumresources.edu.gh/year2_history"
+      },
+      {
+        "name": "Clothing and Textiles",
+        "url": "https://curriculumresources.edu.gh/year2_home-economics-clothing-and-textiles/"
+      },
+      {
+        "name": "Food and Nutrition",
+        "url": "https://curriculumresources.edu.gh/year2_home-economics-food-and-nutrition/"
+      },
+      {
+        "name": "Management in Living",
+        "url": "https://curriculumresources.edu.gh/year2_home-economics-management-in-living/"
+      },
+      {
+        "name": "Information Communication Technology (ICT)",
+        "url": "https://curriculumresources.edu.gh/year2_information-and-communication-technology-ict/"
+      },
+      {
+        "name": "Islamic Religious Studies",
+        "url": "https://curriculumresources.edu.gh/year2_religious-studies/"
+      },
+      {
+        "name": "Literature-in-English",
+        "url": "https://curriculumresources.edu.gh/year2_literature-in-english/"
+      },
+      {
+        "name": "Manufacturing Engineering",
+        "url": "https://curriculumresources.edu.gh/year2_manufacturing-engineering"
+      },
+      {
+        "name": "Mathematics",
+        "url": "https://curriculumresources.edu.gh/year2_mathematics"
+      },
+      {
+        "name": "Music",
+        "url": "https://curriculumresources.edu.gh/year2_music"
+      },
+      {
+        "name": "Performing Arts",
+        "url": "https://curriculumresources.edu.gh/year2_performing-arts/"
+      },
+      {
+        "name": "Physics",
+        "url": "https://curriculumresources.edu.gh/year2_physics/"
+      },
+      {
+        "name": "Religious and Moral Education",
+        "url": "https://curriculumresources.edu.gh/year2_religious-and-moral-education/"
+      },
+      {
+        "name": "Robotics",
+        "url": "https://curriculumresources.edu.gh/year2_robotics/"
+      },
+      {
+        "name": "Social Studies",
+        "url": "https://curriculumresources.edu.gh/year2_social-studies"
+      },
+      {
+        "name": "Spanish",
+        "url": "https://curriculumresources.edu.gh/year2_spanish/"
+      },
+      {
+        "name": "Asante Twi",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_asante-twi/"
+      },
+      {
+        "name": "Akuapem Twi",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_akuapem-twi/"
+      },
+      {
+        "name": "Dangme",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_dangme/"
+      },
+      {
+        "name": "Dagaare",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_dagaare/"
+      },
+      {
+        "name": "Dagbanli",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_dagbani/"
+      },
+      {
+        "name": "Ewe",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_ewe/"
+      },
+      {
+        "name": "Ga",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_ga/"
+      },
+      {
+        "name": "Gonja",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_gonja/"
+      },
+      {
+        "name": "Gurene",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_gurene/"
+      },
+      {
+        "name": "Kasem",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_kasem/"
+      },
+      {
+        "name": "Mfantse",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_mfantse/"
+      },
+      {
+        "name": "Nzema",
+        "url": "https://curriculumresources.edu.gh/year2_ghanaian-language_nzema/"
+      }
+    ],
+    "year_3": [
+      {
+        "name": "Additional Mathematics",
+        "url": "https://curriculumresources.edu.gh/year3/"
+      },
+      {
+        "name": "Arabic",
+        "url": "https://curriculumresources.edu.gh/year3_arabic/"
+      },
+      {
+        "name": "Spanish",
+        "url": "https://curriculumresources.edu.gh/year3_spanish/"
+      }
+    ]
+  }
+}

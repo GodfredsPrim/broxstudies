@@ -189,8 +189,9 @@ function BootScene({ progress }: { progress: LoadingProgress | null }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.34, duration: 0.5 }}
-            className="v2-card v2-grain relative flex items-center gap-3 p-4"
+            className="v2-card relative flex items-center gap-3 overflow-hidden p-4"
           >
+            <div className="v2-grain" />
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-400/20">
               <CategoryIcon category={category} />
             </div>

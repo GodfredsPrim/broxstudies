@@ -26,9 +26,9 @@ interface ChatMessage {
 
 function gradeInfo(pct: number) {
   if (pct >= 80) return { label: 'Excellent', color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' }
-  if (pct >= 65) return { label: 'Good', color: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50' }
-  if (pct >= 50) return { label: 'Fair', color: 'text-yellow-700 dark:text-yellow-400', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50' }
-  return { label: 'Needs Work', color: 'text-red-700 dark:text-red-400', bg: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/50' }
+  if (pct >= 65) return { label: 'Good', color: 'text-[var(--info)]', bg: 'bg-[var(--info-tint)] border-[var(--info)]/30' }
+  if (pct >= 50) return { label: 'Fair', color: 'text-[var(--gold)]', bg: 'bg-[var(--gold-tint)] border-[var(--gold)]/30' }
+  return { label: 'Needs Work', color: 'text-[var(--danger)]', bg: 'bg-[var(--danger-tint)] border-[var(--danger)]/30' }
 }
 
 type MergedEntry = (ExamHistoryEntry | LocalExamEntry) & { _source: 'server' | 'local' }
@@ -235,7 +235,7 @@ export function HistoryPage() {
                             className="h-full rounded-full transition-all duration-700"
                             style={{
                               width: `${pct}%`,
-                              backgroundColor: pct >= 80 ? '#059669' : pct >= 65 ? '#2563EB' : pct >= 50 ? '#D97706' : '#DC2626',
+                              backgroundColor: pct >= 80 ? 'var(--success)' : pct >= 65 ? 'var(--info)' : pct >= 50 ? 'var(--gold)' : 'var(--danger)',
                             }}
                           />
                         </div>
@@ -297,13 +297,13 @@ export function HistoryPage() {
                   key={msg.id}
                   className={`rounded-3xl border p-5 ${
                     msg.role === 'user'
-                      ? 'border-blue-200 bg-blue-50 dark:border-blue-800/50 dark:bg-blue-900/20'
+                      ? 'border-[var(--info)]/25 bg-[var(--info-tint)]'
                       : 'border-[var(--line)] bg-[var(--bg-1)]'
                   }`}
                 >
                   <div className="mb-2 flex items-center gap-2">
                     {msg.role === 'user' ? (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--info)] text-[10px] font-bold text-white">
                         <User size={12} />
                       </span>
                     ) : (

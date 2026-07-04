@@ -13,10 +13,10 @@ interface ProgressRingProps {
 }
 
 const COLORS = {
-  indigo: { stroke: '#818CF8', glow: 'rgba(129,140,248,0.3)' },
-  emerald: { stroke: '#34D399', glow: 'rgba(52,211,153,0.3)' },
-  amber: { stroke: '#FBBF24', glow: 'rgba(251,191,36,0.3)' },
-  purple: { stroke: '#A78BFA', glow: 'rgba(167,139,250,0.3)' },
+  indigo: { stroke: 'var(--primary)', glow: 'var(--primary-glow)' },
+  emerald: { stroke: 'var(--success)', glow: 'var(--success-tint)' },
+  amber: { stroke: 'var(--gold)', glow: 'var(--gold-tint)' },
+  purple: { stroke: 'var(--accent)', glow: 'var(--accent-glow)' },
 }
 
 export function ProgressRing({

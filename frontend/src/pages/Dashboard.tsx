@@ -22,10 +22,10 @@ import { WeeklyStudyChart } from '@/components/charts/WeeklyStudyChart'
 import { cn } from '@/lib/cn'
 
 const QUICK_ACTIONS = [
-  { to: '/', label: 'AI Tutor', icon: Brain, color: 'from-indigo-500 to-purple-500' },
-  { to: '/practice', label: 'Practice', icon: FileText, color: 'from-purple-500 to-pink-500' },
-  { to: '/wassce', label: 'Likely WASSCE', icon: TrendingUp, color: 'from-blue-500 to-indigo-500' },
-  { to: '/quiz', label: 'Live Quiz', icon: Zap, color: 'from-amber-500 to-orange-500' },
+  { to: '/', label: 'AI Tutor', icon: Brain, accent: 'primary' as const },
+  { to: '/practice', label: 'Practice', icon: FileText, accent: 'accent' as const },
+  { to: '/wassce', label: 'Likely WASSCE', icon: TrendingUp, accent: 'primary' as const },
+  { to: '/quiz', label: 'Live Quiz', icon: Zap, accent: 'accent' as const },
 ]
 
 const FALLBACK_SUBJECTS = [
@@ -166,8 +166,15 @@ export function DashboardPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {QUICK_ACTIONS.map(a => (
             <Link key={a.to} to={a.to}>
-              <motion.div whileHover={{ y: -2 }} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-indigo-500/30">
-                <div className={cn('grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br text-white', a.color)}>
+              <motion.div whileHover={{ y: -2 }} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30">
+                <div
+                  className={cn(
+                    'grid h-10 w-10 place-items-center rounded-lg border',
+                    a.accent === 'primary'
+                      ? 'border-primary/25 bg-primary/10 text-primary'
+                      : 'border-[var(--accent)]/25 bg-[var(--accent-tint)] text-[var(--accent)]',
+                  )}
+                >
                   <a.icon size={18} />
                 </div>
                 <span className="text-sm font-semibold">{a.label}</span>

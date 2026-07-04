@@ -19,12 +19,12 @@ const STATS = [
 ]
 
 const FEATURES = [
-  { icon: Brain, title: 'AI Tutor', desc: 'ChatGPT-like tutoring with math, code, and file support. Ask anything about your curriculum.', color: 'from-indigo-500 to-purple-500' },
-  { icon: FileText, title: 'Question Generator', desc: 'Generate custom practice papers by subject, topic, difficulty, and question type.', color: 'from-purple-500 to-pink-500' },
-  { icon: Target, title: 'Likely WASSCE', desc: 'AI-analyzed past papers reveal which topics are most likely to appear this year.', color: 'from-blue-500 to-indigo-500' },
-  { icon: Zap, title: 'Live Quiz', desc: 'Challenge classmates in real-time timed quizzes. Compete and climb the leaderboard.', color: 'from-amber-500 to-orange-500' },
-  { icon: BookOpen, title: 'Study Library', desc: 'Browse Ghanaian classics, textbooks, and curriculum resources with reading progress.', color: 'from-emerald-500 to-teal-500' },
-  { icon: BarChart3, title: 'Analytics', desc: 'Track weak topics, study heatmaps, and exam readiness scores with AI recommendations.', color: 'from-cyan-500 to-blue-500' },
+  { icon: Brain, title: 'AI Tutor', desc: 'Curriculum-aware tutoring with math, code, and file support. Ask anything about your syllabus.', accent: 'primary' as const },
+  { icon: FileText, title: 'Question Generator', desc: 'Generate custom practice papers by subject, topic, difficulty, and question type.', accent: 'accent' as const },
+  { icon: Target, title: 'Likely WASSCE', desc: 'AI-analyzed past papers reveal which topics are most likely to appear this year.', accent: 'primary' as const },
+  { icon: Zap, title: 'Live Quiz', desc: 'Challenge classmates in real-time timed quizzes. Compete and climb the leaderboard.', accent: 'accent' as const },
+  { icon: BookOpen, title: 'Study Library', desc: 'Browse Ghanaian classics, textbooks, and curriculum resources with reading progress.', accent: 'primary' as const },
+  { icon: BarChart3, title: 'Analytics', desc: 'Track weak topics, study heatmaps, and exam readiness scores with AI recommendations.', accent: 'accent' as const },
 ]
 
 const STEPS = [
@@ -165,10 +165,22 @@ export function LandingPage() {
           <StaggerContainer className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(f => (
               <StaggerItem key={f.title}>
-                <Card className="group h-full border-border bg-card transition-all duration-300 hover:border-indigo-500/30 hover:shadow-glow-sm">
+                <Card
+                  className={cn(
+                    'group h-full border-border bg-card transition-all duration-300',
+                    f.accent === 'primary' ? 'hover:border-primary/40' : 'hover:border-[var(--accent)]/40',
+                  )}
+                >
                   <CardContent className="p-6">
-                    <div className={cn('mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br text-white', f.color)}>
-                      <f.icon size={22} />
+                    <div
+                      className={cn(
+                        'mb-4 grid h-11 w-11 place-items-center rounded-lg border',
+                        f.accent === 'primary'
+                          ? 'border-primary/25 bg-primary/10 text-primary'
+                          : 'border-[var(--accent)]/25 bg-[var(--accent-tint)] text-[var(--accent)]',
+                      )}
+                    >
+                      <f.icon size={20} />
                     </div>
                     <h3 className="text-lg font-bold">{f.title}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
@@ -305,14 +317,15 @@ export function LandingPage() {
       {/* CTA */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 px-8 py-16 text-center sm:px-16">
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--bg-1)] px-8 py-16 text-center sm:px-16">
             <div className="v2-grain" />
+            <div className="absolute inset-x-0 top-0 h-px border-t v2-chalk-rule" />
             <div className="relative">
-              <Users size={40} className="mx-auto text-white/80" />
-              <h2 className="mt-6 text-3xl font-extrabold text-white sm:text-4xl">Join thousands of Ghanaian students</h2>
-              <p className="mx-auto mt-4 max-w-xl text-indigo-100">Start your journey to WASSCE success today. Free to try, affordable to unlock everything.</p>
+              <Users size={36} className="mx-auto text-primary" />
+              <h2 className="mt-6 text-3xl font-extrabold sm:text-4xl">Join thousands of Ghanaian students</h2>
+              <p className="mx-auto mt-4 max-w-xl text-muted-foreground">Start your journey to WASSCE success today. Free to try, affordable to unlock everything.</p>
               <Link to="/signup" className="mt-8 inline-block">
-                <Button size="lg" variant="secondary" className="gap-2 px-8 bg-white text-indigo-700 hover:bg-white/90">
+                <Button size="lg" className="gap-2 px-8">
                   Create free account <ArrowRight size={18} />
                 </Button>
               </Link>

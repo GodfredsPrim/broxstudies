@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Dict
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class QuestionType(str, Enum):
@@ -326,6 +326,7 @@ class AuthUser(BaseModel):
     full_name: str
     email: str
     provider: str
+    phone: Optional[str] = None
     subscription_status: str = "inactive"   # inactive | active | expired
     subscription_expires_at: Optional[str] = None
     is_admin: bool = False
@@ -350,6 +351,44 @@ class AuthConfigResponse(BaseModel):
     sms_enabled: bool = False
     paystack_enabled: bool = False
     paystack_public_key: str = ""
+    moolre_payment_enabled: bool = False
+    phone_otp_enabled: bool = False
+
+
+# ── OTP auth models ───────────────────────────────────────────────────────────
+
+class OtpRequestBody(BaseModel):
+    phone: str
+
+
+class OtpVerifyBody(BaseModel):
+    phone: str
+    code: str
+
+
+# ── Moolre payment models ─────────────────────────────────────────────────────
+
+class MoolreInitiateRequest(BaseModel):
+    momo_number: str = Field(..., min_length=9, max_length=15)
+
+
+class MoolreInitiateResponse(BaseModel):
+    status: str          # "pending" | "otp_required" | "error"
+    external_ref: str
+    message: str = ""
+
+
+class MoolreOtpSubmitRequest(BaseModel):
+    external_ref: str
+    otp_code: str = Field(..., min_length=4, max_length=10)
+
+
+class MoolreStatusResponse(BaseModel):
+    status: str          # "pending" | "success" | "failed"
+    access_code: Optional[str] = None
+    sms_sent: bool = False
+    sms_message: Optional[str] = None
+    already_fulfilled: bool = False
 
 
 # ── Access-code / subscription models ─────────────────────────────────────────

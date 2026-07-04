@@ -33,7 +33,7 @@ from app.services.likely_wassce_generator import LikelyWASSCEGenerator
 from app.services.question_generator import QuestionGenerator
 from app.services.world_class_engine import WorldClassEngine
 from app.services.pdf_generator import PDFGenerator
-from app.routes.auth import get_optional_user
+from app.routes.auth import get_optional_user, require_active_subscription
 from app.models import AuthUser
 
 logger = logging.getLogger(__name__)
@@ -179,7 +179,7 @@ async def load_remaining_documents():
 
 
 @router.post("/generate")
-async def generate_questions(request: QuestionGenerationRequest, user: Optional[AuthUser] = Depends(get_optional_user)):
+async def generate_questions(request: QuestionGenerationRequest, user: AuthUser = Depends(require_active_subscription)):
     """Start an asynchronous question generation job."""
     try:
         # Create the job
@@ -377,7 +377,7 @@ async def get_resource_status(year: str, subject: str):
 
 
 @router.post("/mark-practice", response_model=PracticeMarkResponse)
-async def mark_practice(request: PracticeMarkRequest):
+async def mark_practice(request: PracticeMarkRequest, current_user: AuthUser = Depends(require_active_subscription)):
     try:
         result = await generator.mark_practice_answers(request.items)
         return PracticeMarkResponse(**result)
@@ -396,6 +396,7 @@ async def grade_answers_pdf(
     files: List[UploadFile] = File(...),
     questions_json: str = Form(...),
     subject: Optional[str] = Form(None),
+    current_user: AuthUser = Depends(require_active_subscription),
 ):
     """Upload answer sheet(s) — PDF or photos — and grade against provided questions."""
     try:
@@ -486,7 +487,7 @@ async def grade_answers_pdf(
 
 
 @router.post("/quiz/create", response_model=LiveQuizCreateResponse)
-async def create_live_quiz(request: LiveQuizCreateRequest):
+async def create_live_quiz(request: LiveQuizCreateRequest, current_user: AuthUser = Depends(require_active_subscription)):
     player = request.player_name.strip()
     if not player: raise HTTPException(status_code=400, detail="Name required")
     
@@ -600,15 +601,13 @@ async def submit_live_quiz(code: str, request: LiveQuizSubmitRequest):
     return {"status": "submitted", "result": result}
 
 
-from fastapi import Depends
-from app.routes.auth import get_current_user
-from app.models import AuthUser, ExamHistorySaveRequest, ExamHistoryResponse
+from app.models import ExamHistorySaveRequest, ExamHistoryResponse
 from app.services.auth_service import AuthService
 
 history_auth_service = AuthService()
 
 @router.post("/history/exams", response_model=dict)
-async def save_exam_history(request: ExamHistorySaveRequest, current_user: AuthUser = Depends(get_current_user)):
+async def save_exam_history(request: ExamHistorySaveRequest, current_user: AuthUser = Depends(require_active_subscription)):
     try:
         history_auth_service.save_exam_history(
             user_id=current_user.id,
@@ -624,7 +623,7 @@ async def save_exam_history(request: ExamHistorySaveRequest, current_user: AuthU
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/history/exams", response_model=list[ExamHistoryResponse])
-async def get_exam_history(current_user: AuthUser = Depends(get_current_user)):
+async def get_exam_history(current_user: AuthUser = Depends(require_active_subscription)):
     try:
         records = history_auth_service.get_exam_history(current_user.id, limit=20)
         return records
@@ -668,7 +667,7 @@ async def generate_questions_pdf(request: Dict):
 @router.post("/generate-professional", response_model=GeneratedQuestions)
 async def generate_professional_mock(
     request: QuestionGenerationRequest,
-    current_user: Optional[AuthUser] = Depends(get_optional_user),
+    current_user: AuthUser = Depends(require_active_subscription),
 ):
     """Generate a likely WASSCE paper from textbook topics and past-paper structure."""
     try:
