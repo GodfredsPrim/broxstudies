@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -21,6 +21,9 @@ class SmsResult:
     success: bool
     message: str
     code: Optional[str] = None
+    data: Optional[Any] = None
+    """Raw "data" field from the Moolre response — often carries the gateway
+    message ID(s), useful when asking Moolre support to trace a delivery."""
 
 
 def normalize_ghana_phone(number: str) -> str:
@@ -86,11 +89,12 @@ class MoolreSmsService:
         status = data.get("status")
         api_code = data.get("code", "")
         api_message = data.get("message", "Unknown response")
+        api_data = data.get("data")
 
         if response.status_code == 200 and status == 1:
-            return SmsResult(success=True, message=api_message, code=api_code)
+            return SmsResult(success=True, message=api_message, code=api_code, data=api_data)
 
-        return SmsResult(success=False, message=api_message, code=api_code)
+        return SmsResult(success=False, message=api_message, code=api_code, data=api_data)
 
     def send_access_code(self, recipient: str, access_code: str, months: int) -> SmsResult:
         message = build_access_code_message(access_code, months)

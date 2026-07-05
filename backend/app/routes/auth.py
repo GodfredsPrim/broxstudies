@@ -128,9 +128,11 @@ async def request_otp(body: OtpRequestBody):
     if not sms_service.enabled:
         raise HTTPException(status_code=503, detail="SMS service is not configured.")
     try:
-        auth_service.create_otp(body.phone.strip())
+        _, sms_result = auth_service.create_otp(body.phone.strip())
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not sms_result.success:
+        raise HTTPException(status_code=502, detail=f"Couldn't send the verification code: {sms_result.message}")
     return {"ok": True, "message": "OTP sent. Check your phone."}
 
 

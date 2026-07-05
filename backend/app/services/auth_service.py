@@ -387,6 +387,23 @@ class AuthService:
                 except sqlite3.OperationalError:
                     pass
 
+            # ── SMS send log (OTP + access codes) ───────────────────────────────
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS sms_log (
+                    id {id_type},
+                    phone TEXT NOT NULL,
+                    purpose TEXT NOT NULL,
+                    success INTEGER NOT NULL,
+                    api_code TEXT,
+                    api_message TEXT,
+                    api_data TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_sms_log_created_at ON sms_log (created_at)")
+
             # ── User gamification progress ─────────────────────────────────────
             self._execute(conn,
                 f"""
@@ -519,6 +536,14 @@ class AuthService:
             else:
                 normalized_email = f"phone_{normalized_phone}@broxstudies.local"
 
+        # Send the OTP before creating the account row: if delivery fails, the
+        # signup fails cleanly instead of leaving an unverified, unretriable
+        # account behind (create_otp used to swallow send failures silently).
+        _, sms_result = self.create_otp(normalized_phone)
+        if not sms_result.success:
+            raise ValueError(f"Couldn't send the verification code: {sms_result.message}")
+
+        with self._connect() as conn:
             query = """
                 INSERT INTO users
                     (full_name, email, password_hash, salt, provider, provider_subject,
@@ -531,7 +556,6 @@ class AuthService:
             self._execute(conn, query, (full_name.strip(), normalized_email, password_hash, salt,
                                          "email", None, normalized_phone, now, now, "inactive", None))
 
-        self.create_otp(normalized_phone)
         return {"status": "otp_required", "phone": normalized_phone}
 
     def login(self, identifier: str, password: str) -> Any:
@@ -585,7 +609,9 @@ class AuthService:
                     raise ValueError(
                         "Your account needs phone verification, but no phone number is on file. Please contact support."
                     )
-                self.create_otp(phone_for_otp)
+                _, sms_result = self.create_otp(phone_for_otp)
+                if not sms_result.success:
+                    raise ValueError(f"Couldn't send the verification code: {sms_result.message}")
                 return {"status": "otp_required", "phone": phone_for_otp}
 
             now = datetime.now(timezone.utc).isoformat()
@@ -952,6 +978,7 @@ class AuthService:
         sms_result = None
         if settings.SMS_ENABLED and momo_number:
             sms_result = sms_service.send_access_code(momo_number, access_code, months)
+            self._log_sms(momo_number, "access_code", sms_result)
 
         return {
             "ok": True,
@@ -1155,14 +1182,41 @@ class AuthService:
                 (moolre_txid, external_ref),
             )
 
+    # ── SMS log ────────────────────────────────────────────────────────────────
+
+    def _log_sms(self, phone: str, purpose: str, sms_result: "SmsResult") -> None:
+        """Record every OTP/access-code send attempt with the gateway's raw
+        response, so delivery disputes with Moolre can be traced by message ID
+        instead of grepping server logs."""
+        now = datetime.now(timezone.utc).isoformat()
+        api_data = json.dumps(sms_result.data) if sms_result.data is not None else None
+        with self._connect() as conn:
+            self._execute(
+                conn,
+                "INSERT INTO sms_log (phone, purpose, success, api_code, api_message, api_data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (phone, purpose, 1 if sms_result.success else 0, sms_result.code, sms_result.message, api_data, now),
+            )
+
+    def list_sms_log(self, limit: int = 100) -> list[dict]:
+        with self._connect() as conn:
+            rows = self._execute(
+                conn, "SELECT * FROM sms_log ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
     # ── OTP auth methods ──────────────────────────────────────────────────────
 
     def _cleanup_expired_otps(self, conn: Any, phone: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
         self._execute(conn, "DELETE FROM otp_codes WHERE phone = ? AND expires_at < ?", (phone, now))
 
-    def create_otp(self, phone: str) -> str:
-        """Generate a 6-digit OTP, store it, send via SMS. Returns the code (for testing only)."""
+    def create_otp(self, phone: str) -> tuple[str, "SmsResult"]:
+        """Generate a 6-digit OTP, store it, send via SMS.
+
+        Returns (code, sms_result) — code is exposed for testing only; callers
+        must check sms_result.success rather than assuming delivery, since this
+        used to swallow send failures and report success unconditionally.
+        """
         from app.services.sms_service import normalize_ghana_phone, sms_service
         phone = normalize_ghana_phone(phone)
         code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
@@ -1181,8 +1235,9 @@ class AuthService:
 
         sms_result = sms_service.send_otp(phone, code)
         if not sms_result.success:
-            logger.warning("OTP SMS failed for %s: %s", phone, sms_result.message)
-        return code
+            logger.error("OTP SMS failed for %s: %s (%s)", phone, sms_result.message, sms_result.code)
+        self._log_sms(phone, "otp", sms_result)
+        return code, sms_result
 
     def verify_otp(self, phone: str, code: str) -> Optional[dict]:
         """Validate OTP and return user dict (creating account if new). Returns None if invalid."""
@@ -1268,7 +1323,9 @@ class AuthService:
             if existing and int(existing["id"]) != user_id:
                 raise ValueError("That phone number is already linked to another account.")
 
-        self.create_otp(normalized_phone)
+        _, sms_result = self.create_otp(normalized_phone)
+        if not sms_result.success:
+            raise ValueError(f"Couldn't send the verification code: {sms_result.message}")
         return normalized_phone
 
     def confirm_phone_verification(self, user_id: int, phone: str, code: str) -> AuthUser:

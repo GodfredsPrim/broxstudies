@@ -598,3 +598,14 @@ class NewsArticleUpdateRequest(BaseModel):
     image_url: Optional[str] = None
     is_published: bool = True
     is_pinned: bool = False
+
+
+class SmsLogEntry(BaseModel):
+    id: int
+    phone: str
+    purpose: str
+    success: bool
+    api_code: Optional[str] = None
+    api_message: Optional[str] = None
+    api_data: Optional[str] = None
+    created_at: str

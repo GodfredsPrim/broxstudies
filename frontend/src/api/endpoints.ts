@@ -30,6 +30,7 @@ import type {
   PaymentConfirmResponse,
   PendingPayment,
   PracticeMarkResponse,
+  SmsLogEntry,
   SubjectsResponse,
   TutorResponse,
   UserProgress,
@@ -332,6 +333,8 @@ export const adminApi = {
     api.post<{ status: string }>(`/api/admin/payments/${id}/reject`).then(r => r.data),
   sendCodeSms: (body: { phone: string; code: string; duration_months?: number }) =>
     api.post<{ status: string; message: string }>('/api/admin/codes/send-sms', body).then(r => r.data),
+  smsLog: (limit = 100) =>
+    api.get<SmsLogEntry[]>('/api/admin/sms-log', { params: { limit } }).then(r => r.data),
 
   codeInventory: () =>
     api.get<AccessCodeRecord[]>('/api/admin/coupons/inventory').then(r => r.data),

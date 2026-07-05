@@ -15,6 +15,7 @@ from app.models import (
     NewsArticleUpdateRequest,
     PaymentConfirmResponse,
     SendAccessCodeSmsRequest,
+    SmsLogEntry,
 )
 from app.routes.auth import get_current_user
 from app.services.auth_service import AuthService
@@ -163,9 +164,19 @@ async def send_access_code_sms(request: SendAccessCodeSmsRequest, admin: AuthUse
 
     months = request.duration_months or settings.SUBSCRIPTION_MONTHS
     result = sms_service.send_access_code(request.phone, request.code, months)
+    auth_service._log_sms(request.phone, "access_code", result)
     if not result.success:
         raise HTTPException(status_code=400, detail=result.message)
     return {"status": "success", "message": result.message}
+
+
+@router.get("/sms-log", response_model=List[SmsLogEntry])
+async def get_sms_log(limit: int = 100, admin: AuthUser = Depends(require_admin)):
+    """Recent OTP/access-code SMS send attempts with the raw Moolre response —
+    hand this to Moolre support (api_data often carries their message ID) when
+    disputing "sent but never delivered" reports."""
+    rows = auth_service.list_sms_log(limit=min(limit, 500))
+    return [SmsLogEntry(**{**r, "success": bool(r.get("success"))}) for r in rows]
 
 @router.get("/competitions/all", response_model=List[Competition])
 async def list_all_comps(admin: AuthUser = Depends(require_admin)):

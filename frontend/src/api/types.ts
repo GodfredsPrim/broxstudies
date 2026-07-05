@@ -339,3 +339,14 @@ export interface NewsArticleCreateBody {
   is_published?: boolean
   is_pinned?: boolean
 }
+
+export interface SmsLogEntry {
+  id: number
+  phone: string
+  purpose: string
+  success: boolean
+  api_code?: string | null
+  api_message?: string | null
+  api_data?: string | null
+  created_at: string
+}

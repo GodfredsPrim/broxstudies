@@ -35,10 +35,11 @@ import type {
   NewsArticle,
   PaymentConfirmResponse,
   PendingPayment,
+  SmsLogEntry,
 } from '@/api/types'
 import { cn } from '@/lib/cn'
 
-type Tab = 'overview' | 'payments' | 'codes' | 'competitions' | 'news'
+type Tab = 'overview' | 'payments' | 'codes' | 'competitions' | 'news' | 'sms'
 
 const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'overview',     label: 'Overview',     icon: BarChart3 },
@@ -46,6 +47,7 @@ const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'codes',        label: 'Access Codes', icon: Ticket },
   { id: 'competitions', label: 'Competitions', icon: Trophy },
   { id: 'news',         label: 'News',         icon: Newspaper },
+  { id: 'sms',          label: 'SMS Log',      icon: MessageSquare },
 ]
 
 export function AdminPage() {
@@ -109,6 +111,7 @@ export function AdminPage() {
         {tab === 'codes'        && <CodesPanel />}
         {tab === 'competitions' && <CompetitionsPanel />}
         {tab === 'news'         && <NewsPanel />}
+        {tab === 'sms'          && <SmsLogPanel />}
       </section>
     </div>
   )
@@ -1007,6 +1010,85 @@ function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange:
       </div>
       {err && <div className="mt-2 text-xs text-rose-500">{err}</div>}
     </Card>
+  )
+}
+
+/* ============================================================
+   SMS LOG
+   ============================================================ */
+
+function SmsLogPanel() {
+  const [rows, setRows] = useState<SmsLogEntry[]>([])
+  const { loading, error, reload } = useAsyncLoad(
+    () => adminApi.smsLog(200),
+    setRows,
+  )
+
+  return (
+    <div className="space-y-5">
+      <PanelHeader
+        title="SMS delivery log"
+        subtitle="Every OTP and access-code SMS send attempt with Moolre's raw response. Moolre marking something 'sent' only means it accepted the message — it does not confirm the telco delivered it. Hand this table (especially the Data column, which often carries their message ID) to Moolre support when disputing a 'sent but never received' report."
+        onRefresh={reload}
+      />
+
+      {error && <InlineError message={error} />}
+
+      {loading && rows.length === 0 ? (
+        <LoadingBlock label="Loading SMS log…" />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={<MessageSquare size={20} />}
+          title="No SMS sent yet."
+          body="OTP and access-code sends will show up here as they happen."
+        />
+      ) : (
+        <Card padded={false}>
+          <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
+            <h3 className="font-display text-base">Recent sends</h3>
+            <span className="text-xs text-ink-400">{rows.length} entries</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-ink-400">
+                <tr>
+                  <Th>Time</Th>
+                  <Th>Phone</Th>
+                  <Th>Purpose</Th>
+                  <Th>Status</Th>
+                  <Th>Gateway code</Th>
+                  <Th>Gateway message</Th>
+                  <Th>Data</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--line)]">
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <Td className="text-xs text-ink-300 whitespace-nowrap">{formatDate(row.created_at)}</Td>
+                    <Td className="font-mono text-[13px] text-ink-0">{row.phone}</Td>
+                    <Td>
+                      <Badge>{row.purpose === 'otp' ? 'OTP' : 'Access code'}</Badge>
+                    </Td>
+                    <Td>
+                      {row.success
+                        ? <Badge tone="accent">Sent</Badge>
+                        : <Badge tone="danger">Failed</Badge>}
+                    </Td>
+                    <Td className="font-mono text-xs text-ink-300">{row.api_code || '—'}</Td>
+                    <Td className="max-w-[220px] truncate text-xs text-ink-300">
+                      <span title={row.api_message || ''}>{row.api_message || '—'}</span>
+                    </Td>
+                    <Td className="max-w-[200px] truncate font-mono text-xs text-ink-400">
+                      <span title={row.api_data || ''}>{row.api_data || '—'}</span>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
   )
 }
 
