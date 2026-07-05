@@ -380,6 +380,17 @@ export const newsApi = {
     api.put<{ status: string }>(`/api/admin/news/${id}`, body).then(r => r.data),
   delete: (id: number) =>
     api.delete<{ status: string }>(`/api/admin/news/${id}`).then(r => r.data),
+  uploadImage: (id: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api
+      .post<{ status: string; image_url: string }>(
+        `/api/admin/news/${id}/upload-image`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      )
+      .then(r => r.data)
+  },
 }
 
 /* ------------------------------ UPLOADS ------------------------------ */

@@ -201,7 +201,7 @@ async def list_news(category: str = "all"):
     # Admin-posted articles
     rows = auth_service.list_news_articles(published_only=True, category=cat_filter)
     admin_articles = [
-        NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1)), "source": "admin"})
+        NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1)), "is_pinned": bool(r.get("is_pinned", 0)), "source": "admin"})
         for r in rows
     ]
 
@@ -215,7 +215,9 @@ async def list_news(category: str = "all"):
         ext_articles = []
 
     combined = admin_articles + ext_articles
+    # Stable sort: newest-first within each group, then pinned articles float to the top.
     combined.sort(key=lambda a: a.created_at, reverse=True)
+    combined.sort(key=lambda a: a.is_pinned, reverse=True)
     return combined
 
 
@@ -223,7 +225,7 @@ async def list_news(category: str = "all"):
 async def list_all_news(admin: AuthUser = Depends(require_admin)):
     """Admin: list all articles including drafts."""
     rows = auth_service.list_news_articles(published_only=False)
-    return [NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1))}) for r in rows]
+    return [NewsArticle(**{**r, "is_published": bool(r.get("is_published", 1)), "is_pinned": bool(r.get("is_pinned", 0))}) for r in rows]
 
 
 @router.post("/news", response_model=int)
@@ -235,6 +237,7 @@ async def create_news(request: NewsArticleCreateRequest, admin: AuthUser = Depen
         author_name=request.author_name,
         image_url=request.image_url,
         is_published=request.is_published,
+        is_pinned=request.is_pinned,
     )
     return article_id
 
@@ -248,6 +251,7 @@ async def update_news(article_id: int, request: NewsArticleUpdateRequest, admin:
         category=request.category,
         image_url=request.image_url,
         is_published=request.is_published,
+        is_pinned=request.is_pinned,
     )
     if not ok:
         raise HTTPException(status_code=404, detail="Article not found.")
@@ -260,3 +264,30 @@ async def delete_news(article_id: int, admin: AuthUser = Depends(require_admin))
     if not ok:
         raise HTTPException(status_code=404, detail="Article not found.")
     return {"status": "success"}
+
+
+@router.post("/news/{article_id}/upload-image")
+async def upload_news_image(article_id: int, file: UploadFile = File(...), admin: AuthUser = Depends(require_admin)):
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp"}
+    import os
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail="Only images (JPG, PNG, WEBP) are allowed.")
+
+    news_upload_dir = BACKEND_DIR / "uploads" / "news"
+    news_upload_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"news_{article_id}{ext}"
+    file_path = news_upload_dir / filename
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    image_url = f"/uploads/news/{filename}"
+    success = auth_service.update_news_article_image(article_id, image_url)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Article not found.")
+
+    return {"status": "success", "image_url": image_url}

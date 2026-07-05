@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Brain, FileText, TrendingUp, Zap, ArrowRight,
-  Flame, Target, Trophy, Sparkles, BarChart3, Bell, Calendar, Clock,
+  Flame, Target, Trophy, Sparkles, BarChart3, Calendar, Clock,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/shadcn-button'
 import { Progress } from '@/components/ui/progress'
 import { StreakCard, BadgeGrid, LeaderboardPreview } from '@/components/gamification/GamificationWidgets'
 import { WeeklyStudyChart } from '@/components/charts/WeeklyStudyChart'
+import { NotificationBell } from '@/components/dashboard/NotificationBell'
 import { cn } from '@/lib/cn'
 
 const QUICK_ACTIONS = [
@@ -98,9 +99,7 @@ export function DashboardPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" aria-label="Notifications">
-              <Bell size={18} />
-            </Button>
+            <NotificationBell />
             <Link to="/">
               <Button className="gap-2">
                 <Sparkles size={16} /> Start studying

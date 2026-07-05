@@ -18,6 +18,7 @@ import {
   Newspaper,
   Trash2,
   MessageSquare,
+  Pin,
 } from 'lucide-react'
 import { adminApi, newsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
@@ -876,12 +877,12 @@ function NewsCreateForm({ onCreated }: { onCreated: () => Promise<void> | void }
 }
 
 function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange: () => Promise<void> | void }) {
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'' | 'publish' | 'pin' | 'delete' | 'image'>('')
   const [err, setErr] = useState('')
 
   const onDelete = async () => {
     if (!window.confirm(`Delete "${article.title}"?`)) return
-    setBusy(true)
+    setBusy('delete')
     setErr('')
     try {
       await newsApi.delete(article.id)
@@ -889,12 +890,12 @@ function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange:
     } catch (e) {
       setErr(extractError(e, 'Failed to delete.'))
     } finally {
-      setBusy(false)
+      setBusy('')
     }
   }
 
   const togglePublish = async () => {
-    setBusy(true)
+    setBusy('publish')
     setErr('')
     try {
       await newsApi.update(article.id, {
@@ -903,12 +904,47 @@ function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange:
         category: article.category,
         image_url: article.image_url,
         is_published: !article.is_published,
+        is_pinned: article.is_pinned,
       })
       await onChange()
     } catch (e) {
       setErr(extractError(e, 'Failed to update.'))
     } finally {
-      setBusy(false)
+      setBusy('')
+    }
+  }
+
+  const togglePin = async () => {
+    setBusy('pin')
+    setErr('')
+    try {
+      await newsApi.update(article.id, {
+        title: article.title,
+        content: article.content,
+        category: article.category,
+        image_url: article.image_url,
+        is_published: article.is_published,
+        is_pinned: !article.is_pinned,
+      })
+      await onChange()
+    } catch (e) {
+      setErr(extractError(e, 'Failed to update.'))
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const onUploadImage = async (file: File | null) => {
+    if (!file) return
+    setBusy('image')
+    setErr('')
+    try {
+      await newsApi.uploadImage(article.id, file)
+      await onChange()
+    } catch (e) {
+      setErr(extractError(e, 'Failed to upload image.'))
+    } finally {
+      setBusy('')
     }
   }
 
@@ -921,16 +957,39 @@ function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange:
             {article.is_published
               ? <Badge tone="accent">Published</Badge>
               : <Badge>Draft</Badge>}
+            {article.is_pinned && <Badge tone="accent">Pinned</Badge>}
           </div>
           <h4 className="font-display text-base text-ink-0 leading-snug">{article.title}</h4>
           <p className="mt-1 text-xs text-ink-400 line-clamp-2">{article.content}</p>
-          <p className="mt-1.5 text-[11px] text-ink-500">{formatDate(article.created_at)} · {article.author_name}</p>
+          <p className="mt-1.5 text-[11px] text-ink-500">
+            {formatDate(article.created_at)} · {article.author_name}
+            {' · '}
+            {article.image_url
+              ? <a href={article.image_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline dark:text-indigo-400">Image</a>
+              : 'No image'}
+          </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+          <FileButton
+            accept="image/png,image/jpeg,image/webp"
+            label="Image"
+            icon={<ImageIcon size={12} />}
+            loading={busy === 'image'}
+            onPick={(f) => void onUploadImage(f)}
+          />
+          <button
+            type="button"
+            onClick={togglePin}
+            disabled={busy !== ''}
+            className={cn('v2-btn v2-btn-subtle !h-8 !px-2.5 !text-[11.5px]', article.is_pinned && '!text-indigo-500 dark:!text-indigo-300')}
+          >
+            {busy === 'pin' ? <RefreshCw size={12} className="animate-spin" /> : <Pin size={12} />}
+            {article.is_pinned ? 'Unpin' : 'Pin'}
+          </button>
           <button
             type="button"
             onClick={togglePublish}
-            disabled={busy}
+            disabled={busy !== ''}
             className="v2-btn v2-btn-subtle !h-8 !px-2.5 !text-[11.5px]"
           >
             {article.is_published ? 'Unpublish' : 'Publish'}
@@ -938,11 +997,11 @@ function NewsArticleRow({ article, onChange }: { article: NewsArticle; onChange:
           <button
             type="button"
             onClick={onDelete}
-            disabled={busy}
+            disabled={busy !== ''}
             className="grid h-8 w-8 place-items-center rounded-lg text-ink-400 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
             aria-label="Delete article"
           >
-            {busy ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            {busy === 'delete' ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
           </button>
         </div>
       </div>

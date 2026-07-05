@@ -13,6 +13,7 @@ import { usePWA } from '@/hooks/usePWA'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
 import { useGuestChats } from '@/hooks/useGuestChats'
+import { useNewsUnseen } from '@/hooks/useNewsUnseen'
 import { GamificationBar } from '@/components/gamification/GamificationWidgets'
 import { Logo, LogoMark } from '@/components/Logo'
 import { AddPhoneBanner } from '@/components/AddPhoneBanner'
@@ -44,6 +45,7 @@ export function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const { remaining, limit } = useGuestChats()
+  const hasUnseenNews = useNewsUnseen()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [devMode, setDevMode] = useState(false)
@@ -100,27 +102,27 @@ export function AppShell() {
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-2">
             <NavGroup label="Home" collapsed={collapsed}>
               {pageNav.filter(n => n.group === 'home').map(item => (
-                <NavItem key={item.to} item={item} collapsed={collapsed} />
+                <NavItem key={item.to} item={item} collapsed={collapsed} hasUnseenNews={hasUnseenNews} />
               ))}
             </NavGroup>
             <NavGroup label="Learn" collapsed={collapsed}>
               {pageNav.filter(n => n.group === 'primary').map(item => (
-                <NavItem key={item.to} item={item} collapsed={collapsed} />
+                <NavItem key={item.to} item={item} collapsed={collapsed} hasUnseenNews={hasUnseenNews} />
               ))}
             </NavGroup>
             <NavGroup label="Compete" collapsed={collapsed}>
               {pageNav.filter(n => n.group === 'compete').map(item => (
-                <NavItem key={item.to} item={item} collapsed={collapsed} />
+                <NavItem key={item.to} item={item} collapsed={collapsed} hasUnseenNews={hasUnseenNews} />
               ))}
             </NavGroup>
             <NavGroup label="Prep" collapsed={collapsed}>
               {pageNav.filter(n => n.group === 'prep').map(item => (
-                <NavItem key={item.to} item={item} collapsed={collapsed} />
+                <NavItem key={item.to} item={item} collapsed={collapsed} hasUnseenNews={hasUnseenNews} />
               ))}
             </NavGroup>
             <NavGroup label="Insights" collapsed={collapsed}>
               {pageNav.filter(n => n.group === 'insights').map(item => (
-                <NavItem key={item.to} item={item} collapsed={collapsed} />
+                <NavItem key={item.to} item={item} collapsed={collapsed} hasUnseenNews={hasUnseenNews} />
               ))}
             </NavGroup>
           </nav>
@@ -231,27 +233,27 @@ export function AppShell() {
                 <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3">
                   <NavGroup label="Home" collapsed={false}>
                     {pageNav.filter(n => n.group === 'home').map(item => (
-                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                      <NavItem key={item.to} item={item} collapsed={false} hasUnseenNews={hasUnseenNews} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                   <NavGroup label="Learn" collapsed={false}>
                     {pageNav.filter(n => n.group === 'primary').map(item => (
-                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                      <NavItem key={item.to} item={item} collapsed={false} hasUnseenNews={hasUnseenNews} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                   <NavGroup label="Compete" collapsed={false}>
                     {pageNav.filter(n => n.group === 'compete').map(item => (
-                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                      <NavItem key={item.to} item={item} collapsed={false} hasUnseenNews={hasUnseenNews} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                   <NavGroup label="Prep" collapsed={false}>
                     {pageNav.filter(n => n.group === 'prep').map(item => (
-                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                      <NavItem key={item.to} item={item} collapsed={false} hasUnseenNews={hasUnseenNews} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                   <NavGroup label="Insights" collapsed={false}>
                     {pageNav.filter(n => n.group === 'insights').map(item => (
-                      <NavItem key={item.to} item={item} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+                      <NavItem key={item.to} item={item} collapsed={false} hasUnseenNews={hasUnseenNews} onNavigate={() => setMobileOpen(false)} />
                     ))}
                   </NavGroup>
                 </nav>
@@ -456,11 +458,13 @@ function NavGroup({
 interface NavItemProps {
   item: NavDef
   collapsed: boolean
+  hasUnseenNews?: boolean
   onNavigate?: () => void
 }
 
-function NavItem({ item, collapsed, onNavigate }: NavItemProps) {
+function NavItem({ item, collapsed, hasUnseenNews, onNavigate }: NavItemProps) {
   const Icon = item.icon
+  const showDot = item.to === '/news' && hasUnseenNews
   return (
     <NavLink
       to={item.to}
@@ -482,8 +486,18 @@ function NavItem({ item, collapsed, onNavigate }: NavItemProps) {
           {isActive && !collapsed && (
             <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
           )}
-          <Icon size={16} className="shrink-0" />
-          {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+          <span className="relative shrink-0">
+            <Icon size={16} />
+            {showDot && (
+              <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-rose-500" />
+            )}
+          </span>
+          {!collapsed && (
+            <span className="flex flex-1 items-center gap-1.5 truncate">
+              {item.label}
+              {showDot && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />}
+            </span>
+          )}
         </>
       )}
     </NavLink>

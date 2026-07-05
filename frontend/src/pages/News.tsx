@@ -11,6 +11,7 @@ import { LoadingBlock } from '@/components/ui/LoadingBlock'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/Badge'
+import { cn } from '@/lib/cn'
 import type { NewsArticle, Competition } from '@/api/types'
 
 type CategoryFilter = 'all' | 'announcement' | 'motivation' | 'health' | 'education' | 'student_life'
@@ -40,19 +41,20 @@ function formatDate(iso: string) {
   }
 }
 
-function ArticleCard({ article }: { article: NewsArticle }) {
+function ArticleCard({ article, featured = false }: { article: NewsArticle; featured?: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const label = CATEGORY_LABELS[article.category] || article.category
-  const preview = article.content.slice(0, 200)
-  const needsExpand = article.content.length > 200
+  const previewLength = featured ? 320 : 200
+  const preview = article.content.slice(0, previewLength)
+  const needsExpand = article.content.length > previewLength
 
   return (
-    <article className="v2-card v2-card-interactive overflow-hidden p-5">
+    <article className={cn('v2-card v2-card-interactive overflow-hidden', featured ? 'p-6 sm:p-8' : 'p-5')}>
       {article.image_url && (
         <img
           src={article.image_url}
           alt={article.title}
-          className="mb-4 h-44 w-full rounded-xl object-cover"
+          className={cn('mb-4 w-full rounded-xl object-cover', featured ? 'h-64 sm:h-80' : 'h-44')}
           loading="lazy"
         />
       )}
@@ -65,8 +67,10 @@ function ArticleCard({ article }: { article: NewsArticle }) {
           <User size={11} /> {article.author_name}
         </span>
       </div>
-      <h3 className="font-display text-lg leading-snug text-ink-0">{article.title}</h3>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-300">
+      <h3 className={cn('font-display leading-snug text-ink-0', featured ? 'text-2xl sm:text-3xl' : 'text-lg')}>
+        {article.title}
+      </h3>
+      <p className={cn('mt-2 whitespace-pre-wrap leading-relaxed text-ink-300', featured ? 'text-base' : 'text-sm')}>
         {expanded ? article.content : preview}
         {!expanded && needsExpand && '…'}
       </p>
@@ -114,14 +118,23 @@ export function NewsPage() {
     return () => { active = false }
   }, [])
 
-  const filtered = activeCategory === 'all'
-    ? articles
-    : articles.filter(a => a.category === activeCategory)
-
   const chips = CATEGORIES.map(cat => ({
     ...cat,
     count: cat.id === 'all' ? undefined : articles.filter(a => a.category === cat.id).length,
   }))
+
+  // Top story: a pinned article wins if it has a photo, otherwise the most recent one with a photo.
+  const heroArticle = activeCategory === 'all'
+    ? articles.find(a => a.is_pinned && a.image_url) || articles.find(a => a.image_url)
+    : undefined
+  const announcements = activeCategory === 'all'
+    ? articles.filter(a => a.category === 'announcement' && a.id !== heroArticle?.id)
+    : []
+  const featuredIds = new Set([heroArticle?.id, ...announcements.map(a => a.id)])
+
+  const filtered = (activeCategory === 'all'
+    ? articles.filter(a => !featuredIds.has(a.id))
+    : articles.filter(a => a.category === activeCategory))
 
   return (
     <PageLayout
@@ -130,6 +143,36 @@ export function NewsPage() {
       subtitle="Motivation, health tips, education news, and announcements from BroxStudies and trusted sources."
       width="wide"
     >
+      {!loading && heroArticle && (
+        <section className="mb-8">
+          <ArticleCard article={heroArticle} featured />
+        </section>
+      )}
+
+      {!loading && announcements.length > 0 && (
+        <section className="mb-10">
+          <div className="mb-4 flex items-center gap-2">
+            <Megaphone size={18} className="text-indigo-500 dark:text-indigo-300" />
+            <h2 className="font-display text-2xl text-ink-0">Announcements</h2>
+          </div>
+          <div className="space-y-3">
+            {announcements.map(a => (
+              <div key={a.id} className="v2-card flex items-start gap-3 border-l-4 border-l-indigo-500 p-4">
+                <div className="flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1 text-xs text-ink-400">
+                      <Calendar size={11} /> {formatDate(a.created_at)}
+                    </span>
+                  </div>
+                  <h3 className="font-display text-base text-ink-0">{a.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-ink-300">{a.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <FilterChips
         items={chips}
         value={activeCategory}

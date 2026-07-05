@@ -359,11 +359,33 @@ class AuthService:
                     image_url TEXT,
                     author_name TEXT NOT NULL DEFAULT 'BroxStudies',
                     is_published INTEGER NOT NULL DEFAULT 1,
+                    is_pinned INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
                 """
             )
+
+            # Migration: ensure is_pinned exists on news_articles tables created
+            # before pinning was added. See the users-table migration above for
+            # why the PG and SQLite paths differ.
+            if self.is_postgres:
+                try:
+                    self._execute(conn, "ALTER TABLE news_articles ADD COLUMN IF NOT EXISTS is_pinned INTEGER NOT NULL DEFAULT 0")
+                except Exception as exc:
+                    logger.warning(
+                        f"PostgreSQL migration warning: failed to add news_articles.is_pinned. "
+                        f"This is usually safe if the column already exists. Error: {exc}"
+                    )
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+            else:
+                try:
+                    self._execute(conn, "ALTER TABLE news_articles ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
+                except sqlite3.OperationalError:
+                    pass
 
             # ── User gamification progress ─────────────────────────────────────
             self._execute(conn,
@@ -1654,16 +1676,16 @@ class AuthService:
 
     # ── News article methods ──────────────────────────────────────────────────
 
-    def create_news_article(self, title: str, content: str, category: str, author_name: str, image_url: Optional[str] = None, is_published: bool = True) -> int:
+    def create_news_article(self, title: str, content: str, category: str, author_name: str, image_url: Optional[str] = None, is_published: bool = True, is_pinned: bool = False) -> int:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             query = """
-                INSERT INTO news_articles (title, content, category, image_url, author_name, is_published, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO news_articles (title, content, category, image_url, author_name, is_published, is_pinned, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             if self.is_postgres:
                 query += " RETURNING id"
-            cursor = self._execute(conn, query, (title, content, category, image_url, author_name, 1 if is_published else 0, now, now))
+            cursor = self._execute(conn, query, (title, content, category, image_url, author_name, 1 if is_published else 0, 1 if is_pinned else 0, now, now))
             if self.is_postgres:
                 return cursor.fetchone()["id"]
             return cursor.lastrowid
@@ -1679,7 +1701,7 @@ class AuthService:
                 params.append(category)
             where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
             params.append(limit)
-            rows = self._execute(conn, f"SELECT * FROM news_articles {where} ORDER BY created_at DESC LIMIT ?", tuple(params)).fetchall()
+            rows = self._execute(conn, f"SELECT * FROM news_articles {where} ORDER BY is_pinned DESC, created_at DESC LIMIT ?", tuple(params)).fetchall()
             return [dict(r) for r in rows]
 
     def delete_news_article(self, article_id: int) -> bool:
@@ -1687,12 +1709,21 @@ class AuthService:
             cursor = self._execute(conn, "DELETE FROM news_articles WHERE id = ?", (article_id,))
             return cursor.rowcount > 0
 
-    def update_news_article(self, article_id: int, title: str, content: str, category: str, image_url: Optional[str], is_published: bool) -> bool:
+    def update_news_article(self, article_id: int, title: str, content: str, category: str, image_url: Optional[str], is_published: bool, is_pinned: bool = False) -> bool:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             cursor = self._execute(conn,
-                "UPDATE news_articles SET title=?, content=?, category=?, image_url=?, is_published=?, updated_at=? WHERE id=?",
-                (title, content, category, image_url, 1 if is_published else 0, now, article_id),
+                "UPDATE news_articles SET title=?, content=?, category=?, image_url=?, is_published=?, is_pinned=?, updated_at=? WHERE id=?",
+                (title, content, category, image_url, 1 if is_published else 0, 1 if is_pinned else 0, now, article_id),
+            )
+            return cursor.rowcount > 0
+
+    def update_news_article_image(self, article_id: int, image_url: str) -> bool:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            cursor = self._execute(conn,
+                "UPDATE news_articles SET image_url=?, updated_at=? WHERE id=?",
+                (image_url, now, article_id),
             )
             return cursor.rowcount > 0
 

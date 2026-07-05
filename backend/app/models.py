@@ -574,6 +574,7 @@ class NewsArticle(BaseModel):
     image_url: Optional[str] = None
     author_name: str = "BroxStudies"
     is_published: bool
+    is_pinned: bool = False
     created_at: str
     updated_at: str
     source: str = "admin"
@@ -587,6 +588,7 @@ class NewsArticleCreateRequest(BaseModel):
     image_url: Optional[str] = None
     author_name: str = "BroxStudies"
     is_published: bool = True
+    is_pinned: bool = False
 
 
 class NewsArticleUpdateRequest(BaseModel):
@@ -595,3 +597,4 @@ class NewsArticleUpdateRequest(BaseModel):
     category: str
     image_url: Optional[str] = None
     is_published: bool = True
+    is_pinned: bool = False
