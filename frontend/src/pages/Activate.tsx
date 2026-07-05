@@ -10,8 +10,12 @@ import {
   CheckCircle2,
   MessageSquare,
   ChevronRight,
+  ChevronDown,
   Loader2,
   Phone,
+  History,
+  XCircle,
+  Clock,
 } from 'lucide-react'
 import { authApi, paymentsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
@@ -25,7 +29,7 @@ import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
 import { Logo } from '@/components/Logo'
 import { PhotoBackdrop } from '@/components/PhotoBackdrop'
-import type { AuthConfigResponse } from '@/api/types'
+import type { AuthConfigResponse, MoolreTransactionHistoryItem } from '@/api/types'
 
 type Step = 'pay' | 'otp' | 'activate'
 
@@ -79,9 +83,32 @@ export function ActivatePage() {
   const [activateLoading, setActivateLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // Payment history
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<MoolreTransactionHistoryItem[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+
   useEffect(() => {
     authApi.config().then(setConfig).catch(() => {})
   }, [])
+
+  const toggleHistory = async () => {
+    const next = !historyOpen
+    setHistoryOpen(next)
+    if (next && history === null) {
+      setHistoryLoading(true)
+      setHistoryError('')
+      try {
+        const items = await paymentsApi.moolreHistory()
+        setHistory(items)
+      } catch (err) {
+        setHistoryError(extractError(err, 'Could not load payment history.'))
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+  }
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -514,9 +541,91 @@ export function ActivatePage() {
                 Skip — continue with limited access
               </Link>
             </div>
+
+            <button
+              type="button"
+              onClick={() => void toggleHistory()}
+              className="mt-3 flex w-full items-center justify-between rounded-lg px-1 py-2 text-xs font-medium text-ink-300 transition-colors hover:text-ink-0"
+            >
+              <span className="flex items-center gap-1.5">
+                <History size={13} />
+                Payment history
+              </span>
+              <motion.span animate={{ rotate: historyOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
+                <ChevronDown size={14} />
+              </motion.span>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {historyOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-2 pb-1 pt-1">
+                    {historyLoading && (
+                      <div className="flex items-center gap-2 py-3 text-xs text-ink-400">
+                        <Loader2 size={14} className="animate-spin" /> Loading history…
+                      </div>
+                    )}
+                    {historyError && (
+                      <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-600 dark:text-rose-300">
+                        {historyError}
+                      </div>
+                    )}
+                    {!historyLoading && !historyError && history?.length === 0 && (
+                      <p className="py-2 text-xs text-ink-400">No payments yet.</p>
+                    )}
+                    {!historyLoading && history && history.length > 0 && (
+                      <div className="space-y-1.5">
+                        {history.map(item => (
+                          <div
+                            key={item.external_ref}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--bg-2)]/60 px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-medium text-ink-100">GH₵ {item.amount} · {item.momo_number}</p>
+                              <p className="text-[11px] text-ink-400">
+                                {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </p>
+                            </div>
+                            <StatusBadge status={item.status} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </Card>
       </motion.div>
     </div>
+  )
+}
+
+function StatusBadge({ status }: { status: 'pending' | 'success' | 'failed' }) {
+  if (status === 'success') {
+    return (
+      <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-300">
+        <CheckCircle2 size={11} /> Paid
+      </span>
+    )
+  }
+  if (status === 'failed') {
+    return (
+      <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-300">
+        <XCircle size={11} /> Failed
+      </span>
+    )
+  }
+  return (
+    <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-300">
+      <Clock size={11} /> Pending
+    </span>
   )
 }

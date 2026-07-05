@@ -408,6 +408,16 @@ class MoolreStatusResponse(BaseModel):
     already_fulfilled: bool = False
 
 
+class MoolreTransactionHistoryItem(BaseModel):
+    external_ref: str
+    amount: str
+    status: str           # "pending" | "success" | "failed"
+    momo_number: str
+    access_code: Optional[str] = None
+    created_at: str
+    paid_at: Optional[str] = None
+
+
 # ── Access-code / subscription models ─────────────────────────────────────────
 
 class AccessCodeVerifyRequest(BaseModel):

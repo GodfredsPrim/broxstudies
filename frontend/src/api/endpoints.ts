@@ -22,6 +22,7 @@ import type {
   LoadingProgress,
   MoolreInitiateResponse,
   MoolreStatusResponse,
+  MoolreTransactionHistoryItem,
   NewsArticle,
   NewsArticleCreateBody,
   PaystackInitResponse,
@@ -73,6 +74,8 @@ export const paymentsApi = {
     api.post<{ status: string; message?: string }>('/api/payments/moolre/submit-otp', { external_ref, otp_code }).then(r => r.data),
   moolreStatus: (external_ref: string) =>
     api.get<MoolreStatusResponse>(`/api/payments/moolre/status/${encodeURIComponent(external_ref)}`).then(r => r.data),
+  moolreHistory: () =>
+    api.get<MoolreTransactionHistoryItem[]>('/api/payments/moolre/history').then(r => r.data),
   // Paystack (legacy / disabled by default)
   paystackInitialize: (body: { momo_number: string; callback_url?: string }) =>
     api.post<PaystackInitResponse>('/api/payments/paystack/initialize', body).then(r => r.data),

@@ -68,6 +68,16 @@ export interface MoolreStatusResponse {
   already_fulfilled?: boolean
 }
 
+export interface MoolreTransactionHistoryItem {
+  external_ref: string
+  amount: string
+  status: 'pending' | 'success' | 'failed'
+  momo_number: string
+  access_code?: string | null
+  created_at: string
+  paid_at?: string | null
+}
+
 export interface Subject {
   id: string
   name: string

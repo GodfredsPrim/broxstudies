@@ -11,6 +11,7 @@ from app.models import (
     MoolreInitiateResponse,
     MoolreOtpSubmitRequest,
     MoolreStatusResponse,
+    MoolreTransactionHistoryItem,
 )
 from app.services.auth_service import AuthService
 from app.services.moolre_payment_service import moolre_payment_service
@@ -133,6 +134,24 @@ async def moolre_status(
         return MoolreStatusResponse(status="failed")
 
     return MoolreStatusResponse(status="pending")
+
+
+@router.get("/moolre/history", response_model=list[MoolreTransactionHistoryItem])
+async def moolre_history(current_user: AuthUser = Depends(get_current_user)):
+    """The current user's own Moolre payment history — successful, pending, and failed."""
+    transactions = auth_service.get_moolre_transactions_for_user(current_user.id)
+    return [
+        MoolreTransactionHistoryItem(
+            external_ref=tx["external_ref"],
+            amount=tx["amount"],
+            status=tx["status"],
+            momo_number=tx["momo_number"],
+            access_code=tx.get("access_code"),
+            created_at=tx["created_at"],
+            paid_at=tx.get("paid_at"),
+        )
+        for tx in transactions
+    ]
 
 
 @router.post("/moolre/webhook")

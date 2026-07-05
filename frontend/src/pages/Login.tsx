@@ -152,7 +152,7 @@ export function LoginPage() {
           <Input
             type="text"
             autoComplete="username"
-            placeholder="student@example.com or 0241234567"
+            placeholder="you@email.com or 024..."
             value={identifier}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setIdentifier(e.target.value)}
             leading={<Mail size={16} />}

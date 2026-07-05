@@ -30,9 +30,15 @@
       (function () {
         try {
           var saved = localStorage.getItem('brox.theme');
-          var theme = saved === 'light' ? 'light' : 'dark';
-          document.documentElement.classList.add(theme === 'light' ? 'light' : 'dark');
-        } catch (_) { document.documentElement.classList.add('dark'); }
+          var theme;
+          if (saved === 'light' || saved === 'dark') {
+            theme = saved;
+          } else {
+            var hour = new Date().getHours();
+            theme = (hour >= 19 || hour < 6) ? 'dark' : 'light';
+          }
+          document.documentElement.classList.add(theme);
+        } catch (_) { document.documentElement.classList.add('light'); }
       })();
     </script>
   </head>

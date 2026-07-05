@@ -1071,6 +1071,16 @@ class AuthService:
             ).fetchone()
             return dict(row) if row else None
 
+    def get_moolre_transactions_for_user(self, user_id: int) -> List[dict]:
+        """Full payment history (success/pending/failed) for the given user, newest first."""
+        with self._connect() as conn:
+            rows = self._execute(
+                conn,
+                "SELECT * FROM moolre_transactions WHERE user_id = ? ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
     def complete_moolre_transaction(self, external_ref: str, momo_number: Optional[str] = None) -> dict:
         """Idempotent fulfillment after Moolre confirms payment."""
         now = datetime.now(timezone.utc).isoformat()

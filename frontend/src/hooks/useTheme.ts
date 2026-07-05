@@ -2,14 +2,20 @@ import { useEffect, useState } from 'react'
 
 type Theme = 'dark' | 'light'
 
+/** No explicit user preference yet: light by day, dark by night. */
+function timeBasedTheme(): Theme {
+  const hour = new Date().getHours()
+  return hour >= 19 || hour < 6 ? 'dark' : 'light'
+}
+
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>('dark')
+  const [theme, setThemeState] = useState<Theme>('light')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem('brox.theme') as Theme | null
-    const initial: Theme = saved === 'dark' || saved === 'light' ? saved : 'dark'
+    const initial: Theme = saved === 'dark' || saved === 'light' ? saved : timeBasedTheme()
     setThemeState(initial)
     applyTheme(initial)
   }, [])
