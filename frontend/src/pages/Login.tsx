@@ -1,15 +1,14 @@
-import { useState, type FormEvent, type ChangeEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Mail, KeyRound, Eye, EyeOff, ArrowRight, Phone, Hash } from 'lucide-react'
+import { Mail, KeyRound, Eye, EyeOff, ArrowRight, Hash } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AuthLayout, Field } from '@/components/auth/AuthLayout'
-import { cn } from '@/lib/cn'
-
-type Tab = 'email' | 'phone'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
+import type { AuthUser } from '@/api/types'
 
 export function LoginPage() {
   const { signIn } = useAuth()
@@ -17,41 +16,49 @@ export function LoginPage() {
   const [params] = useSearchParams()
   const next = params.get('next') || '/dashboard'
 
-  const [tab, setTab] = useState<Tab>('email')
+  const [googleConfig, setGoogleConfig] = useState<{ enabled: boolean; clientId: string }>({ enabled: false, clientId: '' })
 
-  // Email login state
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Phone OTP state
-  const [phone, setPhone] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
+  // Set when login() responds with otp_required (an unverified account resuming signup)
+  const [pendingPhone, setPendingPhone] = useState<string | null>(null)
   const [otpCode, setOtpCode] = useState('')
   const [otpError, setOtpError] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
-  const [sendLoading, setSendLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
 
-  const afterSignIn = (token: string, user: any) => {
-    signIn(token, user)
+  useEffect(() => {
+    authApi.config()
+      .then(c => setGoogleConfig({ enabled: Boolean(c.google_enabled && c.google_client_id), clientId: c.google_client_id || '' }))
+      .catch(() => {})
+  }, [])
+
+  const afterSignIn = (user: AuthUser) => {
     if (user.is_admin) {
       navigate('/admin', { replace: true })
-    } else if (user.subscription_status !== 'active' && !(user as any).has_access) {
+    } else if (user.subscription_status !== 'active' && !user.has_access) {
       navigate(`/activate?next=${encodeURIComponent(next)}`, { replace: true })
     } else {
       navigate(next, { replace: true })
     }
   }
 
-  const onEmailSubmit = async (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      const res = await authApi.login({ email: email.trim().toLowerCase(), password: password.trim() })
-      afterSignIn(res.access_token, res.user)
+      const res = await authApi.login({ identifier: identifier.trim(), password: password.trim() })
+      if ('status' in res && res.status === 'otp_required') {
+        setPendingPhone(res.phone)
+      } else if ('access_token' in res) {
+        signIn(res.access_token, res.user)
+        afterSignIn(res.user)
+      }
     } catch (err) {
       setError(extractError(err, 'Unable to sign in.'))
     } finally {
@@ -59,36 +66,79 @@ export function LoginPage() {
     }
   }
 
-  const onSendOtp = async () => {
-    if (!phone.trim()) {
-      setOtpError('Enter your phone number.')
-      return
-    }
-    setOtpError('')
-    setSendLoading(true)
-    try {
-      await authApi.requestOtp(phone.trim())
-      setOtpSent(true)
-    } catch (err) {
-      setOtpError(extractError(err, 'Could not send OTP.'))
-    } finally {
-      setSendLoading(false)
-    }
-  }
-
   const onOtpSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!otpCode.trim()) return
+    if (!pendingPhone || !otpCode.trim()) return
     setOtpError('')
     setOtpLoading(true)
     try {
-      const res = await authApi.verifyOtp(phone.trim(), otpCode.trim())
-      afterSignIn(res.access_token, res.user)
+      const res = await authApi.verifyOtp(pendingPhone, otpCode.trim())
+      signIn(res.access_token, res.user)
+      afterSignIn(res.user)
     } catch (err) {
       setOtpError(extractError(err, 'Invalid or expired code.'))
     } finally {
       setOtpLoading(false)
     }
+  }
+
+  const onResend = async () => {
+    if (!pendingPhone) return
+    setResendLoading(true)
+    setOtpError('')
+    try {
+      await authApi.requestOtp(pendingPhone)
+    } catch (err) {
+      setOtpError(extractError(err, 'Could not resend code.'))
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  if (pendingPhone) {
+    return (
+      <AuthLayout
+        eyebrow="Verify your phone"
+        title={<>Almost there.</>}
+        subtitle="Your account still needs phone verification from signup — enter the code to finish signing in."
+      >
+        <form onSubmit={onOtpSubmit} className="space-y-4">
+          <p className="text-sm text-ink-300">
+            A 6-digit code was sent to <strong className="text-ink-0">{pendingPhone}</strong>.
+          </p>
+          <Field label="Verification code">
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder="123456"
+              value={otpCode}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setOtpCode(e.target.value)}
+              leading={<Hash size={16} />}
+              className="font-mono tracking-widest"
+              autoFocus
+              required
+            />
+          </Field>
+          {otpError && <div className="v2-alert v2-alert-error">{otpError}</div>}
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="lg" onClick={() => setPendingPhone(null)}>
+              Back
+            </Button>
+            <Button type="submit" variant="primary" size="lg" fullWidth loading={otpLoading} trailing={<ArrowRight size={14} />}>
+              Verify &amp; sign in
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={() => void onResend()}
+            disabled={resendLoading}
+            className="w-full text-center text-xs text-ink-400 hover:text-ink-200"
+          >
+            {resendLoading ? 'Resending…' : "Didn't receive it? Resend code"}
+          </button>
+        </form>
+      </AuthLayout>
+    )
   }
 
   return (
@@ -97,133 +147,65 @@ export function LoginPage() {
       title={<>Welcome back.</>}
       subtitle="Your study streak, saved questions, and exam history are waiting."
     >
-      {/* Tab switcher */}
-      <div className="mb-5 flex rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-1">
-        {(['email', 'phone'] as Tab[]).map(t => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => { setTab(t); setError(''); setOtpError('') }}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all',
-              tab === t
-                ? 'bg-[var(--bg-0)] text-ink-0 shadow-sm'
-                : 'text-ink-400 hover:text-ink-200',
-            )}
-          >
-            {t === 'email' ? <Mail size={14} /> : <Phone size={14} />}
-            {t === 'email' ? 'Email' : 'Phone OTP'}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'email' ? (
-        <form onSubmit={onEmailSubmit} className="space-y-4">
-          <Field label="Email">
-            <Input
-              type="text"
-              autoComplete="email"
-              placeholder="student@example.com"
-              value={email}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              leading={<Mail size={16} />}
-              required
-              autoFocus
-            />
-          </Field>
-          <Field label="Password">
-            <Input
-              type={show ? 'text' : 'password'}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-              leading={<KeyRound size={16} />}
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShow(v => !v)}
-                  className="text-ink-400 transition-colors hover:text-ink-0"
-                  tabIndex={-1}
-                  aria-label={show ? 'Hide password' : 'Show password'}
-                >
-                  {show ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              }
-              required
-            />
-          </Field>
-
-          {error && <div className="v2-alert v2-alert-error">{error}</div>}
-
-          <Button type="submit" variant="primary" size="lg" loading={loading} fullWidth trailing={<ArrowRight size={14} />}>
-            Log in
-          </Button>
-        </form>
-      ) : (
-        <div className="space-y-4">
-          {!otpSent ? (
-            <>
-              <Field label="Phone number">
-                <Input
-                  type="tel"
-                  placeholder="0241234567"
-                  value={phone}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
-                  leading={<Phone size={16} />}
-                  autoFocus
-                />
-              </Field>
-              {otpError && <div className="v2-alert v2-alert-error">{otpError}</div>}
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                fullWidth
-                loading={sendLoading}
-                trailing={<ArrowRight size={14} />}
-                onClick={() => void onSendOtp()}
-              >
-                Send verification code
-              </Button>
-            </>
-          ) : (
-            <form onSubmit={onOtpSubmit} className="space-y-4">
-              <p className="text-sm text-ink-300">
-                A 6-digit code was sent to <strong className="text-ink-0">{phone}</strong>.
-              </p>
-              <Field label="Verification code">
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="123456"
-                  value={otpCode}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setOtpCode(e.target.value)}
-                  leading={<Hash size={16} />}
-                  className="font-mono tracking-widest"
-                  autoFocus
-                  required
-                />
-              </Field>
-              {otpError && <div className="v2-alert v2-alert-error">{otpError}</div>}
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" size="lg" onClick={() => setOtpSent(false)}>
-                  Back
-                </Button>
-                <Button type="submit" variant="primary" size="lg" fullWidth loading={otpLoading} trailing={<ArrowRight size={14} />}>
-                  Verify &amp; sign in
-                </Button>
-              </div>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <Field label="Email or phone number">
+          <Input
+            type="text"
+            autoComplete="username"
+            placeholder="student@example.com or 0241234567"
+            value={identifier}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setIdentifier(e.target.value)}
+            leading={<Mail size={16} />}
+            required
+            autoFocus
+          />
+        </Field>
+        <Field label="Password">
+          <Input
+            type={show ? 'text' : 'password'}
+            autoComplete="current-password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            leading={<KeyRound size={16} />}
+            trailing={
               <button
                 type="button"
-                onClick={() => void onSendOtp()}
-                className="w-full text-center text-xs text-ink-400 hover:text-ink-200"
+                onClick={() => setShow(v => !v)}
+                className="text-ink-400 transition-colors hover:text-ink-0"
+                tabIndex={-1}
+                aria-label={show ? 'Hide password' : 'Show password'}
               >
-                Didn't receive it? Resend code
+                {show ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
-            </form>
-          )}
-        </div>
+            }
+            required
+          />
+        </Field>
+
+        {error && <div className="v2-alert v2-alert-error">{error}</div>}
+
+        <Button type="submit" variant="primary" size="lg" loading={loading} fullWidth trailing={<ArrowRight size={14} />}>
+          Log in
+        </Button>
+      </form>
+
+      {googleConfig.enabled && (
+        <>
+          <div className="relative py-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--line)]" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-[var(--bg-0)] px-3 text-ink-400">or</span>
+            </div>
+          </div>
+          <GoogleSignInButton
+            clientId={googleConfig.clientId}
+            onSignedIn={afterSignIn}
+            onError={setError}
+          />
+        </>
       )}
 
       <div className="mt-6 text-center text-sm text-ink-300">

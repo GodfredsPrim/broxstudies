@@ -122,6 +122,7 @@ class AuthService:
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_id TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS track TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified INTEGER NOT NULL DEFAULT 1",
                 ):
                     try:
                         self._execute(conn, alter_sql)
@@ -141,6 +142,10 @@ class AuthService:
                     except sqlite3.OperationalError:
                         # Column already exists on older SQLite DBs — safe to ignore.
                         pass
+                try:
+                    self._execute(conn, "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 1")
+                except sqlite3.OperationalError:
+                    pass
 
             # ── Access codes table ─────────────────────────────────────────────
             self._execute(conn, 
@@ -424,6 +429,11 @@ class AuthService:
         except (KeyError, IndexError, TypeError):
             row_phone = None
 
+        try:
+            row_verified = bool(row["is_verified"])
+        except (KeyError, IndexError, TypeError):
+            row_verified = True
+
         return AuthUser(
             id=row["id"],
             full_name=row["full_name"],
@@ -434,6 +444,7 @@ class AuthService:
             subscription_expires_at=expires_at,
             is_admin=bool(row["is_admin"]),
             track=row_track,
+            is_verified=row_verified,
         )
 
     def _issue_token(self, user: AuthUser, is_static_admin: bool = False, session_id: Optional[str] = None) -> str:
@@ -451,66 +462,89 @@ class AuthService:
 
     # ── auth methods ───────────────────────────────────────────────────────────
 
-    def signup(self, full_name: str, email: str, password: str) -> Tuple[str, AuthUser]:
-        normalized_email = email.strip().lower()
+    def signup(self, full_name: str, phone: str, password: str, email: Optional[str] = None) -> dict:
+        """Create an unverified account and send an OTP to the given phone.
+
+        Phone is mandatory (SMS is the only verification channel this app has);
+        email is an optional secondary login identifier. The account cannot log
+        in normally until the OTP is confirmed via verify_otp(), which flips
+        is_verified and issues the real access token.
+        """
+        from app.services.sms_service import normalize_ghana_phone
         if len(password.strip()) < 6:
             raise ValueError("Password must be at least 6 characters long.")
+
+        normalized_phone = normalize_ghana_phone(phone)
+        normalized_email = email.strip().lower() if email else None
 
         salt = secrets.token_hex(16)
         password_hash = self._hash_password(password, salt)
         now = datetime.now(timezone.utc).isoformat()
 
         with self._connect() as conn:
-            existing = self._execute(conn, 
-                "SELECT id FROM users WHERE email = ?",
-                (normalized_email,),
+            existing_phone = self._execute(
+                conn, "SELECT id FROM users WHERE phone = ?", (normalized_phone,)
             ).fetchone()
-            if existing:
-                raise ValueError("An account with this email already exists.")
+            if existing_phone:
+                raise ValueError("An account with this phone number already exists.")
 
-            new_session_id = secrets.token_hex(16)
-            
+            if normalized_email:
+                existing_email = self._execute(
+                    conn, "SELECT id FROM users WHERE email = ?", (normalized_email,)
+                ).fetchone()
+                if existing_email:
+                    raise ValueError("An account with this email already exists.")
+            else:
+                normalized_email = f"phone_{normalized_phone}@broxstudies.local"
+
             query = """
                 INSERT INTO users
                     (full_name, email, password_hash, salt, provider, provider_subject,
-                     created_at, last_login_at, subscription_status, subscription_expires_at, session_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     phone, created_at, last_login_at, subscription_status, subscription_expires_at, is_verified)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             """
             if self.is_postgres:
                 query += " RETURNING id"
-            
-            cursor = self._execute(conn, query, (full_name.strip(), normalized_email, password_hash, salt,
-                                               "email", None, now, now, "inactive", None, new_session_id))
-            
-            if self.is_postgres:
-                user_id = cursor.fetchone()["id"]
-            else:
-                user_id = cursor.lastrowid
 
-        user = AuthUser(
-            id=user_id,
-            full_name=full_name.strip(),
-            email=normalized_email,
-            provider="email",
-            subscription_status="inactive",
-            subscription_expires_at=None,
-        )
-        return self._issue_token(user, session_id=new_session_id), user
+            self._execute(conn, query, (full_name.strip(), normalized_email, password_hash, salt,
+                                         "email", None, normalized_phone, now, now, "inactive", None))
 
-    def login(self, email: str, password: str) -> Tuple[str, AuthUser]:
-        normalized_email = email.strip().lower()
+        self.create_otp(normalized_phone)
+        return {"status": "otp_required", "phone": normalized_phone}
+
+    def login(self, identifier: str, password: str) -> Any:
+        """Log in with either an email address or a Ghana phone number.
+
+        If the matching account hasn't completed OTP verification yet (e.g. a
+        signup that was abandoned before entering the code), this resends the
+        OTP and returns {"status": "otp_required", "phone": ...} instead of a
+        token, so the client can route the user back into the verification step.
+        """
+        from app.services.sms_service import normalize_ghana_phone
+        normalized_identifier = identifier.strip()
 
         # Fallback: Check if credentials match the static admin
-        if normalized_email == settings.ADMIN_USERNAME.lower() and password == settings.ADMIN_PASSWORD:
+        if normalized_identifier.lower() == settings.ADMIN_USERNAME.lower() and password == settings.ADMIN_PASSWORD:
             return self._issue_static_admin_token()
 
+        if "@" in normalized_identifier:
+            lookup_column = "email"
+            lookup_value = normalized_identifier.lower()
+        else:
+            lookup_column = "phone"
+            try:
+                lookup_value = normalize_ghana_phone(normalized_identifier)
+            except ValueError:
+                raise ValueError("Enter a valid email address or Ghana phone number.")
+
         with self._connect() as conn:
-            row = self._execute(conn, 
-                "SELECT * FROM users WHERE email = ?",
-                (normalized_email,),
+            row = self._execute(
+                conn,
+                f"SELECT * FROM users WHERE {lookup_column} = ?",
+                (lookup_value,),
             ).fetchone()
             if not row:
-                raise ValueError("No account found with that email.")
+                raise ValueError("No account found with that email or phone number.")
             if row["provider"] != "email":
                 raise ValueError(
                     f"This account uses {row['provider']} sign-in. Use that provider to continue."
@@ -520,16 +554,26 @@ class AuthService:
                 or not row["password_hash"]
                 or not self._verify_password(password, row["salt"], row["password_hash"])
             ):
-                raise ValueError("Incorrect email or password.")
+                raise ValueError("Incorrect email/phone or password.")
+
+            user = self._row_to_user(row)
+            if not user.is_verified:
+                phone_for_otp = row["phone"]
+                if not phone_for_otp:
+                    raise ValueError(
+                        "Your account needs phone verification, but no phone number is on file. Please contact support."
+                    )
+                self.create_otp(phone_for_otp)
+                return {"status": "otp_required", "phone": phone_for_otp}
 
             now = datetime.now(timezone.utc).isoformat()
             new_session_id = secrets.token_hex(16)
-            self._execute(conn, 
-                "UPDATE users SET last_login_at = ?, session_id = ? WHERE id = ?", 
-                (now, new_session_id, row["id"])
+            self._execute(
+                conn,
+                "UPDATE users SET last_login_at = ?, session_id = ? WHERE id = ?",
+                (now, new_session_id, row["id"]),
             )
 
-        user = self._row_to_user(row)
         return self._issue_token(user, session_id=new_session_id), user
 
 
@@ -614,19 +658,23 @@ class AuthService:
             query = """
                 INSERT INTO users
                     (full_name, email, password_hash, salt, provider, provider_subject,
-                     created_at, last_login_at, subscription_status, subscription_expires_at, session_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     created_at, last_login_at, subscription_status, subscription_expires_at, session_id, is_verified)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """
             if self.is_postgres:
                 query += " RETURNING id"
 
             cursor = self._execute(conn, query, (full_name, email, None, None, "google", subject,
                                                now, now, "inactive", None, new_session_id))
-            
+
             if self.is_postgres:
                 user_id = cursor.fetchone()["id"]
             else:
                 user_id = cursor.lastrowid
+
+            new_row = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            new_user = self._row_to_user(new_row)
+            return self._issue_token(new_user, session_id=new_session_id), new_user
 
     def get_user_from_token(self, token: str) -> AuthUser:
         try:
@@ -1137,21 +1185,24 @@ class AuthService:
 
             if user_row:
                 user = self._row_to_user(user_row)
-                # Update last_login_at and rotate session_id so this device becomes
-                # the sole active session (matches email/Google login behavior).
+                # Update last_login_at, mark verified (this OTP proves phone ownership,
+                # completing signup if this account was pending verification), and
+                # rotate session_id so this device becomes the sole active session
+                # (matches email/Google login behavior).
                 login_ts = datetime.now(timezone.utc).isoformat()
                 self._execute(
                     conn,
-                    "UPDATE users SET last_login_at = ?, session_id = ? WHERE id = ?",
+                    "UPDATE users SET last_login_at = ?, session_id = ?, is_verified = 1 WHERE id = ?",
                     (login_ts, new_session_id, user.id),
                 )
+                user.is_verified = True
             else:
                 # Create a new account identified by phone number
                 created_at = datetime.now(timezone.utc).isoformat()
                 display_name = phone  # Will be updatable later
                 query = """
-                    INSERT INTO users (full_name, email, provider, provider_subject, phone, created_at, last_login_at, subscription_status, session_id)
-                    VALUES (?, ?, 'phone', ?, ?, ?, ?, 'inactive', ?)
+                    INSERT INTO users (full_name, email, provider, provider_subject, phone, created_at, last_login_at, subscription_status, session_id, is_verified)
+                    VALUES (?, ?, 'phone', ?, ?, ?, ?, 'inactive', ?, 1)
                 """
                 if self.is_postgres:
                     query += " RETURNING id"
@@ -1170,6 +1221,60 @@ class AuthService:
 
             token = self._issue_token(user, session_id=new_session_id)
             return {"token": token, "user": user}
+
+    def request_phone_verification(self, user_id: int, phone: str) -> str:
+        """Send an OTP to add/verify a phone number on an already-authenticated
+        (typically legacy, phone-less) account. Does not touch the users row
+        until the code is confirmed via confirm_phone_verification()."""
+        from app.services.sms_service import normalize_ghana_phone
+        normalized_phone = normalize_ghana_phone(phone)
+
+        with self._connect() as conn:
+            existing = self._execute(
+                conn, "SELECT id FROM users WHERE phone = ?", (normalized_phone,)
+            ).fetchone()
+            if existing and int(existing["id"]) != user_id:
+                raise ValueError("That phone number is already linked to another account.")
+
+        self.create_otp(normalized_phone)
+        return normalized_phone
+
+    def confirm_phone_verification(self, user_id: int, phone: str, code: str) -> AuthUser:
+        """Confirm the OTP sent by request_phone_verification() and attach the
+        phone number to the given (already-authenticated) user's account."""
+        from app.services.sms_service import normalize_ghana_phone
+        normalized_phone = normalize_ghana_phone(phone)
+
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            otp_row = self._execute(
+                conn,
+                """
+                SELECT * FROM otp_codes
+                WHERE phone = ? AND code = ? AND used = 0 AND expires_at > ?
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (normalized_phone, code, now),
+            ).fetchone()
+            if not otp_row:
+                raise ValueError("Invalid or expired code. Please try again.")
+
+            self._execute(conn, "UPDATE otp_codes SET used = 1 WHERE id = ?", (otp_row["id"],))
+
+            existing = self._execute(
+                conn, "SELECT id FROM users WHERE phone = ?", (normalized_phone,)
+            ).fetchone()
+            if existing and int(existing["id"]) != user_id:
+                raise ValueError("That phone number is already linked to another account.")
+
+            self._execute(
+                conn,
+                "UPDATE users SET phone = ?, is_verified = 1 WHERE id = ?",
+                (normalized_phone, user_id),
+            )
+            user_row = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+        return self._row_to_user(user_row)
 
     # ── chat history methods ───────────────────────────────────────────────────
 

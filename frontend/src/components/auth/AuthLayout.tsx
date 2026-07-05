@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/shadcn-card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { Logo } from '@/components/Logo'
+import { PhotoBackdrop } from '@/components/PhotoBackdrop'
 
 export function AuthLayout({
   eyebrow,
@@ -17,6 +18,7 @@ export function AuthLayout({
 }) {
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+      <PhotoBackdrop seed={0} />
       <div className="v2-mesh" style={{ opacity: 0.5 }} />
       <motion.div
         initial={{ opacity: 0, y: 14 }}
@@ -25,13 +27,7 @@ export function AuthLayout({
         className="relative w-full max-w-md"
       >
         <Link to="/welcome" className="mb-8 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-glow-sm">
-            <Sparkles size={18} className="text-white" />
-          </div>
-          <div>
-            <div className="text-lg font-bold leading-none">BroxStudies</div>
-            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-400">SHS & TVET</div>
-          </div>
+          <Logo size={40} subtitle="SHS & TVET" />
         </Link>
 
         <Card className="overflow-hidden">

@@ -299,12 +299,13 @@ class TutorResponse(BaseModel):
 
 class AuthSignupRequest(BaseModel):
     full_name: str
-    email: str
+    phone: str
     password: str
+    email: Optional[str] = None
 
 
 class AuthLoginRequest(BaseModel):
-    email: str
+    identifier: str
     password: str
 
 
@@ -331,12 +332,19 @@ class AuthUser(BaseModel):
     subscription_expires_at: Optional[str] = None
     is_admin: bool = False
     track: Optional[str] = None             # shs | tvet — locked once subscription activates
+    is_verified: bool = True
 
 
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: AuthUser
+
+
+class AuthOtpRequiredResponse(BaseModel):
+    status: str = "otp_required"
+    phone: str
+    message: str = "Enter the code we texted you to finish signing in."
 
 
 class AuthConfigResponse(BaseModel):
@@ -362,6 +370,15 @@ class OtpRequestBody(BaseModel):
 
 
 class OtpVerifyBody(BaseModel):
+    phone: str
+    code: str
+
+
+class AddPhoneRequest(BaseModel):
+    phone: str
+
+
+class VerifyPhoneRequest(BaseModel):
     phone: str
     code: str
 

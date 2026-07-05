@@ -7,10 +7,8 @@ import {
   Check,
   Smartphone,
   Lock,
-  Copy,
   CheckCircle2,
   MessageSquare,
-  Sparkles,
   ChevronRight,
   Loader2,
   Phone,
@@ -25,6 +23,8 @@ import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
+import { Logo } from '@/components/Logo'
+import { PhotoBackdrop } from '@/components/PhotoBackdrop'
 import type { AuthConfigResponse } from '@/api/types'
 
 type Step = 'pay' | 'otp' | 'activate'
@@ -55,7 +55,6 @@ export function ActivatePage() {
 
   const [step, setStep] = useState<Step>('pay')
   const [config, setConfig] = useState<AuthConfigResponse>(DEFAULT_CONFIG)
-  const [copied, setCopied] = useState(false)
 
   // Moolre payment state
   const [momoNumber, setMomoNumber] = useState('')
@@ -73,13 +72,6 @@ export function ActivatePage() {
   // Polling
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollAttempts = useRef(0)
-
-  // Manual fallback
-  const [momoName, setMomoName] = useState(user?.full_name || '')
-  const [manualRef, setManualRef] = useState('')
-  const [manualLoading, setManualLoading] = useState(false)
-  const [manualSubmitted, setManualSubmitted] = useState(false)
-  const [manualError, setManualError] = useState('')
 
   // Activation state
   const [code, setCode] = useState('')
@@ -138,16 +130,7 @@ export function ActivatePage() {
 
   const price = config.subscription_price_ghs || '20'
   const months = config.subscription_months || 3
-  const momoDisplay = config.momo_payment_number || '0248317900'
   const moolreEnabled = Boolean(config.moolre_payment_enabled)
-
-  const copyMomo = async () => {
-    try {
-      await navigator.clipboard.writeText(momoDisplay)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard unavailable */ }
-  }
 
   const onMoolrePay = async () => {
     if (!momoNumber.trim()) {
@@ -202,25 +185,6 @@ export function ActivatePage() {
     }
   }
 
-  const onManualSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setManualError('')
-    setManualLoading(true)
-    try {
-      await authApi.paymentRequest({
-        momo_name: momoName.trim(),
-        momo_number: momoNumber.trim() || momoDisplay,
-        reference: manualRef.trim(),
-      })
-      setManualSubmitted(true)
-      setStep('activate')
-    } catch (err) {
-      setManualError(extractError(err, 'Could not submit payment details.'))
-    } finally {
-      setManualLoading(false)
-    }
-  }
-
   const onActivate = async (e: FormEvent) => {
     e.preventDefault()
     if (!code.trim()) return
@@ -240,6 +204,7 @@ export function ActivatePage() {
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+      <PhotoBackdrop seed={2} />
       <div className="pointer-events-none absolute inset-0">
         <div className="v2-mesh" style={{ opacity: 0.55 }} />
         <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
@@ -253,13 +218,7 @@ export function ActivatePage() {
         className="relative w-full max-w-2xl"
       >
         <Link to="/" className="mb-8 flex items-center gap-3">
-          <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-700 shadow-glow-sm">
-            <span className="relative font-display text-[18px] text-[#02180F]">Bx</span>
-          </div>
-          <div>
-            <div className="font-display text-lg leading-none text-ink-0">BroxStudies</div>
-            <div className="mt-0.5 text-xs text-ink-400">Premium for SHS &amp; TVET</div>
-          </div>
+          <Logo size={44} subtitle="Premium for SHS & TVET" />
         </Link>
 
         <Card padded={false} className="overflow-hidden border-[var(--line-strong)] shadow-xl shadow-black/5">
@@ -386,71 +345,21 @@ export function ActivatePage() {
                       >
                         Pay GH₵ {price} with MoMo
                       </Button>
-
-                      <div className="relative py-2">
-                        <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-[var(--line)]" />
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                          <span className="bg-[var(--bg-0)] px-3 text-ink-400">or pay manually</span>
-                        </div>
-                      </div>
                     </>
-                  ) : null}
-
-                  <div>
-                    <h2 className="font-display text-xl text-ink-0">
-                      {moolreEnabled ? 'Manual Mobile Money' : 'Send Mobile Money'}
-                    </h2>
-                    <p className="mt-1 text-sm text-ink-400">
-                      Pay exactly <strong className="text-ink-100">GH₵ {price}</strong> to the number below.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-400/10 to-amber-600/5 p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-amber-700/80 dark:text-amber-300/80">
-                          MoMo number
-                        </p>
-                        <p className="mt-1 font-display text-3xl tracking-tight text-ink-0">{momoDisplay}</p>
-                        <p className="mt-1 text-xs text-ink-400">Name: BroxStudies</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void copyMomo()}
-                        leading={copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                      >
-                        {copied ? 'Copied!' : 'Copy number'}
-                      </Button>
+                  ) : (
+                    <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
+                      MoMo payment isn't available right now. If you have a promo or access code, use the option below.
                     </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <FeatureChip icon={<Smartphone size={14} />} title={`Pay GH₵ ${price}`} body="Use any MoMo wallet" />
-                    <FeatureChip icon={<MessageSquare size={14} />} title="Get your code" body={config.sms_enabled ? 'Delivered by SMS' : 'Sent after admin confirms'} />
-                    <FeatureChip icon={<Sparkles size={14} />} title="Unlock all" body={`${months} months premium`} />
-                  </div>
-
-                  <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-4 py-3 text-sm text-indigo-400 dark:text-indigo-400">
-                    Try promo code <strong className="font-mono text-indigo-400 dark:text-indigo-300">BROX</strong>{' '}
-                    for 7 days free — skip payment and go straight to activation.
-                  </div>
-
-                  {!moolreEnabled && (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="lg"
-                      fullWidth
-                      trailing={<ArrowRight size={14} />}
-                      onClick={() => setStep('otp')}
-                    >
-                      I've sent the payment
-                    </Button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => setStep('activate')}
+                    className="w-full rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-4 py-3 text-left text-sm text-indigo-400 transition-colors hover:bg-indigo-500/12 dark:text-indigo-400"
+                  >
+                    Have a promo code? Try <strong className="font-mono text-indigo-400 dark:text-indigo-300">BROX</strong>{' '}
+                    for 7 days free — skip payment and go straight to activation.
+                  </button>
                 </motion.div>
               )}
 
@@ -510,66 +419,6 @@ export function ActivatePage() {
                       </form>
                     </>
                   )}
-
-                  {/* Manual fallback when Moolre is off */}
-                  {!moolreEnabled && (
-                    <>
-                      <div>
-                        <h2 className="font-display text-xl text-ink-0">Confirm your payment</h2>
-                        <p className="mt-1 text-sm text-ink-400">
-                          Tell us which MoMo number you paid from. We'll verify and
-                          {config.sms_enabled ? ' text your access code to that number.' : ' send your access code.'}
-                        </p>
-                      </div>
-
-                      <form onSubmit={onManualSubmit} className="space-y-4">
-                        <label className="block">
-                          <span className="mb-1.5 block text-[13px] font-medium text-ink-100">MoMo account name</span>
-                          <Input
-                            value={momoName}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoName(e.target.value)}
-                            placeholder="Name on your MoMo wallet"
-                            required
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mb-1.5 block text-[13px] font-medium text-ink-100">MoMo number (for SMS)</span>
-                          <Input
-                            type="tel"
-                            value={momoNumber}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => setMomoNumber(e.target.value)}
-                            placeholder="0241234567"
-                            required
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mb-1.5 block text-[13px] font-medium text-ink-100">
-                            Transaction reference <span className="font-normal text-ink-400">(optional)</span>
-                          </span>
-                          <Input
-                            value={manualRef}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => setManualRef(e.target.value)}
-                            placeholder="MoMo transaction ID"
-                          />
-                        </label>
-
-                        {manualError && (
-                          <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
-                            {manualError}
-                          </div>
-                        )}
-
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Button type="button" variant="ghost" size="lg" onClick={() => setStep('pay')}>
-                            Back
-                          </Button>
-                          <Button type="submit" variant="primary" size="lg" loading={manualLoading} fullWidth trailing={<ArrowRight size={14} />}>
-                            Submit for verification
-                          </Button>
-                        </div>
-                      </form>
-                    </>
-                  )}
                 </motion.div>
               )}
 
@@ -588,20 +437,6 @@ export function ActivatePage() {
                       <div>
                         <p className="font-medium">Payment confirmed!</p>
                         <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">{paymentMessage}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {manualSubmitted && !paymentMessage && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-400">
-                      <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-medium">Payment submitted!</p>
-                        <p className="mt-0.5 text-indigo-500/90 dark:text-indigo-400/90">
-                          {config.sms_enabled
-                            ? 'Once approved, your access code will arrive by SMS. Enter it below.'
-                            : 'Once approved, enter the access code you receive.'}
-                        </p>
                       </div>
                     </div>
                   )}
@@ -651,7 +486,7 @@ export function ActivatePage() {
                     )}
 
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button type="button" variant="ghost" size="lg" onClick={() => setStep(manualSubmitted ? 'otp' : 'pay')}>
+                      <Button type="button" variant="ghost" size="lg" onClick={() => setStep('pay')}>
                         Back
                       </Button>
                       <Button
@@ -682,16 +517,6 @@ export function ActivatePage() {
           </div>
         </Card>
       </motion.div>
-    </div>
-  )
-}
-
-function FeatureChip({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)]/80 p-3.5">
-      <div className="mb-2 text-indigo-500 dark:text-indigo-400">{icon}</div>
-      <div className="text-[13px] font-semibold text-ink-100">{title}</div>
-      <div className="mt-0.5 text-xs text-ink-400">{body}</div>
     </div>
   )
 }

@@ -1,12 +1,16 @@
+from typing import Union
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.config import settings
 from app.models import (
     AccessCodeVerifyRequest,
+    AddPhoneRequest,
     AdminCodeGenerateRequest,
     AdminCodeGenerateResponse,
     AuthConfigResponse,
     AuthLoginRequest,
+    AuthOtpRequiredResponse,
     AuthResponse,
     AuthSignupRequest,
     AuthUser,
@@ -17,6 +21,7 @@ from app.models import (
     SubscriptionStatusResponse,
     UserProgressResponse,
     UserProgressUpdate,
+    VerifyPhoneRequest,
 )
 from app.services.auth_service import AuthService
 from datetime import datetime, timezone
@@ -84,22 +89,27 @@ async def get_auth_config():
     )
 
 
-@router.post("/signup", response_model=AuthResponse)
+@router.post("/signup", response_model=AuthOtpRequiredResponse)
 async def signup(request: AuthSignupRequest):
+    """Create an unverified account and text an OTP to the given phone.
+    The account isn't usable until /verify-otp confirms the code."""
     try:
-        token, user = auth_service.signup(request.full_name, request.email, request.password)
-        return AuthResponse(access_token=token, user=user)
+        result = auth_service.signup(request.full_name, request.phone, request.password, request.email)
+        return AuthOtpRequiredResponse(phone=result["phone"])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=Union[AuthResponse, AuthOtpRequiredResponse])
 async def login(request: AuthLoginRequest):
     try:
-        token, user = auth_service.login(request.email, request.password)
-        return AuthResponse(access_token=token, user=user)
+        result = auth_service.login(request.identifier, request.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if isinstance(result, dict):
+        return AuthOtpRequiredResponse(**result)
+    token, user = result
+    return AuthResponse(access_token=token, user=user)
 
 
 @router.post("/google", response_model=AuthResponse)
@@ -126,11 +136,35 @@ async def request_otp(body: OtpRequestBody):
 
 @router.post("/verify-otp", response_model=AuthResponse)
 async def verify_otp(body: OtpVerifyBody):
-    """Verify the OTP and return a JWT. Creates a new account if the phone is not registered."""
+    """Verify the OTP and return a JWT. Completes a pending signup, or logs in/creates a phone-based account."""
     result = auth_service.verify_otp(body.phone.strip(), body.code.strip())
     if not result:
         raise HTTPException(status_code=400, detail="Invalid or expired code. Please try again.")
     return AuthResponse(access_token=result["token"], user=result["user"])
+
+
+@router.post("/add-phone")
+async def add_phone(body: AddPhoneRequest, current_user: AuthUser = Depends(get_current_user)):
+    """Start adding/verifying a phone number on an already-authenticated account
+    (e.g. a legacy account created before phone numbers were required)."""
+    from app.services.sms_service import sms_service
+    if not sms_service.enabled:
+        raise HTTPException(status_code=503, detail="SMS service is not configured.")
+    try:
+        auth_service.request_phone_verification(current_user.id, body.phone.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "message": "OTP sent. Check your phone."}
+
+
+@router.post("/verify-phone", response_model=AuthUser)
+async def verify_phone(body: VerifyPhoneRequest, current_user: AuthUser = Depends(get_current_user)):
+    """Confirm the OTP from /add-phone and attach the phone number to the current account."""
+    try:
+        updated_user = auth_service.confirm_phone_verification(current_user.id, body.phone.strip(), body.code.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return updated_user
 
 
 @router.get("/me", response_model=AuthUser)

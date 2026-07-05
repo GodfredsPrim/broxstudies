@@ -18,6 +18,12 @@ export interface AuthResponse {
   user: AuthUser
 }
 
+export interface AuthOtpRequiredResponse {
+  status: 'otp_required'
+  phone: string
+  message: string
+}
+
 export interface UserProgress {
   xp: number
   level: number

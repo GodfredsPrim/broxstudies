@@ -91,6 +91,30 @@ export function LandingPage() {
             transition={{ delay: 0.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="relative mx-auto mt-16 max-w-5xl"
           >
+            <motion.img
+              src="/images/students-championship.jpg"
+              alt="Ghanaian SHS students celebrating at a national championship"
+              initial={{ opacity: 0, y: 20, rotate: -6 }}
+              animate={{ opacity: 1, y: [20, -8, 20], rotate: -6 }}
+              transition={{
+                opacity: { delay: 0.5, duration: 0.6 },
+                rotate: { delay: 0.5, duration: 0.6 },
+                y: { delay: 0.5, duration: 7, repeat: Infinity, ease: 'easeInOut' },
+              }}
+              className="absolute -left-6 -top-10 hidden h-28 w-40 rounded-2xl border-2 border-[var(--bg-0)] object-cover shadow-glow-md sm:block lg:-left-16 lg:h-36 lg:w-52"
+            />
+            <motion.img
+              src="/images/students-quiz-team.jpg"
+              alt="Students on a quiz competition team"
+              initial={{ opacity: 0, y: 20, rotate: 6 }}
+              animate={{ opacity: 1, y: [20, -12, 20], rotate: 6 }}
+              transition={{
+                opacity: { delay: 0.65, duration: 0.6 },
+                rotate: { delay: 0.65, duration: 0.6 },
+                y: { delay: 0.65, duration: 8.5, repeat: Infinity, ease: 'easeInOut' },
+              }}
+              className="absolute -right-4 -bottom-8 hidden h-24 w-32 rounded-2xl border-2 border-[var(--bg-0)] object-cover shadow-glow-md sm:block lg:-right-12 lg:h-32 lg:w-44"
+            />
             <div className="gradient-border rounded-3xl p-px">
               <div className="overflow-hidden rounded-3xl border border-border bg-[var(--bg-1)] shadow-glow-lg">
                 <div className="border-b border-border bg-[var(--bg-2)] px-4 py-3 flex items-center gap-2">
@@ -146,6 +170,21 @@ export function LandingPage() {
       <section className="py-12">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <p className="text-sm font-medium text-muted-foreground">Trusted by students across Ghana</p>
+          <div className="mx-auto mt-6 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { src: '/images/students-assembly.jpg', alt: 'Students at a school assembly' },
+              { src: '/images/students-girls-shs.jpg', alt: 'Girls SHS students on campus' },
+              { src: '/images/students-championship.jpg', alt: 'Students celebrating at a national championship' },
+              { src: '/images/students-quiz-team.jpg', alt: 'Students on a quiz competition team' },
+            ].map(img => (
+              <img
+                key={img.src}
+                src={img.src}
+                alt={img.alt}
+                className="h-20 w-full rounded-xl border border-[var(--line)] object-cover sm:h-24"
+              />
+            ))}
+          </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-muted-foreground/60">
             {['Prempeh College', 'Wesley Girls\' SHS', 'Achimota School', 'Mfantsipim', 'Accra Technical Institute', 'KNUST SHS'].map(s => (
               <span key={s} className="text-sm font-semibold">{s}</span>

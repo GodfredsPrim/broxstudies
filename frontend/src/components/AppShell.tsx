@@ -14,6 +14,8 @@ import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
 import { useGuestChats } from '@/hooks/useGuestChats'
 import { GamificationBar } from '@/components/gamification/GamificationWidgets'
+import { Logo, LogoMark } from '@/components/Logo'
+import { AddPhoneBanner } from '@/components/AddPhoneBanner'
 
 interface NavDef {
   to: string
@@ -82,7 +84,7 @@ export function AppShell() {
   const isStudyPage = location.pathname === '/'
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex h-dvh overflow-hidden">
       {/* Sidebar — desktop */}
       {!isAdmin && (
         <aside
@@ -375,6 +377,8 @@ export function AppShell() {
           )}
         </header>
 
+        {!isAdmin && <AddPhoneBanner />}
+
         {/* Offline indicator */}
         {isOffline && (
           <div className="flex items-center justify-center gap-2 bg-amber-500/90 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
@@ -408,7 +412,7 @@ export function AppShell() {
           </div>
         )}
 
-        <main className="flex min-h-0 flex-1 flex-col">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <Outlet />
         </main>
       </div>
@@ -419,17 +423,11 @@ export function AppShell() {
 function Brand({ collapsed, selectedTrack }: { collapsed: boolean; selectedTrack: string | null }) {
   return (
     <NavLink to="/dashboard" className={cn('flex items-center gap-3 px-5 pb-5 pt-6', collapsed && 'justify-center px-0')}>
-      <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-glow-sm">
-        <Sparkles size={16} className="relative text-white" />
-      </div>
-       {!collapsed && (
-         <div className="min-w-0">
-           <div className="truncate text-[18px] font-bold leading-none text-[var(--fg-0)]">BroxStudies</div>
-           <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-400">
-             {selectedTrack ? `${selectedTrack.toUpperCase()} Track` : 'SHS & TVET'}
-           </div>
-         </div>
-       )}
+      {collapsed ? (
+        <LogoMark size={36} />
+      ) : (
+        <Logo size={36} subtitle={selectedTrack ? `${selectedTrack.toUpperCase()} Track` : 'SHS & TVET'} />
+      )}
     </NavLink>
   )
 }

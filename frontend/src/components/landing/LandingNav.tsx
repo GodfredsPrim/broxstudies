@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Sparkles, Moon, Sun } from 'lucide-react'
+import { Menu, X, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/shadcn-button'
 import { useTheme } from '@/hooks/useTheme'
+import { Logo, LogoMark } from '@/components/Logo'
 
 const LINKS = [
   { href: '#features', label: 'Features' },
@@ -22,10 +23,7 @@ export function LandingNavbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <nav className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-[var(--bg-1)]/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <Link to="/welcome" className="flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-glow-sm">
-              <Sparkles size={18} className="text-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">BroxStudies</span>
+            <Logo size={36} />
           </Link>
 
           <div className="hidden items-center gap-1 md:flex">
@@ -100,10 +98,8 @@ export function LandingFooter() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600">
-                <Sparkles size={14} className="text-white" />
-              </div>
-              <span className="font-bold">BroxStudies</span>
+              <LogoMark size={32} />
+              <span className="font-display font-bold">BroxStudies</span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               AI-powered learning for Ghanaian SHS and TVET students. Master WASSCE with confidence.
