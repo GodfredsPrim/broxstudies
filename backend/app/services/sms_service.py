@@ -13,8 +13,6 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_GH_PHONE_RE = re.compile(r"^\+?233\d{9}$|^0\d{9}$")
-
 
 @dataclass
 class SmsResult:
@@ -22,8 +20,9 @@ class SmsResult:
     message: str
     code: Optional[str] = None
     data: Optional[Any] = None
-    """Raw "data" field from the Moolre response — often carries the gateway
-    message ID(s), useful when asking Moolre support to trace a delivery."""
+    """Full raw JSON response from Moolre (not just its "data" field, which is
+    null on every observed SMS send) — kept so nothing is lost when tracing a
+    delivery dispute with Moolre support."""
 
 
 def normalize_ghana_phone(number: str) -> str:
@@ -89,12 +88,11 @@ class MoolreSmsService:
         status = data.get("status")
         api_code = data.get("code", "")
         api_message = data.get("message", "Unknown response")
-        api_data = data.get("data")
 
         if response.status_code == 200 and status == 1:
-            return SmsResult(success=True, message=api_message, code=api_code, data=api_data)
+            return SmsResult(success=True, message=api_message, code=api_code, data=data)
 
-        return SmsResult(success=False, message=api_message, code=api_code, data=api_data)
+        return SmsResult(success=False, message=api_message, code=api_code, data=data)
 
     def send_access_code(self, recipient: str, access_code: str, months: int) -> SmsResult:
         message = build_access_code_message(access_code, months)
