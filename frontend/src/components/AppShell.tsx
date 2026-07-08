@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
-  WifiOff, Download, LayoutDashboard, BarChart3,
+  WifiOff, Download, LayoutDashboard, BarChart3, UserCog,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -158,6 +158,13 @@ export function AppShell() {
                   </div>
                   {!collapsed && (
                     <div className="flex flex-1 justify-end gap-1">
+                      <NavLink
+                        to="/settings"
+                        className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-white/5 hover:text-ink-0"
+                        aria-label="Account settings"
+                      >
+                        <UserCog size={16} />
+                      </NavLink>
                       <button
                         onClick={logout}
                         className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
@@ -283,13 +290,23 @@ export function AppShell() {
                           </button>
                         </div>
                       )}
-                      <button
-                        onClick={logout}
-                        className="mt-3 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-rose-500/10 hover:text-rose-400"
-                        aria-label="Sign out"
-                      >
-                        <LogOut size={16} />
-                      </button>
+                      <div className="mt-3 flex gap-2">
+                        <NavLink
+                          to="/settings"
+                          onClick={() => setMobileOpen(false)}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-white/5 hover:text-ink-0"
+                          aria-label="Account settings"
+                        >
+                          <UserCog size={16} />
+                        </NavLink>
+                        <button
+                          onClick={logout}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-rose-500/10 hover:text-rose-400"
+                          aria-label="Sign out"
+                        >
+                          <LogOut size={16} />
+                        </button>
+                      </div>
                     </>
                   ) : (
                     <div className="flex flex-col gap-2">

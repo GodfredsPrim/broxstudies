@@ -1365,6 +1365,99 @@ class AuthService:
 
         return self._row_to_user(user_row)
 
+    def request_password_reset(self, phone: str) -> str:
+        """Send an OTP to an existing account's phone so its owner can prove
+        ownership before choosing a new password."""
+        from app.services.sms_service import normalize_ghana_phone
+        normalized_phone = normalize_ghana_phone(phone)
+
+        with self._connect() as conn:
+            existing = self._execute(
+                conn, "SELECT id FROM users WHERE phone = ?", (normalized_phone,)
+            ).fetchone()
+            if not existing:
+                raise ValueError("No account found with that phone number.")
+
+        _, sms_result = self.create_otp(normalized_phone)
+        if not sms_result.success:
+            raise ValueError(f"Couldn't send the verification code: {sms_result.message}")
+        return normalized_phone
+
+    def confirm_password_reset(self, phone: str, code: str, new_password: str) -> dict:
+        """Confirm the OTP sent by request_password_reset(), set a new password,
+        and rotate the session so any other logged-in device is signed out."""
+        from app.services.sms_service import normalize_ghana_phone
+        if len(new_password.strip()) < 6:
+            raise ValueError("Password must be at least 6 characters long.")
+
+        normalized_phone = normalize_ghana_phone(phone)
+        now = datetime.now(timezone.utc).isoformat()
+
+        with self._connect() as conn:
+            otp_row = self._execute(
+                conn,
+                """
+                SELECT * FROM otp_codes
+                WHERE phone = ? AND code = ? AND used = 0 AND expires_at > ?
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (normalized_phone, code, now),
+            ).fetchone()
+            if not otp_row:
+                raise ValueError("Invalid or expired code. Please try again.")
+
+            self._execute(conn, "UPDATE otp_codes SET used = 1 WHERE id = ?", (otp_row["id"],))
+
+            user_row = self._execute(
+                conn, "SELECT * FROM users WHERE phone = ?", (normalized_phone,)
+            ).fetchone()
+            if not user_row:
+                raise ValueError("No account found with that phone number.")
+
+            salt = secrets.token_hex(16)
+            password_hash = self._hash_password(new_password, salt)
+            new_session_id = secrets.token_hex(16)
+            self._execute(
+                conn,
+                "UPDATE users SET password_hash = ?, salt = ?, session_id = ?, is_verified = 1 WHERE id = ?",
+                (password_hash, salt, new_session_id, user_row["id"]),
+            )
+            updated_row = self._execute(conn, "SELECT * FROM users WHERE id = ?", (user_row["id"],)).fetchone()
+            user = self._row_to_user(updated_row)
+
+        token = self._issue_token(user, session_id=new_session_id)
+        return {"token": token, "user": user}
+
+    # ── account deletion ───────────────────────────────────────────────────────
+
+    _DELETE_CASCADE_TABLES = (
+        "chat_history",
+        "exam_history",
+        "payment_requests",
+        "paystack_transactions",
+        "moolre_transactions",
+        "competition_results",
+        "competition_registrations",
+        "recent_generated_questions",
+        "generation_jobs",
+        "user_progress",
+    )
+
+    def delete_account(self, user_id: int) -> None:
+        """Permanently delete a user's account and everything it owns.
+
+        Irreversible. Deleting the users row alone is enough to kill any
+        outstanding session: get_user_from_token() rejects tokens whose user
+        id no longer resolves, so no separate token revocation is needed.
+        """
+        with self._connect() as conn:
+            for table in self._DELETE_CASCADE_TABLES:
+                self._execute(conn, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+            # Historical access-code redemptions are an audit trail, not owned
+            # user data — detach rather than delete so code usage stats survive.
+            self._execute(conn, "UPDATE access_codes SET used_by_user_id = NULL WHERE used_by_user_id = ?", (user_id,))
+            self._execute(conn, "DELETE FROM users WHERE id = ?", (user_id,))
+
     # ── chat history methods ───────────────────────────────────────────────────
 
     def save_chat_message(

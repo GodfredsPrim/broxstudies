@@ -182,6 +182,11 @@ export function LoginPage() {
             required
           />
         </Field>
+        <div className="-mt-2 text-right">
+          <Link to="/forgot-password" className="text-xs font-medium text-indigo-400 hover:text-indigo-300">
+            Forgot password?
+          </Link>
+        </div>
 
         {error && <div className="v2-alert v2-alert-error">{error}</div>}
 

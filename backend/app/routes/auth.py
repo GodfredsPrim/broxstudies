@@ -17,6 +17,7 @@ from app.models import (
     GoogleAuthRequest,
     OtpRequestBody,
     OtpVerifyBody,
+    PasswordResetConfirmRequest,
     PaymentManualRequest,
     SubscriptionStatusResponse,
     UserProgressResponse,
@@ -172,6 +173,42 @@ async def verify_phone(body: VerifyPhoneRequest, current_user: AuthUser = Depend
 @router.get("/me", response_model=AuthUser)
 async def get_me(current_user: AuthUser = Depends(get_current_user)):
     return current_user
+
+
+# ── Forgot password (phone OTP) ─────────────────────────────────────────────
+
+@router.post("/forgot-password/request")
+async def request_password_reset(body: OtpRequestBody):
+    """Text an OTP to an existing account's phone to start a password reset."""
+    from app.services.sms_service import sms_service
+    if not sms_service.enabled:
+        raise HTTPException(status_code=503, detail="SMS service is not configured.")
+    try:
+        auth_service.request_password_reset(body.phone.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "message": "OTP sent. Check your phone."}
+
+
+@router.post("/forgot-password/confirm", response_model=AuthResponse)
+async def confirm_password_reset(body: PasswordResetConfirmRequest):
+    """Verify the OTP from /forgot-password/request and set a new password."""
+    try:
+        result = auth_service.confirm_password_reset(body.phone.strip(), body.code.strip(), body.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return AuthResponse(access_token=result["token"], user=result["user"])
+
+
+# ── Account deletion ─────────────────────────────────────────────────────────
+
+@router.delete("/account")
+async def delete_account(current_user: AuthUser = Depends(get_current_user)):
+    """Permanently delete the authenticated user's account and all owned data."""
+    if current_user.is_admin:
+        raise HTTPException(status_code=400, detail="Admin accounts can't be self-deleted.")
+    auth_service.delete_account(current_user.id)
+    return {"ok": True, "message": "Account deleted."}
 
 
 @router.get("/progress", response_model=UserProgressResponse)

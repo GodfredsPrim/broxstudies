@@ -9,6 +9,8 @@ import { Spinner } from '@/components/ui/Spinner'
 
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 const SignupPage = lazy(() => import('@/pages/Signup').then(m => ({ default: m.SignupPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPassword').then(m => ({ default: m.ForgotPasswordPage })))
+const SettingsPage = lazy(() => import('@/pages/Settings').then(m => ({ default: m.SettingsPage })))
 const ActivatePage = lazy(() => import('@/pages/Activate').then(m => ({ default: m.ActivatePage })))
 const TrackSelectionPage = lazy(() => import('@/pages/TrackSelection').then(m => ({ default: m.TrackSelectionPage })))
 const StudyPage = lazy(() => import('@/pages/Study').then(m => ({ default: m.StudyPage })))
@@ -46,6 +48,7 @@ export default function App() {
 
           <Route path="/login" element={<Lazy><LoginPage /></Lazy>} />
           <Route path="/signup" element={<Lazy><SignupPage /></Lazy>} />
+          <Route path="/forgot-password" element={<Lazy><ForgotPasswordPage /></Lazy>} />
           <Route
             path="/activate"
             element={
@@ -147,6 +150,16 @@ export default function App() {
                 <Lazy>
                   <Gate requireSubscription={false} label="History" pitch="Your practice sets, exam attempts, and chats — reviewable anytime.">
                     <HistoryPage />
+                  </Gate>
+                </Lazy>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <Lazy>
+                  <Gate requireSubscription={false} label="Settings" pitch="Manage your account.">
+                    <SettingsPage />
                   </Gate>
                 </Lazy>
               }

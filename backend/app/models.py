@@ -383,6 +383,12 @@ class VerifyPhoneRequest(BaseModel):
     code: str
 
 
+class PasswordResetConfirmRequest(BaseModel):
+    phone: str
+    code: str
+    new_password: str
+
+
 # ── Moolre payment models ─────────────────────────────────────────────────────
 
 class MoolreInitiateRequest(BaseModel):

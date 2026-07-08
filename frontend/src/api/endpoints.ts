@@ -65,6 +65,12 @@ export const authApi = {
     api.get<{ has_access: boolean; subscription_status: string }>('/api/auth/subscription').then(r => r.data),
   adminLogin: (secret: string) =>
     api.post<AuthResponse>('/api/admin/login-secret', { secret }).then(r => r.data),
+  requestPasswordReset: (phone: string) =>
+    api.post<{ ok: boolean; message: string }>('/api/auth/forgot-password/request', { phone }).then(r => r.data),
+  confirmPasswordReset: (phone: string, code: string, new_password: string) =>
+    api.post<AuthResponse>('/api/auth/forgot-password/confirm', { phone, code, new_password }).then(r => r.data),
+  deleteAccount: () =>
+    api.delete<{ ok: boolean; message: string }>('/api/auth/account').then(r => r.data),
 }
 
 export const paymentsApi = {
