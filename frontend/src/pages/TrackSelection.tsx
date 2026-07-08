@@ -36,10 +36,10 @@ export function TrackSelectionPage() {
               </div>
               <Eyebrow className="mb-3">Welcome</Eyebrow>
               <h1 className="text-3xl font-semibold tracking-tight text-ink-0 sm:text-4xl">
-                Choose SHS or TVET to begin
+                Choose SHS/STEM or TVET to begin
               </h1>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-ink-300">
-                Select the curriculum that matches your path. After that, log in with the same account flow we already have for SHS.
+                Select the curriculum that matches your path. After that, log in with the same account flow we already have for SHS/STEM.
               </p>
             </div>
 

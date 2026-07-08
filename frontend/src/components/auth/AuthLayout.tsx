@@ -27,7 +27,7 @@ export function AuthLayout({
         className="relative w-full max-w-md"
       >
         <Link to="/welcome" className="mb-8 flex items-center gap-3">
-          <Logo size={40} subtitle="SHS & TVET" />
+          <Logo size={40} subtitle="SHS/STEM & TVET" />
         </Link>
 
         <Card className="overflow-hidden">

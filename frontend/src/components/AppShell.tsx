@@ -7,7 +7,7 @@ import {
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
-import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { useAcademicTrack, trackLabel, type AcademicTrack } from '@/hooks/useAcademicTrack'
 import { useTheme } from '@/hooks/useTheme'
 import { usePWA } from '@/hooks/usePWA'
 import { cn } from '@/lib/cn'
@@ -352,7 +352,7 @@ export function AppShell() {
             {currentTitle}
           </div>
           <div className="v2-eyebrow hidden sm:flex sm:items-center sm:gap-2">
-            <span>BroxStudies · {selectedTrack ? selectedTrack.toUpperCase() : 'SHS / TVET'}</span>
+            <span>BroxStudies · {selectedTrack ? trackLabel(selectedTrack as AcademicTrack) : 'SHS/STEM / TVET'}</span>
             <span className="text-[var(--fg-3)]">/</span>
             <span className="text-[var(--fg-1)]">{currentTitle}</span>
           </div>
@@ -445,7 +445,7 @@ function Brand({ collapsed, selectedTrack }: { collapsed: boolean; selectedTrack
       {collapsed ? (
         <LogoMark size={36} />
       ) : (
-        <Logo size={36} subtitle={selectedTrack ? `${selectedTrack.toUpperCase()} Track` : 'SHS & TVET'} />
+        <Logo size={36} subtitle={selectedTrack ? `${trackLabel(selectedTrack as AcademicTrack)} Track` : 'SHS/STEM & TVET'} />
       )}
     </NavLink>
   )

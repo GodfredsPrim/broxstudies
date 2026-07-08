@@ -68,7 +68,7 @@ export function StudyPage() {
     <Page
       eyebrow="Study with AI"
       title={<>Ask anything. Get <em className="not-italic text-emerald-300">exam-grade</em> answers.</>}
-      subtitle="An AI tutor tuned for SHS topics — from calculus to Akan literature. Attach an image, upload a page, or just ask."
+      subtitle="An AI tutor tuned for SHS/STEM topics — from calculus to Akan literature. Attach an image, upload a page, or just ask."
       icon={<Brain size={22} />}
       emptyTitle="Chat UI lands in the next slice."
       emptyBody={

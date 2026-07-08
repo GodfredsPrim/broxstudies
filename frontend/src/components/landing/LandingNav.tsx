@@ -102,7 +102,7 @@ export function LandingFooter() {
               <span className="font-display font-bold">BroxStudies</span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              AI-powered learning for Ghanaian SHS and TVET students. Master WASSCE with confidence.
+              AI-powered learning for Ghanaian SHS/STEM and TVET students. Master WASSCE with confidence.
             </p>
           </div>
           {[

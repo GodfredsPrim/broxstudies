@@ -40,7 +40,7 @@ export function EmptyChat({ onPromptSelect, disabled }: { onPromptSelect?: (p: s
           What would you like to <span className="gradient-text">learn today?</span>
         </h1>
         <p className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-          Your AI tutor is tuned for Ghana's SHS & TVET curriculum. Ask anything, attach photos or PDFs, and get step-by-step explanations.
+          Your AI tutor is tuned for Ghana's SHS/STEM & TVET curriculum. Ask anything, attach photos or PDFs, and get step-by-step explanations.
         </p>
       </motion.div>
       {onPromptSelect && <SuggestedPrompts onSelect={onPromptSelect} disabled={disabled} />}

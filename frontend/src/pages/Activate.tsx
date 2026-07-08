@@ -246,7 +246,7 @@ export function ActivatePage() {
         className="relative w-full max-w-2xl"
       >
         <Link to="/" className="mb-8 flex items-center gap-3">
-          <Logo size={44} subtitle="Premium for SHS & TVET" />
+          <Logo size={44} subtitle="Premium for SHS/STEM & TVET" />
         </Link>
 
         <Card padded={false} className="overflow-hidden border-[var(--line-strong)] shadow-xl shadow-black/5">

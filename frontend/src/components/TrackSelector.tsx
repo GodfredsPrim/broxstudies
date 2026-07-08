@@ -19,9 +19,9 @@ const TRACK_OPTIONS: Array<{
 }> = [
   {
     id: 'shs',
-    label: 'Senior High School',
-    subtitle: 'SHS curriculum',
-    description: 'Exam-focused SHS materials, WASSCE practice, and school subjects.',
+    label: 'Senior High School (STEM)',
+    subtitle: 'SHS/STEM curriculum',
+    description: 'Exam-focused SHS/STEM materials, WASSCE practice, and school subjects.',
     icon: GraduationCap,
     tone: 'emerald',
   },
@@ -41,7 +41,7 @@ export function TrackSelector({ selectedTrack, onSelect }: TrackSelectorProps) {
       <div className="mb-8 text-center lg:px-16">
         <p className="text-sm font-semibold uppercase tracking-[0.32em] text-emerald-300">Select your track</p>
         <h2 className="mt-4 text-3xl font-semibold tracking-tight text-ink-0 sm:text-4xl">
-          Choose SHS or TVET to continue
+          Choose SHS/STEM or TVET to continue
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-ink-300">
           Pick the learning path you want. Your choice will persist in your browser and tailor the app experience for your curriculum.

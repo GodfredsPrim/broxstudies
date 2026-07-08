@@ -10,6 +10,16 @@ import {
 
 export type AcademicTrack = 'shs' | 'tvet'
 
+/** Display labels for academic tracks — 'shs' stays the internal value, "SHS/STEM" is what users see. */
+export const TRACK_LABELS: Record<AcademicTrack, string> = {
+  shs: 'SHS/STEM',
+  tvet: 'TVET',
+}
+
+export function trackLabel(track: AcademicTrack | null | undefined, fallback = 'SHS/STEM & TVET'): string {
+  return track ? TRACK_LABELS[track] : fallback
+}
+
 interface AcademicTrackContextValue {
   selectedTrack: AcademicTrack | null
   setSelectedTrack: (track: AcademicTrack) => void

@@ -28,7 +28,7 @@ const FEATURES = [
 ]
 
 const STEPS = [
-  { step: '01', title: 'Choose your track', desc: 'Select SHS or TVET and pick your subjects aligned with Ghana\'s New Curriculum.' },
+  { step: '01', title: 'Choose your track', desc: 'Select SHS/STEM or TVET and pick your subjects aligned with Ghana\'s New Curriculum.' },
   { step: '02', title: 'Study with AI', desc: 'Ask questions, upload files, and get instant explanations tailored to your grade level.' },
   { step: '03', title: 'Practice & compete', desc: 'Generate papers, take likely WASSCE exams, and challenge friends in live quizzes.' },
   { step: '04', title: 'Track progress', desc: 'Earn XP, badges, and streaks while monitoring your exam readiness score.' },
@@ -43,7 +43,7 @@ const TESTIMONIALS = [
 const FAQ = [
   { q: 'Is BroxStudies free?', a: 'You get 3 free AI tutor chats without an account. Full access including unlimited practice, WASSCE prep, and live quizzes is GH₵20 for 3 months.' },
   { q: 'Does it work offline?', a: 'Yes! Install BroxStudies as a PWA on your phone for offline access to your history and saved practice sets.' },
-  { q: 'SHS or TVET?', a: 'Both! Select your academic track during signup. TVET students get NAPTEX-focused content and subjects.' },
+  { q: 'SHS/STEM or TVET?', a: 'Both! Select your academic track during signup. TVET students get NAPTEX-focused content and subjects.' },
   { q: 'How does the AI tutor work?', a: 'Our AI is trained on Ghana\'s New Secondary Education Curriculum. It supports text, images, PDFs, and voice input with math rendering.' },
 ]
 
@@ -68,7 +68,7 @@ export function LandingPage() {
               your curriculum
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              The premium study platform for SHS and TVET students. AI tutoring, practice exams, live quizzes, and personalized analytics — all aligned with Ghana's New Secondary Education Curriculum.
+              The premium study platform for SHS/STEM and TVET students. AI tutoring, practice exams, live quizzes, and personalized analytics — all aligned with Ghana's New Secondary Education Curriculum.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link to="/signup">
@@ -181,6 +181,8 @@ export function LandingPage() {
                 key={img.src}
                 src={img.src}
                 alt={img.alt}
+                loading="lazy"
+                decoding="async"
                 className="h-20 w-full rounded-xl border border-[var(--line)] object-cover sm:h-24"
               />
             ))}
