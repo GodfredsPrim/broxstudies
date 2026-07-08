@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   Loader2, TrendingUp, AlertTriangle, Trophy, CheckCircle2,
-  XCircle, RotateCcw, Shield, Clock, ChevronRight,
+  XCircle, RotateCcw, Shield, ChevronRight,
   Maximize2, Download, Share2, Upload,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
@@ -10,6 +10,7 @@ import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
 import { MathText } from '@/components/MathText'
 import { QuestionCard } from '@/components/exam/QuestionCard'
+import { ElapsedClock } from '@/components/exam/SessionTimer'
 import { ScoreHero } from '@/components/exam/ScoreHero'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { Card } from '@/components/ui/card'
@@ -226,11 +227,9 @@ export function WassceePage() {
     }
   }, [YEARS, selectedYear])
 
-  useEffect(() => {
-    if (phase !== 'exam') return
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
-    return () => clearInterval(id)
-  }, [phase, startTime])
+  // The live exam clock renders in <ElapsedClock> (its own 1s tick) so the
+  // whole exam — dozens of KaTeX question cards — doesn't re-render every
+  // second. `elapsed` is only captured once, when the exam is submitted.
 
   useEffect(() => {
     if (phase !== 'exam') return
@@ -313,6 +312,7 @@ export function WassceePage() {
   const handleSubmit = async () => {
     setSubmitError('')
     setSubmitting(true)
+    setElapsed(Math.floor((Date.now() - startTime) / 1000))
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     try {
       const items = allQuestions.map((q, i) => ({
@@ -403,6 +403,7 @@ export function WassceePage() {
 
     setSubmitError('')
     setGrading(true)
+    setElapsed(Math.floor((Date.now() - startTime) / 1000))
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     try {
       const questions = allQuestions.map((q, i) => ({
@@ -465,7 +466,7 @@ export function WassceePage() {
 
           <div>
             <label className="text-sm font-semibold text-foreground">
-              {selectedTrack === 'tvet' ? 'TVET Year' : 'SHS Year'}
+              {selectedTrack === 'tvet' ? 'TVET Year' : 'SHS/STEM Year'}
             </label>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Questions are generated from that {selectedTrack === 'tvet' ? "level's" : "year's"} past papers and textbook.
@@ -580,10 +581,7 @@ export function WassceePage() {
             <p className="text-xs text-muted-foreground">{selectedYear} · {likelyLabel}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span className="font-mono font-bold">{fmt(elapsed)}</span>
-            </div>
+            <ElapsedClock startTime={startTime} />
             <div className="text-xs text-muted-foreground">
               <span className="font-black text-foreground">{totalAnswered}</span>
               /{allQuestions.length}

@@ -332,3 +332,17 @@ html.light .bg-\[var\(--bg-2\)\] { background: var(--bg-2); }
 .page-narrow { @apply max-w-2xl; }
 .page-medium { @apply max-w-4xl; }
 .page-wide { @apply max-w-7xl; }
+
+/* Accessibility & low-end devices: collapse CSS animations/transitions when
+   the user has asked the OS for reduced motion. (framer-motion is handled
+   separately via <MotionConfig reducedMotion="user">.) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

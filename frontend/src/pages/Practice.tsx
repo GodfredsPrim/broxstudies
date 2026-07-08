@@ -3,7 +3,7 @@ import {
   BookOpen, Loader2, CheckCircle2, XCircle,
   RotateCcw, Trophy, ChevronRight, BookMarked,
   FileText, ClipboardList, ScrollText, Download, Share2,
-  Upload, FileUp, Timer,
+  Upload, FileUp,
 } from 'lucide-react'
 import { questionsApi } from '@/api/endpoints'
 import { analysisApi } from '@/api/endpoints'
@@ -11,7 +11,7 @@ import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useToast } from '@/hooks/useToast'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
-import { usePracticeTimer } from '@/hooks/usePracticeTimer'
+import { SessionTimer } from '@/components/exam/SessionTimer'
 import { useGamification } from '@/hooks/useGamification'
 import { Progress } from '@/components/ui/progress'
 import { MathText } from '@/components/MathText'
@@ -90,7 +90,10 @@ export function PracticePage() {
 
   // Offline history persistence
   const { saveLocal } = useOfflineHistory()
-  const { formatted: timerDisplay, reset: resetTimer } = usePracticeTimer(phase === 'practice')
+  // Timer lives in <SessionTimer> (remounted via this epoch) so its 1s tick
+  // doesn't re-render the whole page of question cards.
+  const [timerEpoch, setTimerEpoch] = useState(0)
+  const resetTimer = () => setTimerEpoch(e => e + 1)
   const { addXp, awardBadge } = useGamification()
 
   // Generation and notifications
@@ -144,8 +147,8 @@ export function PracticePage() {
     [filteredSubjects],
   )
 
-  const yearLabel = selectedTrack === 'tvet' ? 'TVET Year' : 'SHS Year'
-  const yearHint = selectedTrack === 'tvet' ? 'Choose the TVET year you want to practice.' : 'Choose your SHS year.'
+  const yearLabel = selectedTrack === 'tvet' ? 'TVET Year' : 'SHS/STEM Year'
+  const yearHint = selectedTrack === 'tvet' ? 'Choose the TVET year you want to practice.' : 'Choose your SHS/STEM year.'
 
   const availableYears: string[] = selectedTrack === 'tvet' ? TVET_YEARS : SHS_YEARS
 
@@ -343,7 +346,7 @@ export function PracticePage() {
     <PageLayout
       eyebrow="Studio"
       title="Practice Questions"
-      subtitle={`Choose your subject and ${selectedTrack === 'tvet' ? 'TVET year' : 'SHS year'}, set how many questions you want, then start a personalised practice session.`}
+      subtitle={`Choose your subject and ${selectedTrack === 'tvet' ? 'TVET year' : 'SHS/STEM year'}, set how many questions you want, then start a personalised practice session.`}
       width="narrow"
       noHeaderBorder
     >
@@ -503,10 +506,7 @@ export function PracticePage() {
         {/* Timer & progress bar */}
         <div className="sticky top-0 z-10 -mx-4 border-b border-border bg-[var(--bg-0)]/90 px-4 py-3 backdrop-blur-xl sm:-mx-8 sm:px-8">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm font-mono font-semibold text-indigo-400">
-              <Timer size={16} />
-              {timerDisplay}
-            </div>
+            <SessionTimer key={timerEpoch} active={phase === 'practice'} />
             <div className="flex-1 max-w-xs">
               <Progress value={progressPct} />
             </div>

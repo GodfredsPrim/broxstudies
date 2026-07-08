@@ -16,14 +16,18 @@ export function StreamingMessage({ content, animate = true, live = false, onComp
       setVisible(content)
       return
     }
-    if (!animate) {
+    // Very long answers: skip the reveal entirely — re-parsing thousands of
+    // markdown+KaTeX characters dozens of times freezes low-end phones.
+    if (!animate || content.length > 6000) {
       setVisible(content)
       onComplete?.()
       return
     }
     setVisible('')
     let i = 0
-    const step = Math.max(1, Math.floor(content.length / 120))
+    // ~60 reveal frames at ~30fps: each frame re-parses the markdown, so
+    // fewer/steadier frames beats a 16ms tick that saturates the main thread.
+    const step = Math.max(1, Math.ceil(content.length / 60))
     const id = window.setInterval(() => {
       i = Math.min(content.length, i + step)
       setVisible(content.slice(0, i))
@@ -31,7 +35,7 @@ export function StreamingMessage({ content, animate = true, live = false, onComp
         clearInterval(id)
         onComplete?.()
       }
-    }, 16)
+    }, 33)
     return () => clearInterval(id)
   }, [content, animate, live, onComplete])
 

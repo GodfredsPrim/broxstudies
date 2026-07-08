@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 import App from './App'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { AcademicTrackProvider } from '@/hooks/useAcademicTrack'
@@ -22,11 +23,14 @@ function TrackBridge({ children }: { children: React.ReactNode }) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <TrackBridge>
-          <App />
-        </TrackBridge>
-      </AuthProvider>
+      {/* Honour the OS "reduce motion" setting for all framer-motion animations */}
+      <MotionConfig reducedMotion="user">
+        <AuthProvider>
+          <TrackBridge>
+            <App />
+          </TrackBridge>
+        </AuthProvider>
+      </MotionConfig>
     </BrowserRouter>
   </React.StrictMode>,
 )

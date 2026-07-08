@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { MathText } from '@/components/MathText'
 import { cn } from '@/lib/cn'
 
@@ -28,7 +29,7 @@ const DIFFICULTY_STYLES: Record<string, string> = {
   medium: 'bg-[var(--gold-tint)] text-[var(--gold)]',
 }
 
-export function QuestionCard({
+function QuestionCardImpl({
   index,
   question,
   answer = '',
@@ -118,3 +119,19 @@ export function QuestionCard({
     </article>
   )
 }
+
+/**
+ * Memoized so answering one question doesn't re-render every other card
+ * (each card carries KaTeX-rendered text). `onAnswer` is deliberately
+ * excluded from the comparison: callers pass inline closures that only use
+ * functional setState and per-slot constants, so a stale reference is safe.
+ */
+export const QuestionCard = memo(QuestionCardImpl, (prev, next) =>
+  prev.question === next.question &&
+  prev.answer === next.answer &&
+  prev.answered === next.answered &&
+  prev.index === next.index &&
+  prev.readOnly === next.readOnly &&
+  prev.accentColor === next.accentColor &&
+  prev.accentTint === next.accentTint,
+)

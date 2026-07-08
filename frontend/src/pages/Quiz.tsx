@@ -3,6 +3,7 @@ import { Plus, LogIn, ChevronLeft, Trophy, Clock } from 'lucide-react'
 import { questionsApi, liveQuizApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { MathText } from '@/components/MathText'
+import { CountdownClock } from '@/components/exam/SessionTimer'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,7 +43,6 @@ export function QuizPage() {
   const [result, setResult] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [polling, setPolling] = useState(false)
-  const [timeLeft, setTimeLeft] = useState<number | null>(null)
 
   const years = useMemo(() => Array.from(new Set(subjects.map((s) => s.year))).sort(), [subjects])
   const filteredSubjects = useMemo(
@@ -73,27 +73,19 @@ export function QuizPage() {
     if (first && first.id !== subject) setSubject(first.id)
   }, [filteredSubjects]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // poll room state
+  // poll room state — keep the previous object when nothing changed so the
+  // question list (KaTeX-heavy) doesn't re-render every 2.5s
   useEffect(() => {
     if (!roomCode) return
     setPolling(true)
     const id = setInterval(async () => {
-      try { setLiveState(await liveQuizApi.state(roomCode)) } catch { /* ignore */ }
+      try {
+        const next = await liveQuizApi.state(roomCode)
+        setLiveState(prev => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+      } catch { /* ignore */ }
     }, 2500)
     return () => { clearInterval(id); setPolling(false) }
   }, [roomCode])
-
-  // countdown timer
-  useEffect(() => {
-    if (!liveState) { setTimeLeft(null); return }
-    const tick = () => {
-      const elapsed = Date.now() / 1000 - liveState.created_at
-      setTimeLeft(Math.ceil(Math.max(0, liveState.time_limit * 60 - elapsed)))
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [liveState])
 
   const go = (p: Phase) => { setError(''); setPhase(p) }
 
@@ -406,10 +398,6 @@ export function QuizPage() {
   }
 
   /* ── ACTIVE ── */
-  const fmtTime =
-    timeLeft === null ? '--:--'
-    : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
-
   return (
     <PageLayout
       eyebrow="Compete"
@@ -440,9 +428,7 @@ export function QuizPage() {
                 </div>
                 <div className="flex items-center gap-2 self-start rounded-2xl bg-indigo-500/10 px-4 py-2 sm:self-auto dark:bg-indigo-900/20">
                   <Clock size={14} className="text-indigo-500 dark:text-indigo-400" />
-                  <span className={`text-lg font-bold ${(timeLeft ?? 999) < 60 ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-400 dark:text-indigo-300'}`}>
-                    {fmtTime}
-                  </span>
+                  <CountdownClock createdAt={liveState.created_at} timeLimitMinutes={liveState.time_limit} />
                 </div>
               </div>
 

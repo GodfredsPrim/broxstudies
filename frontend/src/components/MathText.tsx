@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
@@ -110,16 +110,22 @@ function KatexSpan({ latex, block }: { latex: string; block: boolean }) {
   )
 }
 
-export function MathText({
+// Memoized: question/option/chat text is re-rendered far more often than it
+// changes (timers, answer selection), and the regex + KaTeX work here is the
+// most expensive part of those renders — especially on mobile.
+export const MathText = memo(function MathText({
   children,
   className = '',
 }: {
   children: string
   className?: string
 }) {
-  if (!children) return null
+  const segments = useMemo(
+    () => (children ? parseSegments(children) : []),
+    [children],
+  )
 
-  const segments = parseSegments(children)
+  if (!children) return null
 
   return (
     <span className={className}>
@@ -145,7 +151,7 @@ export function MathText({
       })}
     </span>
   )
-}
+})
 
 export function MathBlock({ children, className = '' }: { children: string; className?: string }) {
   return (

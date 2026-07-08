@@ -33,9 +33,14 @@ export function useGeneration(options: UseGenerationOptions = {}) {
 
         try {
           const updatedJob = await questionsApi.getJobStatus(jobId)
+          const finished = updatedJob.status === 'completed' || updatedJob.status === 'failed'
+
+          // Finished jobs must LEAVE activeJobs — otherwise the generate
+          // button stays disabled forever and this interval polls for nothing.
           setActiveJobs(prev => {
             const newMap = new Map(prev)
-            newMap.set(jobId, updatedJob)
+            if (finished) newMap.delete(jobId)
+            else newMap.set(jobId, updatedJob)
             return newMap
           })
 

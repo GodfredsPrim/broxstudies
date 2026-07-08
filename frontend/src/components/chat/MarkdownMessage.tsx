@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { MathText } from '@/components/MathText'
@@ -18,7 +19,9 @@ function flattenChildren(children: React.ReactNode): string {
   return ''
 }
 
-export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
+// Memoized: chat history re-renders on every keystroke/stream tick, but past
+// messages never change — skipping their markdown re-parse keeps typing smooth.
+export const MarkdownMessage = memo(function MarkdownMessage({ content, className }: MarkdownMessageProps) {
   return (
     <div className={cn('max-w-none text-[14.5px] leading-relaxed', className)}>
       <ReactMarkdown
@@ -64,4 +67,4 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
       </ReactMarkdown>
     </div>
   )
-}
+})
