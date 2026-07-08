@@ -69,6 +69,32 @@ _SLUG_MAP = {
     "ghanaian_language_dagaare":                "ghanaian_language_twi_ewe_ga_nzema_akuapem",
     "ghanaian_language_dagbani":                "ghanaian_language_twi_ewe_ga_nzema_akuapem",
     "ghanaian_language_mfantse":                "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    # Named Ghanaian language subjects from the site catalog
+    "asante_twi":                               "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "akuapem_twi":                              "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "dangme":                                   "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "dagaare":                                  "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "dagbanli":                                 "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ewe":                                      "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ga":                                       "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "gonja":                                    "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "gurene":                                   "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "kasem":                                    "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "mfantse":                                  "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "nzema":                                    "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ghanaian_language":                        "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ghanaian_language_gonja":                  "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ghanaian_language_gurene":                 "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ghanaian_language_kasem":                  "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    "ghanaian_language_dagbanli":               "ghanaian_language_twi_ewe_ga_nzema_akuapem",
+    # Other catalog slugs without their own curated lists
+    "general_science":                          "integrated_science",
+    "art_and_design_foundation":                "art_and_design_studio",
+    "automotive_and_metal_technology":          "automotive_engineering",
+    "applied_technology":                       "engineering",
+    "intervention_english":                     "english",
+    "intervention_mathematics":                 "core_mathematics",
+    "religious_studies_christian":              "christian_religious_studies",
 }
 
 
@@ -529,6 +555,111 @@ _BASIC_TOPICS = {
         "Islam and Society",
         "Contemporary Issues in Islam",
     ],
+    "christian_religious_studies": [
+        "The Creation Stories and the Fall of Man",
+        "The Call and Faith of Abraham",
+        "Moses, the Exodus and the Covenant",
+        "Leadership in Israel: Joshua, David and Solomon",
+        "The Prophets: Amos, Hosea, Isaiah and Jeremiah",
+        "The Birth, Baptism and Temptation of Jesus",
+        "The Teachings and Parables of Jesus",
+        "The Death, Resurrection and Ascension of Jesus",
+        "The Early Church and the Ministry of Paul",
+        "Christian Ethics and Contemporary Moral Issues",
+    ],
+    "literature_in_english": [
+        "Elements of Prose Fiction: Plot, Character and Setting",
+        "The African Novel: Themes and Techniques",
+        "The Non-African Novel",
+        "Elements of Drama: Structure, Dialogue and Stagecraft",
+        "African Drama",
+        "Non-African Drama: Shakespeare and Others",
+        "Elements of Poetry: Form, Rhythm and Sound Devices",
+        "African Poetry",
+        "Non-African Poetry",
+        "Figures of Speech and Literary Devices",
+        "Unseen Prose and Poetry Appreciation",
+    ],
+    "music": [
+        "Rudiments of Music: Notation, Scales and Keys",
+        "Intervals, Chords and Harmony",
+        "Rhythm, Metre and Time Signatures",
+        "Melody Writing and Composition",
+        "Ghanaian Traditional Music and Instruments",
+        "African Art Music and Popular Music (Highlife)",
+        "Western Art Music: Periods and Composers",
+        "Musical Forms and Analysis",
+        "Aural Perception and Sight Reading",
+        "Music Technology and the Music Industry",
+    ],
+    "robotics": [
+        "Introduction to Robotics and Automation",
+        "Robot Anatomy: Sensors, Actuators and Effectors",
+        "Electronics for Robotics: Circuits and Microcontrollers",
+        "Programming Robots: Algorithms and Control Flow",
+        "Mechanisms: Gears, Motors and Motion Transmission",
+        "Robot Navigation and Obstacle Avoidance",
+        "Artificial Intelligence and Machine Vision in Robotics",
+        "Robot Design and Prototyping",
+        "Applications of Robotics in Industry and Society",
+        "Safety and Ethics in Robotics",
+    ],
+    "spanish": [
+        "Listening and Oral Communication in Spanish",
+        "Reading Comprehension in Spanish",
+        "Essay and Letter Writing in Spanish",
+        "Spanish Grammar: Tenses and Structures",
+        "Spanish Vocabulary and Expressions",
+        "Hispanic Culture and Civilisation",
+        "Conversation and Practical Spanish",
+        "Translation: Spanish-English and English-Spanish",
+    ],
+    "arabic": [
+        "Listening and Oral Communication in Arabic",
+        "Reading Comprehension in Arabic",
+        "Arabic Composition and Letter Writing",
+        "Arabic Grammar (Nahw) and Morphology (Sarf)",
+        "Arabic Vocabulary and Expressions",
+        "Arabic Literature: Prose and Poetry",
+        "Arab and Islamic Culture and Civilisation",
+        "Translation: Arabic-English and English-Arabic",
+    ],
+    "design_and_communication_technology": [
+        "The Design Process and Design Thinking",
+        "Freehand Sketching and Drawing Techniques",
+        "Geometric Construction and Plane Geometry",
+        "Orthographic and Pictorial Projection",
+        "Building and Engineering Drawing",
+        "Graphic Communication and Presentation",
+        "Materials and Their Working Properties",
+        "Computer-Aided Design (CAD)",
+        "Product Design and Manufacture",
+        "Safety in the Workshop and Studio",
+    ],
+    "engineering": [
+        "Introduction to Engineering and the Engineering Design Process",
+        "Engineering Materials and Their Properties",
+        "Statics: Forces, Moments and Equilibrium",
+        "Dynamics: Motion and Energy",
+        "Electrical Circuits and Systems",
+        "Thermodynamics and Fluid Mechanics Basics",
+        "Engineering Drawing and CAD",
+        "Manufacturing Processes",
+        "Control Systems and Automation",
+        "Engineering Ethics, Safety and Society",
+    ],
+    "biomedical_science": [
+        "Introduction to Biomedical Science and Careers",
+        "Cell Biology and Histology",
+        "Human Anatomy and Physiology Systems",
+        "Biochemistry: Biomolecules and Metabolism",
+        "Microbiology and Infection Control",
+        "Immunology and the Body's Defence Systems",
+        "Haematology and Blood Science",
+        "Medical Laboratory Techniques and Instrumentation",
+        "Disease Processes and Diagnostics",
+        "Biomedical Ethics and Patient Safety",
+    ],
     # ── Arts and Culture ─────────────────────────────────────────────────
     "arts_and_design_studio": [
         "Elements and Principles of Art and Design",
@@ -726,14 +857,17 @@ _BASIC_TOPICS = {
     ],
 }
 
-def _get_fallback_topics(subject: str) -> list:
+def _get_fallback_topics(subject: str, academic_level: str = "SHS") -> list:
     subject_key = subject.lower().replace("-", "_").replace(" ", "_")
     mapped_key = _SLUG_MAP.get(subject_key, subject_key)
-    for lookup in (_TVET_TOPICS, _BASIC_TOPICS):
+    # Check the requested level's curated lists first so shared subjects
+    # (e.g. English Language, Social Studies) get level-appropriate topics.
+    lookups = (_TVET_TOPICS, _BASIC_TOPICS) if academic_level == "TVET" else (_BASIC_TOPICS, _TVET_TOPICS)
+    for lookup in lookups:
         topics = lookup.get(subject_key) or lookup.get(mapped_key)
         if topics:
             return topics
-    for lookup in (_TVET_TOPICS, _BASIC_TOPICS):
+    for lookup in lookups:
         for key, t in lookup.items():
             if key in subject_key or subject_key in key:
                 return t
@@ -764,7 +898,7 @@ async def get_topics(subject: str, year: str = "year_1"):
 
         # Fall back to curated list when textbooks are unavailable (e.g. Render cold start)
         if not topics:
-            topics = _get_fallback_topics(subject)
+            topics = _get_fallback_topics(subject, academic_level)
             # For SHS subjects, kick off a background download so the NEXT request has PDFs
             if academic_level == "SHS" and year_key != "year_3":
                 async def _bg_fetch(yk: str, slug: str) -> None:

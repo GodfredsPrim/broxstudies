@@ -59,6 +59,23 @@ class WassceIntelligenceService:
                     "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
                     "paper_3": 1  # Practical
                 },
+                # Core sciences
+                "integrated_science": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
+                    "paper_3": 1  # Alternative to practical
+                },
+                "general_science": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 5, "section_b": 5, "section_c": 3},  # Total 13 questions
+                    "paper_3": 1
+                },
+                # Core humanities
+                "social_studies": {
+                    "paper_1": 50,
+                    "paper_2": {"section_a": 8, "section_b": 5},  # Total 13 questions
+                    "paper_3": 0
+                },
                 # Social Science subjects
                 "economics": {
                     "paper_1": 50,

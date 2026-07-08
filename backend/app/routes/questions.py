@@ -262,15 +262,17 @@ async def get_subjects():
                     # Extract slug from URL if possible, else normalize name
                     raw_url = subject_info.get("url", "")
                     slug = _subject_slug_from_url(raw_url, year_key)
-                    if not slug:
+                    # Guard against junk URL slugs like "year3" (bare year landing pages)
+                    if not slug or re.fullmatch(r"year[_-]?\d", slug):
                         slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
                     
-                    subject_id = f"{year_key}:{slug}"
-                    if subject_id in seen:
-                        continue
-                    seen.add(subject_id)
-
                     is_tvet = is_tvet_subject_slug(slug)
+                    subject_id = f"{year_key}:{slug}"
+                    seen_key = f"{'tvet' if is_tvet else 'shs'}:{subject_id}"
+                    if seen_key in seen:
+                        continue
+                    seen.add(seen_key)
+
                     subjects_list.append(
                         {
                             "id": subject_id,
@@ -324,9 +326,10 @@ async def get_subjects():
             for name in names:
                 slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
                 subject_id = f"{year_key}:{slug}"
-                if subject_id in seen:
+                seen_key = f"shs:{subject_id}"
+                if seen_key in seen:
                     continue
-                seen.add(subject_id)
+                seen.add(seen_key)
                 subjects_list.append(
                     {
                         "id": subject_id,
@@ -340,9 +343,10 @@ async def get_subjects():
         for name in names:
             slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
             subject_id = f"{year_key}:{slug}"
-            if subject_id in seen:
+            seen_key = f"tvet:{subject_id}"
+            if seen_key in seen:
                 continue
-            seen.add(subject_id)
+            seen.add(seen_key)
             subjects_list.append(
                 {
                     "id": subject_id,

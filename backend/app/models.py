@@ -52,8 +52,11 @@ SUBJECT_ALIASES = {
     "core_mathematics": Subject.MATHEMATICS.value,
     "mathematics": Subject.MATHEMATICS.value,
     "additional_mathematics": Subject.MATHEMATICS.value,
+    "maths": Subject.MATHEMATICS.value,
+    "intervention_mathematics": Subject.MATHEMATICS.value,
     "english_language": Subject.ENGLISH.value,
     "english": Subject.ENGLISH.value,
+    "intervention_english": Subject.ENGLISH.value,
     "literature-in-english": Subject.ENGLISH.value,
     "literature_in_english": Subject.ENGLISH.value,
     "integrated_science": Subject.SCIENCE.value,
@@ -159,7 +162,7 @@ class QuestionGenerationRequest(BaseModel):
     year: Optional[str] = None
     student_id: Optional[str] = None
     question_type: QuestionType
-    num_questions: int = 5
+    num_questions: int = Field(default=5, ge=1, le=100)
     difficulty_level: Optional[str] = None
     topics: Optional[List[str]] = None
     semester: Optional[str] = None

@@ -889,9 +889,18 @@ class LikelyWASSCEGenerator:
 
         paper_2_sections = grouped.get("paper_2", [])
         if paper_2_sections:
-            for section in paper_2_sections:
-                capped = max(1, min(section.expected_count, MAX_THEORY))
-                normalized.append(replace(section, expected_count=capped))
+            capped_sections = [
+                replace(section, expected_count=max(1, min(section.expected_count, MAX_THEORY)))
+                for section in paper_2_sections
+            ]
+            total_theory = sum(section.expected_count for section in capped_sections)
+            if total_theory < self.MIN_PAPER_2_COUNT:
+                deficit = self.MIN_PAPER_2_COUNT - total_theory
+                last = capped_sections[-1]
+                capped_sections[-1] = replace(
+                    last, expected_count=min(MAX_THEORY, last.expected_count + deficit)
+                )
+            normalized.extend(capped_sections)
         else:
             normalized.append(
                 SectionBlueprint(

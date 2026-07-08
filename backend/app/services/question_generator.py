@@ -12,7 +12,7 @@ from PyPDF2 import PdfReader
 
 from app.config import settings
 from app.models import Question, QuestionType, Subject, PracticeMarkItem
-from app.services.academic_catalog import KNOWN_SUBJECTS, is_tvet_subject_slug
+from app.services.academic_catalog import is_tvet_subject_slug
 from app.services.wassce_intelligence import WassceIntelligenceService
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,7 @@ class QuestionGenerator:
         """Generate questions based on patterns from past questions."""
         if question_type == QuestionType.STANDARD:
             # Get standardized exam structure for the subject
-            subject_info = KNOWN_SUBJECTS.get(subject_slug, {})
-            academic_level = subject_info.get("academic_level", "SHS").upper()
+            academic_level = "TVET" if is_tvet_subject_slug(subject_slug) else "SHS"
             structure = self.intel.analyze_paper_structure(subject_slug, academic_level)
             
             # Generate Paper 1 (MCQs)
@@ -77,8 +76,7 @@ class QuestionGenerator:
         logger.info(f"Generating Professional Mock for {subject_slug} ({year_key})")
         
         # Get academic level from catalog
-        subject_info = KNOWN_SUBJECTS.get(subject_slug, {})
-        academic_level = subject_info.get("academic_level", "SHS").upper()
+        academic_level = "TVET" if is_tvet_subject_slug(subject_slug) else "SHS"
         
         # 1. Analyze structure of existing past papers for this subject
         structure = self.intel.analyze_paper_structure(subject_slug, academic_level)
@@ -252,8 +250,16 @@ Return valid JSON array of {num_questions} objects:
     ) -> str:
         """Build the prompt for question generation."""
         difficulty = difficulty or random.choice(["easy", "medium", "hard"])
+        has_selected_topics = bool(topics)
         topic_list = topics or ["General"]
         topic_text = ", ".join(topic_list)
+        topic_rule = (
+            f"STRICT TOPIC FILTER: The student selected specific topics. EVERY question MUST be drawn "
+            f"exclusively from these topics: {topic_text}. Do NOT include questions from any other topic. "
+            f"Distribute the questions as evenly as possible across the selected topics."
+            if has_selected_topics
+            else f"Cover a diverse, randomized selection of topics from the curriculum sources below (topic scope: {topic_text})."
+        )
         past_context, textbook_context, teacher_context, chief_context = self._load_resource_context(year_key, subject_slug)
         past_block = past_context if past_context else "No matching past-question file found. Use textbook-only mode."
         textbook_block = textbook_context if textbook_context else (
@@ -266,9 +272,24 @@ Return valid JSON array of {num_questions} objects:
 
         display_subject = subject_label or subject_slug.replace("_", " ").title() or subject.value
 
+        subject_search = (subject_label or subject_slug).lower()
+        is_language_subject = any(
+            kw in subject_search
+            for kw in ["english", "literature", "french", "spanish", "arabic", "ghanaian language", "twi", "ewe", "dangme", "dagaare", "dagbanli", "gonja", "gurene", "kasem", "mfantse", "nzema"]
+        )
+
         # WAEC specific prompt augmentations for Essays
         essay_augmentation = ""
-        if question_type == QuestionType.ESSAY:
+        if question_type == QuestionType.ESSAY and is_language_subject:
+            essay_augmentation = """
+*** CRITICAL WAEC LANGUAGE PAPER STRUCTURE REQUIRED ***
+Structure essay questions exactly like a real WASSCE language paper. Use a mix of these WAEC task types:
+- Composition/essay prompts (argumentative, narrative, descriptive, expository, letter, article, speech) with a clear audience and purpose, e.g. "Write a letter to ... discussing three ...".
+- Comprehension tasks: include the FULL reading passage inside question_text, followed by lettered sub-questions (a)-(f) testing literal, inferential, and vocabulary-in-context skills.
+- Summary tasks: include the FULL passage and ask for a summary in a stated number of sentences.
+Explanations must contain the WAEC marking guide (Content, Organisation, Expression, Mechanical Accuracy where relevant, or expected answer points for comprehension/summary).
+"""
+        elif question_type == QuestionType.ESSAY:
             essay_augmentation = """
 *** CRITICAL WAEC ESSAY STRUCTURE REQUIRED ***
 You MUST structure each essay question EXACTLY like a real WASSCE examination paper.
@@ -279,8 +300,22 @@ Format example:
 Make sure the sub-questions are logically related but test different cognitive levels (recall vs application).
 """
 
+        mcq_augmentation = ""
+        if question_type == QuestionType.MULTIPLE_CHOICE:
+            mcq_augmentation = """
+*** MCQ QUALITY RULES ***
+- Provide exactly 4 options per question, each a plain answer with NO letter prefix (no "A.", "B)").
+- Exactly one option is correct; the other three must be plausible distractors based on common student errors.
+- Never use "All of the above", "None of the above", or joke options.
+- The correct_answer must be the exact text of the correct option.
+- Vary the position of the correct answer randomly across questions.
+"""
+            if is_language_subject:
+                mcq_augmentation += """- For comprehension-style MCQs, include the short passage inside question_text before the question.
+- Cover lexis and structure (synonyms, antonyms, idioms, grammar) in the authentic WASSCE style, e.g. "Choose the option nearest in meaning to the underlined word."
+"""
+
         math_augmentation = ""
-        subject_search = (subject_label or subject_slug).lower()
         if any(kw in subject_search for kw in ["math", "physics", "accounting"]):
             math_augmentation = """
 *** CRITICAL QUANTITATIVE RULE ***
@@ -315,7 +350,7 @@ Requirements:
 2. Be appropriate for the level of the students.
 3. Have a clear, single correct answer or highly robust explanation marking guide.
 4. Include a detailed explanation marking guide to allow accurate automated grading.
-5. Cover these topics when relevant: {topic_text}.
+5. {topic_rule}
 6. {tvet_source_rule}
 7. If past-question excerpts are provided below, derive ALL questions from those patterns; do NOT mix in textbook content.
 8. If the chief examiner's report is provided, weight questions towards topics flagged as commonly tested or commonly misunderstood.
@@ -344,6 +379,7 @@ You MUST generate completely unique, novel and varied questions. ABSOLUTELY AVOI
 *** YEAR 3 WASSCE PREPARATION RULE ***
 If the requested year is Year 3, you MUST strictly and accurately follow the structure, tone, and specific patterns found in the Provided Past Question Excerpts. Do NOT generate synthetic theory questions if past patterns for that topic are available. All Year 3 questions must feel like actual examination content.
 {essay_augmentation}
+{mcq_augmentation}
 {math_augmentation}
 Past Question Excerpts:
 {past_block}
@@ -1083,7 +1119,7 @@ Format: [{{"index":0,"extracted_answer":"...","score":1.0,"is_correct":true,"fee
             # Terminal Verification Log
             if data:
                 sample_q = data[0].get("question_text") or data[0].get("question") or ""
-                logger.info(f"📊 TERMINAL VERIFICATION - Math Content: {sample_q[:100]}...")
+                logger.info(f"📊 Parsed {len(data)} questions; sample: {sample_q[:100]}...")
 
             questions = []
             for item in data[:num_questions]:

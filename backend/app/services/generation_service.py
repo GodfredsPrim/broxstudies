@@ -106,6 +106,9 @@ class GenerationService:
             year_key = "year_1"
 
         subject_id = re.sub(r"[^a-z0-9_]+", "_", subject_slug).strip("_")
+        label_year = year_key if year_key != "year_3" else "year_1"
+        subject_label = _resolve_subject_label(label_year, subject_id)
+        semester = request_data.get('semester') or "all_year"
 
         # Check if this is a request for "likely wassce questions"
         is_likely_wassce = request_data.get('question_type') == "standard" and request_data.get('num_questions') == 46
@@ -119,11 +122,21 @@ class GenerationService:
 
         # For WASSCE-style standardized past-paper requests
         if not is_likely_wassce:
-            fetch_summary = await fetcher.ensure_subject_resources(
-                year_key=year_key,
-                subject_slug=subject_id,
-                resource_types=["past_questions", "textbooks", "teacher_resources", "syllabi"],
-            )
+            resource_types = ["past_questions", "textbooks", "teacher_resources", "syllabi"]
+            if year_key == "year_3":
+                # Year 3 (WASSCE) draws on the full curriculum — fetch Year 1 + Year 2 resources
+                results = await asyncio.gather(
+                    fetcher.ensure_subject_resources(year_key="year_1", subject_slug=subject_id, resource_types=resource_types),
+                    fetcher.ensure_subject_resources(year_key="year_2", subject_slug=subject_id, resource_types=resource_types),
+                    return_exceptions=True,
+                )
+                fetch_summary = next((r for r in results if isinstance(r, dict)), {})
+            else:
+                fetch_summary = await fetcher.ensure_subject_resources(
+                    year_key=year_key,
+                    subject_slug=subject_id,
+                    resource_types=resource_types,
+                )
             source_status = self.question_generator.get_source_status(year_key=year_key, subject_slug=subject_id)
             if source_status.get("source_used") == "none_found":
                 logger.info(f"No source material found for {subject_id}, will fallback to AI knowledge")
@@ -163,6 +176,9 @@ class GenerationService:
                     difficulty_level=request_data.get('difficulty_level', 'medium'),
                     topics=request_data.get('topics'),
                     year_key=year_key,
+                    subject_slug=subject_id,
+                    subject_label=subject_label,
+                    semester=semester,
                 )
         else:
             # Regular AI generation
@@ -173,6 +189,9 @@ class GenerationService:
                 difficulty_level=request_data.get('difficulty_level', 'medium'),
                 topics=request_data.get('topics'),
                 year_key=year_key,
+                subject_slug=subject_id,
+                subject_label=subject_label,
+                semester=semester,
             )
 
         return GeneratedQuestions(

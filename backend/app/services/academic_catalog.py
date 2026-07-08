@@ -120,13 +120,31 @@ def slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", (value or "").strip().lower()).strip("_") or "general_studies"
 
 
+def _slugs_for_level(level: str) -> frozenset[str]:
+    return frozenset(
+        slugify(name)
+        for year_subjects in KNOWN_SUBJECTS.get(level, {}).values()
+        for name in year_subjects
+    )
+
+
+SHS_SUBJECT_SLUGS = _slugs_for_level(AcademicLevel.SHS.value)
+TVET_SUBJECT_SLUGS = _slugs_for_level(AcademicLevel.TVET.value)
+
+
+def is_shs_subject_slug(subject_slug: str) -> bool:
+    return slugify(subject_slug) in SHS_SUBJECT_SLUGS
+
+
 def is_tvet_subject_slug(subject_slug: str) -> bool:
+    """True only for subjects exclusive to the TVET catalog.
+
+    Common subjects that exist in both catalogs (e.g. English Language,
+    Social Studies) default to the SHS/WASSCE pipeline, which has the
+    richer resources; TVET trade subjects still route to the TVET pipeline.
+    """
     normalized_slug = slugify(subject_slug)
-    for year_subjects in KNOWN_SUBJECTS.get(AcademicLevel.TVET.value, {}).values():
-        for name in year_subjects:
-            if slugify(name) == normalized_slug:
-                return True
-    return False
+    return normalized_slug in TVET_SUBJECT_SLUGS and normalized_slug not in SHS_SUBJECT_SLUGS
 
 
 def normalize_academic_level(value: str | AcademicLevel | None = None) -> str:
