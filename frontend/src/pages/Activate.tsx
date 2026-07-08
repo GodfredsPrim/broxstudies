@@ -21,6 +21,7 @@ import { authApi, paymentsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
+import { PromoCodeButton, PROMO_CODE } from '@/components/PromoCodeButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -379,14 +380,14 @@ export function ActivatePage() {
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => setStep('activate')}
-                    className="w-full rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-4 py-3 text-left text-sm text-indigo-400 transition-colors hover:bg-indigo-500/12 dark:text-indigo-400"
-                  >
-                    Have a promo code? Try <strong className="font-mono text-indigo-400 dark:text-indigo-300">BROX</strong>{' '}
-                    for 7 days free — skip payment and go straight to activation.
-                  </button>
+                  <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/8 p-4">
+                    <p className="text-sm text-indigo-400 dark:text-indigo-400">
+                      Have a promo code? Redeem{' '}
+                      <strong className="font-mono text-indigo-400 dark:text-indigo-300">{PROMO_CODE}</strong>{' '}
+                      instantly for 7 days of free premium — no payment needed.
+                    </p>
+                    <PromoCodeButton className="mt-3 w-full" next={next} />
+                  </div>
                 </motion.div>
               )}
 
@@ -486,7 +487,7 @@ export function ActivatePage() {
                         </div>
                         <div>
                           <h2 className="font-display text-xl text-ink-0">Enter access code</h2>
-                          <p className="text-sm text-ink-400">BROX promo or your 6-character code</p>
+                          <p className="text-sm text-ink-400">{PROMO_CODE} promo or your 6-character code</p>
                         </div>
                       </div>
                       <Input

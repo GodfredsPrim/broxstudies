@@ -64,7 +64,7 @@ export function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-border bg-card p-4 shadow-xl">
+          <div className="fixed inset-x-4 top-16 z-50 max-h-[70dvh] w-auto overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 sm:max-w-[calc(100vw-2rem)]">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">
               <Sparkles size={13} /> Daily motivation
             </div>

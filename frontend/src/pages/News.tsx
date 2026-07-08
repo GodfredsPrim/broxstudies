@@ -9,6 +9,7 @@ import { PageLayout } from '@/components/ui/PageLayout'
 import { FilterChips } from '@/components/ui/FilterChips'
 import { LoadingBlock } from '@/components/ui/LoadingBlock'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SmoothImage } from '@/components/shared/SmoothImage'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
@@ -51,10 +52,11 @@ function ArticleCard({ article, featured = false }: { article: NewsArticle; feat
   return (
     <article className={cn('v2-card v2-card-interactive overflow-hidden', featured ? 'p-6 sm:p-8' : 'p-5')}>
       {article.image_url && (
-        <img
+        <SmoothImage
           src={article.image_url}
           alt={article.title}
-          className={cn('mb-4 w-full rounded-xl object-cover', featured ? 'h-64 sm:h-80' : 'h-44')}
+          wrapperClassName={cn('mb-4 w-full rounded-xl', featured ? 'h-64 sm:h-80' : 'h-44')}
+          className={cn('h-full w-full rounded-xl object-cover', featured ? 'h-64 sm:h-80' : 'h-44')}
           loading="lazy"
         />
       )}

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Lock, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { PromoCodeButton } from '@/components/PromoCodeButton'
 import { Spinner } from './ui/Spinner'
 import { Card } from './ui/card'
 import { Eyebrow } from './ui/Eyebrow'
@@ -105,6 +106,12 @@ function AuthWall({
                 </>
               )}
             </div>
+
+            {!signup && (
+              <div className="mt-4">
+                <PromoCodeButton next={redirect} />
+              </div>
+            )}
           </div>
         </div>
         <div className="border-t border-white/5 bg-[var(--bg-2)]/50 px-8 py-4 sm:px-12">

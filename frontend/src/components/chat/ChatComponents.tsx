@@ -125,8 +125,8 @@ function Dot({ delay }: { delay: number }) {
   return (
     <motion.span
       className="block h-1.5 w-1.5 rounded-full bg-indigo-400"
-      animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
-      transition={{ duration: 1, repeat: Infinity, delay, ease: 'easeInOut' }}
+      animate={{ opacity: [0.4, 1, 0.4], y: [0, -2, 0] }}
+      transition={{ duration: 1.4, repeat: Infinity, delay, ease: [0.45, 0, 0.55, 1] }}
     />
   )
 }

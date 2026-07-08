@@ -20,6 +20,7 @@ import { Progress } from '@/components/ui/progress'
 import { StreakCard, BadgeGrid, LeaderboardPreview } from '@/components/gamification/GamificationWidgets'
 import { WeeklyStudyChart } from '@/components/charts/WeeklyStudyChart'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
+import { PromoBanner } from '@/components/PromoBanner'
 import { cn } from '@/lib/cn'
 
 const QUICK_ACTIONS = [
@@ -107,6 +108,10 @@ export function DashboardPage() {
             </Link>
           </div>
         </div>
+      </FadeIn>
+
+      <FadeIn delay={0.03} className="mt-6">
+        <PromoBanner />
       </FadeIn>
 
       {/* Top stats row */}
