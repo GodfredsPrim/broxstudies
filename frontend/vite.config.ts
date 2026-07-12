@@ -13,9 +13,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icons/*.png'],
       manifest: {
-        name: 'BroxStudies',
+        name: 'BroxStudies for SHS/STEM/TVET',
         short_name: 'BroxStudies',
-        description: 'AI-powered learning platform for Ghanaian SHS and TVET students. Master WASSCE with confidence.',
+        description: 'AI-powered learning for Ghanaian SHS, STEM, and TVET students. Master WASSCE with confidence.',
         theme_color: '#030712',
         background_color: '#030712',
         display: 'standalone',
