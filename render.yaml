@@ -50,7 +50,9 @@ services:
 
       # Document Loading
       - key: AUTO_LOAD_ON_STARTUP
-        value: "true"
+        value: "false"
+      - key: PRELOAD_PAST_QUESTIONS_ON_STARTUP
+        value: "false"
       - key: SELECTIVE_LOAD
         value: "true"
       - key: LAZY_LOAD

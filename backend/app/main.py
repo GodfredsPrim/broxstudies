@@ -74,34 +74,42 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️  Could not generate subjects catalog (fallback will be used): {str(e)}")
     
-    # Eagerly initialize the PastQuestionExtractor cache
-    # This ensures subsequent requests won't timeout waiting for extraction
-    try:
-        logger.info("📋 Pre-loading past questions cache...")
-        from app.services.past_question_extractor import PastQuestionExtractor
-        extractor = PastQuestionExtractor()
-        available_subjects = extractor.get_available_subjects()
-        logger.info(f"✅ Past questions cache pre-loaded. Subjects available: {available_subjects}")
-    except Exception as e:
-        logger.warning(f"⚠️  Could not pre-load past questions: {str(e)}")
+    # Large question caches can exceed the memory available to small Render
+    # instances. Keep this opt-in; the singleton is loaded on the first route
+    # that actually needs it.
+    if settings.PRELOAD_PAST_QUESTIONS_ON_STARTUP:
+        try:
+            logger.info("📋 Pre-loading past questions cache...")
+            from app.services.past_question_extractor import PastQuestionExtractor
+            extractor = PastQuestionExtractor()
+            available_subjects = extractor.get_available_subjects()
+            logger.info(f"✅ Past questions cache pre-loaded. Subjects available: {available_subjects}")
+        except Exception as e:
+            logger.warning(f"⚠️  Could not pre-load past questions: {str(e)}")
     
     # Kick off external news fetch in background (non-blocking)
+    background_tasks = set()
     try:
         from app.services import news_fetcher
-        asyncio.create_task(news_fetcher.get_external_articles())
-        asyncio.create_task(news_fetcher.refresh_loop())
-        logger.info("📰 External news fetcher started in background")
+        if settings.NEWS_REFRESH_ENABLED:
+            background_tasks.add(asyncio.create_task(news_fetcher.get_external_articles()))
+            background_tasks.add(asyncio.create_task(news_fetcher.refresh_loop()))
+            logger.info("📰 External news fetcher started in background")
     except Exception as e:
         logger.warning(f"⚠️  Could not start news fetcher: {e}")
 
     # Auto-load documents in background if enabled
     if settings.AUTO_LOAD_ON_STARTUP:
         loading_state.is_loading = True
-        asyncio.create_task(background_load_documents(app))
+        background_tasks.add(asyncio.create_task(background_load_documents(app)))
         logger.info("📥 Document loading started in background...")
     
     yield
     # Shutdown
+    for task in background_tasks:
+        task.cancel()
+    if background_tasks:
+        await asyncio.gather(*background_tasks, return_exceptions=True)
     logger.info("🛑 Shutting down application")
 
 app = FastAPI(
