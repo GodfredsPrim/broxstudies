@@ -116,6 +116,8 @@ app = FastAPI(
     title="BroxStudies Online - AI Question Generator",
     description="Generate exam questions based on syllabi, past questions, and textbooks using AI and RAG",
     version="0.1.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
     lifespan=lifespan
 )
 

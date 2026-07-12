@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
-  WifiOff, Download, LayoutDashboard, BarChart3, UserCog,
+  WifiOff, Download, LayoutDashboard, BarChart3, UserCog, LibraryBig,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -37,6 +37,7 @@ const NAV: NavDef[] = [
   { to: '/library',   label: 'Library',             short: 'Library',   icon: BookOpen,        group: 'prep' },
   { to: '/history',   label: 'History',             short: 'History',   icon: Clock,           group: 'prep' },
   { to: '/analytics', label: 'Analytics',           short: 'Analytics', icon: BarChart3,         group: 'insights' },
+  { to: '/docs',      label: 'Documentation',       short: 'Docs',      icon: LibraryBig,        group: 'insights' },
 ]
 
 export function AppShell() {
