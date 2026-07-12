@@ -122,6 +122,8 @@ class Settings(BaseSettings):
 
     # Auto-loading
     AUTO_LOAD_ON_STARTUP: bool = True
+    PRELOAD_PAST_QUESTIONS_ON_STARTUP: bool = False
+    NEWS_REFRESH_ENABLED: bool = True
     LAZY_LOAD: bool = True
     SELECTIVE_LOAD: bool = True
     LOAD_SYLLABI_ONLY: bool = False

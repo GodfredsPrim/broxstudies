@@ -268,7 +268,7 @@ async def ask_tutor_with_files(
     history_json: str = Form("[]"),
     subject: Optional[str] = Form(None),
     files: List[UploadFile] = File(default=[]),
-    current_user: Optional[AuthUser] = Depends(_get_optional_user),
+    current_user: AuthUser = Depends(_get_current_user),
 ):
     """Ask the AI tutor a question with optional file attachments (images, PDFs, DOCX, TXT/MD)."""
     if not question.strip() and not files:
@@ -290,7 +290,7 @@ async def ask_tutor_with_files(
     total_bytes = 0
 
     for upload in files:
-        raw = await upload.read()
+        raw = await upload.read(_MAX_FILE_BYTES + 1)
         if len(raw) > _MAX_FILE_BYTES:
             raise HTTPException(status_code=413, detail=f"File '{upload.filename}' exceeds the 8 MB limit.")
         total_bytes += len(raw)
@@ -313,6 +313,11 @@ async def ask_tutor_with_files(
         if mime not in _ALLOWED_MIMES:
             raise HTTPException(status_code=415, detail=f"File type '{mime}' is not supported. Upload images, PDFs, DOCX, TXT, or MD files.")
 
+        if mime == "application/pdf" and not raw.startswith(b"%PDF-"):
+            raise HTTPException(status_code=415, detail=f"File '{upload.filename}' is not a valid PDF.")
+        if mime in _IMAGE_MIMES and not raw.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"RIFF", b"GIF87a", b"GIF89a")):
+            raise HTTPException(status_code=415, detail=f"File '{upload.filename}' is not a valid supported image.")
+
         file_names.append(upload.filename or "file")
 
         if mime in _IMAGE_MIMES:
@@ -324,7 +329,7 @@ async def ask_tutor_with_files(
                 tmp.write(raw)
                 tmp_path = tmp.name
             try:
-                result = PDFProcessor().process_pdf(tmp_path)
+                result = await PDFProcessor().process_pdf(tmp_path, "learning_material", subject)
                 text = result.get("text", "") if isinstance(result, dict) else str(result)
                 if text.strip():
                     extracted_parts.append(f"--- {upload.filename} ---\n{text[:10000]}")
