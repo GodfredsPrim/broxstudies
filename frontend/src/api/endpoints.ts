@@ -193,6 +193,11 @@ export const liveQuizApi = {
   state: (code: string) =>
     api.get<LiveQuizStateResponse>(`/api/questions/quiz/${encodeURIComponent(code)}/state`).then(r => r.data),
 
+  start: (code: string, hostToken: string) =>
+    api.post<{ status: string; code: string }>(`/api/questions/quiz/${encodeURIComponent(code)}/start`, {
+      host_token: hostToken,
+    }).then(r => r.data),
+
   submit: (code: string, playerName: string, answers: string[]) =>
     api.post<LiveQuizSubmitResponse>(`/api/questions/quiz/${encodeURIComponent(code)}/submit`, {
       player_name: playerName,

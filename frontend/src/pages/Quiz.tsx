@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, LogIn, ChevronLeft, Trophy, Clock } from 'lucide-react'
+import { Plus, LogIn, ChevronLeft, Trophy, Clock, Play, Share2, Users } from 'lucide-react'
 import { questionsApi, liveQuizApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { MathText } from '@/components/MathText'
@@ -38,11 +38,21 @@ export function QuizPage() {
 
   // active room
   const [roomCode, setRoomCode] = useState('')
+  const [hostToken, setHostToken] = useState('')
+  const [shareLabel, setShareLabel] = useState('Share invite')
   const [liveState, setLiveState] = useState<LiveQuizStateResponse | null>(null)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [result, setResult] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [polling, setPolling] = useState(false)
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('room')?.trim().toUpperCase()
+    if (code && /^[A-Z0-9]{6}$/.test(code)) {
+      setJoinCode(code)
+      setPhase('join')
+    }
+  }, [])
 
   const years = useMemo(() => Array.from(new Set(subjects.map((s) => s.year))).sort(), [subjects])
   const filteredSubjects = useMemo(
@@ -102,6 +112,7 @@ export function QuizPage() {
         time_limit: Math.max(1, Math.min(timeLimit, 30)),
       })
       setRoomCode(created.code)
+      setHostToken(created.host_token)
       setLiveState(await liveQuizApi.state(created.code))
       setAnswers({}); setResult(null)
       setPhase('active')
@@ -148,8 +159,38 @@ export function QuizPage() {
     }
   }
 
+  const handleStartSession = async () => {
+    if (!roomCode || !hostToken) return
+    setError(''); setSubmitting(true)
+    try {
+      await liveQuizApi.start(roomCode, hostToken)
+      setLiveState(await liveQuizApi.state(roomCode))
+    } catch (err) {
+      setError(extractError(err, 'Failed to start the quiz session.'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/quiz?room=${encodeURIComponent(roomCode)}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Join my quiz', text: `Join my BroxStudies quiz room ${roomCode}`, url })
+        setShareLabel('Shared!')
+      } else {
+        await navigator.clipboard.writeText(url)
+        setShareLabel('Link copied!')
+      }
+      window.setTimeout(() => setShareLabel('Share invite'), 2500)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setError('Could not share the invite link. Copy the room code instead.')
+    }
+  }
+
   const leaveRoom = () => {
-    setRoomCode(''); setLiveState(null); setJoinCode('')
+    setRoomCode(''); setHostToken(''); setLiveState(null); setJoinCode('')
     setAnswers({}); setResult(null); setError('')
     setPhase('pick')
   }
@@ -423,17 +464,29 @@ export function QuizPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-[var(--fg-2)]">
-                    Host: {liveState.host} · {liveState.questions.length} questions · {liveState.time_limit} min
+                    Host: {liveState.host} · {liveState.player_count} {liveState.player_count === 1 ? 'player' : 'players'} · {liveState.time_limit} min
                   </p>
                 </div>
-                <div className="flex items-center gap-2 self-start rounded-2xl bg-indigo-500/10 px-4 py-2 sm:self-auto dark:bg-indigo-900/20">
+                {liveState.started && <div className="flex items-center gap-2 self-start rounded-2xl bg-indigo-500/10 px-4 py-2 sm:self-auto dark:bg-indigo-900/20">
                   <Clock size={14} className="text-indigo-500 dark:text-indigo-400" />
                   <CountdownClock createdAt={liveState.created_at} timeLimitMinutes={liveState.time_limit} />
-                </div>
+                </div>}
               </div>
 
+              {!liveState.started && (
+                <div className="mt-6 rounded-3xl border border-dashed border-[var(--line)] bg-[var(--bg-0)] p-6 text-center">
+                  <Users size={26} className="mx-auto text-indigo-400" />
+                  <h3 className="mt-3 font-semibold text-[var(--fg-0)]">Waiting for the host to start</h3>
+                  <p className="mt-1 text-sm text-[var(--fg-2)]">Share the invite and let everyone join before the questions appear.</p>
+                  <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+                    <Button variant="ghost" size="lg" leading={<Share2 size={16} />} onClick={() => void handleShare()}>{shareLabel}</Button>
+                    {hostToken && <Button variant="primary" size="lg" loading={submitting} leading={<Play size={16} />} onClick={() => void handleStartSession()}>Start session</Button>}
+                  </div>
+                </div>
+              )}
+
               {/* Question list */}
-              <div className="mt-6 space-y-4">
+              {liveState.started && <div className="mt-6 space-y-4">
                 {liveState.questions.map((q, i) => (
                   <div key={i} className="rounded-3xl border border-[var(--line)] bg-[var(--bg-0)] p-5">
                     <div className="flex items-center justify-between gap-4 text-xs text-[var(--fg-2)]">
@@ -476,10 +529,10 @@ export function QuizPage() {
                     )}
                   </div>
                 ))}
-              </div>
+              </div>}
 
               {/* Actions */}
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              {liveState.started && <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Button
                   variant="primary"
                   size="lg"
@@ -493,7 +546,7 @@ export function QuizPage() {
                 <Button variant="ghost" size="lg" onClick={leaveRoom}>
                   Leave room
                 </Button>
-              </div>
+              </div>}
 
               {result && (
                 <div className="mt-4 rounded-3xl bg-indigo-500/10 p-4 text-sm font-semibold text-indigo-300 dark:bg-indigo-900/20">
@@ -542,6 +595,7 @@ export function QuizPage() {
               </div>
               <div>Host: {liveState?.host}</div>
               <div>Status: {polling ? '🟢 live' : '⚪ idle'}</div>
+              <Button className="mt-4" variant="ghost" size="sm" fullWidth leading={<Share2 size={14} />} onClick={() => void handleShare()}>{shareLabel}</Button>
             </div>
           </div>
         </aside>

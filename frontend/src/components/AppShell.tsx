@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
-  WifiOff, Download, LayoutDashboard, BarChart3, UserCog, LibraryBig,
+  WifiOff, Download, LayoutDashboard, BarChart3, UserCog, LibraryBig, Files,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -29,6 +29,7 @@ interface NavDef {
 const NAV: NavDef[] = [
   { to: '/dashboard', label: 'Dashboard',           short: 'Home',      icon: LayoutDashboard, group: 'home' },
   { to: '/',          label: 'AI Tutor',            short: 'Tutor',     icon: Brain,           group: 'primary' },
+  { to: '/source-studio', label: 'Source Studio',   short: 'Sources',   icon: Files,           group: 'primary' },
   { to: '/practice',  label: 'Practice Questions',  short: 'Practice',  icon: FileText,        group: 'primary' },
   { to: '/wassce',    label: 'Likely WASSCE',       short: 'Likely',    icon: TrendingUp,      group: 'primary' },
   { to: '/quiz',      label: 'Quiz Challenge',      short: 'Quiz',      icon: Zap,             group: 'compete' },
@@ -36,8 +37,7 @@ const NAV: NavDef[] = [
   { to: '/rankings',  label: 'Rankings',            short: 'Rankings',  icon: Trophy,          group: 'compete' },
   { to: '/library',   label: 'Library',             short: 'Library',   icon: BookOpen,        group: 'prep' },
   { to: '/history',   label: 'History',             short: 'History',   icon: Clock,           group: 'prep' },
-  { to: '/analytics', label: 'Analytics',           short: 'Analytics', icon: BarChart3,         group: 'insights' },
-  { to: '/docs',      label: 'Documentation',       short: 'Docs',      icon: LibraryBig,        group: 'insights' },
+  { to: '/analytics', label: 'Analytics',           short: 'Analytics', icon: BarChart3,        group: 'insights' },
 ]
 
 export function AppShell() {
@@ -376,6 +376,14 @@ export function AppShell() {
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
+          <NavLink
+            to="/docs"
+            className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-white/5 hover:text-ink-0"
+            title="Documentation"
+            aria-label="Open documentation"
+          >
+            <LibraryBig size={16} />
+          </NavLink>
           {user?.is_admin || devMode ? (
             <NavLink
               to="/admin"

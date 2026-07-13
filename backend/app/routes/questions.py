@@ -21,13 +21,14 @@ from app.models import (
     LiveQuizCreateRequest,
     LiveQuizCreateResponse,
     LiveQuizJoinRequest,
+    LiveQuizStartRequest,
     LiveQuizSubmitRequest,
     Subject,
     SUBJECT_ALIASES,
     Question,
     QuestionType,
 )
-from app.services.academic_catalog import is_tvet_subject_slug
+from app.services.academic_catalog import KNOWN_SUBJECTS, is_tvet_subject_slug, slugify
 from app.services.batch_loader import BatchLoader
 from app.services.likely_wassce_generator import LikelyWASSCEGenerator
 from app.services.question_generator import QuestionGenerator
@@ -339,6 +340,21 @@ async def get_subjects():
                     }
                 )
 
+    # Year 3 WASSCE preparation covers the complete SHS curriculum. Merge the
+    # known subjects because the remote Year 3 catalog can be intentionally sparse.
+    year_3_names = {
+        name
+        for source_year in ("year_1", "year_2")
+        for name in KNOWN_SUBJECTS[AcademicLevel.SHS.value].get(source_year, [])
+    }
+    for name in year_3_names:
+        subject_id = f"year_3:{slugify(name)}"
+        seen_key = f"shs:{subject_id}"
+        if seen_key in seen:
+            continue
+        seen.add(seen_key)
+        subjects_list.append({"id": subject_id, "name": name, "year": "Year 3", "academic_level": AcademicLevel.SHS.value})
+
     for year_key, names in TVET_FALLBACK_SUBJECTS.items():
         for name in names:
             slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
@@ -526,17 +542,21 @@ async def create_live_quiz(request: LiveQuizCreateRequest, current_user: AuthUse
     )
 
     code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    host_token = "".join(random.choices(string.ascii_letters + string.digits, k=32))
     async with quiz_lock:
         quiz_sessions[code] = {
             "code": code,
             "created_at": time.time(),
             "time_limit": request.time_limit,
             "host": player,
+            "host_token": host_token,
+            "started": False,
+            "started_at": None,
             "players": {player.lower(): {"name": player, "submitted": False, "score": 0.0, "percentage": 0.0}},
             "questions": [q.model_dump() for q in questions],
             "answers": {},
         }
-    return LiveQuizCreateResponse(code=code, host_player=player, total_questions=len(questions))
+    return LiveQuizCreateResponse(code=code, host_player=player, host_token=host_token, total_questions=len(questions))
 
 
 @router.post("/quiz/join")
@@ -558,17 +578,34 @@ async def get_live_quiz_state(code: str):
     async with quiz_lock:
         session = quiz_sessions.get(quiz_code)
         if not session: raise HTTPException(status_code=404, detail="Code not found")
-        public_questions = [{"question_text": q.get("question_text"), "question_type": q.get("question_type"), "options": q.get("options")} for q in session["questions"]]
+        public_questions = ([{"question_text": q.get("question_text"), "question_type": q.get("question_type"), "options": q.get("options")} for q in session["questions"]] if session.get("started") else [])
         leaderboard = [{"player": stats.get("name", name), **stats} for name, stats in session["players"].items()]
     leaderboard.sort(key=lambda x: x["percentage"], reverse=True)
     return {
         "code": quiz_code,
         "host": session["host"],
+        "started": bool(session.get("started")),
+        "player_count": len(session["players"]),
         "questions": public_questions,
         "leaderboard": leaderboard,
         "time_limit": session.get("time_limit", 5),
-        "created_at": session.get("created_at", time.time()),
+        "created_at": session.get("started_at") or session.get("created_at", time.time()),
     }
+
+
+@router.post("/quiz/{code}/start")
+async def start_live_quiz(code: str, request: LiveQuizStartRequest):
+    quiz_code = code.strip().upper()
+    async with quiz_lock:
+        session = quiz_sessions.get(quiz_code)
+        if not session:
+            raise HTTPException(status_code=404, detail="Code not found")
+        if request.host_token != session.get("host_token"):
+            raise HTTPException(status_code=403, detail="Only the room host can start this session")
+        if not session.get("started"):
+            session["started"] = True
+            session["started_at"] = time.time()
+    return {"status": "started", "code": quiz_code}
 
 
 @router.post("/quiz/{code}/submit")
@@ -580,6 +617,8 @@ async def submit_live_quiz(code: str, request: LiveQuizSubmitRequest):
         session = quiz_sessions.get(quiz_code)
         if not session or player_key not in session["players"]:
             raise HTTPException(status_code=404, detail="Session or player not found")
+        if not session.get("started"):
+            raise HTTPException(status_code=409, detail="The host has not started this session yet")
         questions = session["questions"]
 
     from app.models import PracticeMarkItem

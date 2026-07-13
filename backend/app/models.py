@@ -240,12 +240,17 @@ class LiveQuizCreateRequest(BaseModel):
 class LiveQuizCreateResponse(BaseModel):
     code: str
     host_player: str
+    host_token: str
     total_questions: int
 
 
 class LiveQuizJoinRequest(BaseModel):
     code: str
     player_name: str
+
+
+class LiveQuizStartRequest(BaseModel):
+    host_token: str
 
 
 class LiveQuizSubmitRequest(BaseModel):

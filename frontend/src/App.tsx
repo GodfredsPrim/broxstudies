@@ -14,6 +14,7 @@ const SettingsPage = lazy(() => import('@/pages/Settings').then(m => ({ default:
 const ActivatePage = lazy(() => import('@/pages/Activate').then(m => ({ default: m.ActivatePage })))
 const TrackSelectionPage = lazy(() => import('@/pages/TrackSelection').then(m => ({ default: m.TrackSelectionPage })))
 const StudyPage = lazy(() => import('@/pages/Study').then(m => ({ default: m.StudyPage })))
+const SourceStudioPage = lazy(() => import('@/pages/SourceStudio').then(m => ({ default: m.SourceStudioPage })))
 const AdminPage = lazy(() => import('@/pages/Admin').then(m => ({ default: m.AdminPage })))
 const PracticePage = lazy(() => import('@/pages/Practice').then(m => ({ default: m.PracticePage })))
 const WassceePage = lazy(() => import('@/pages/Wassce').then(m => ({ default: m.WassceePage })))
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="/dashboard" element={<Lazy><DashboardPage /></Lazy>} />
             <Route path="/docs" element={<Lazy><DocsPage /></Lazy>} />
             <Route index element={<Lazy><StudyPage /></Lazy>} />
+            <Route path="/source-studio" element={<Lazy><SourceStudioPage /></Lazy>} />
             <Route
               path="/admin"
               element={

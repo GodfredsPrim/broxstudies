@@ -203,6 +203,7 @@ export interface TutorResponse {
 export interface LiveQuizCreateResponse {
   code: string
   host_player: string
+  host_token: string
   total_questions: number
 }
 
@@ -216,6 +217,8 @@ export interface LiveQuizPlayer {
 export interface LiveQuizStateResponse {
   code: string
   host: string
+  started: boolean
+  player_count: number
   questions: Question[]
   leaderboard: LiveQuizPlayer[]
   time_limit: number

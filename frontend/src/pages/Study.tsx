@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import { Send, Plus, AlertTriangle, Paperclip, X, PanelLeft, Mic, MicOff, BookOpen, Layers3, ListChecks, FileText, HelpCircle, Sparkles } from 'lucide-react'
+import { Send, Plus, AlertTriangle, Paperclip, X, PanelLeft, Mic, MicOff } from 'lucide-react'
 import { tutorApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -22,44 +22,6 @@ const ACCEPT = 'image/*,application/pdf,.docx,.txt,.md'
 interface Attachment extends ChatAttachment {}
 
 type Msg = ChatMessage
-
-const STUDY_TOOLS = [
-  {
-    id: 'overview',
-    label: 'Study guide',
-    description: 'Summary, key ideas and a revision plan',
-    icon: BookOpen,
-    prompt: 'Create a complete study guide using only the attached sources. Include: a concise overview, key concepts with clear explanations, important facts or formulas, likely misconceptions, and a practical revision plan. Cite the source filename or section whenever possible. Do not invent information that is not in the sources.',
-  },
-  {
-    id: 'flashcards',
-    label: 'Flashcards',
-    description: 'Recall cards from the most important ideas',
-    icon: Layers3,
-    prompt: 'Create 15 high-quality flashcards using only the attached sources. Format every card as **Card N** followed by **Front:** and **Back:**. Cover definitions, concepts, relationships, formulas and examples. Keep each back concise and cite the relevant source filename when possible.',
-  },
-  {
-    id: 'quiz',
-    label: 'Quiz',
-    description: 'Test understanding with answers hidden below',
-    icon: ListChecks,
-    prompt: 'Create a 10-question quiz using only the attached sources. Mix multiple choice, true or false, and short-answer questions. Put all questions first, then a clearly separated answer key with explanations and source references. Include easy, medium and challenging questions.',
-  },
-  {
-    id: 'faq',
-    label: 'FAQ',
-    description: 'Questions a learner is likely to ask',
-    icon: HelpCircle,
-    prompt: 'Create a learner-friendly FAQ using only the attached sources. Include 10 important questions with direct answers, clarify confusing ideas, and cite the relevant source filename or section whenever possible.',
-  },
-  {
-    id: 'briefing',
-    label: 'Briefing note',
-    description: 'A compact, exam-ready source brief',
-    icon: FileText,
-    prompt: 'Create an exam-ready briefing note using only the attached sources. Organize it into main themes, supporting evidence, essential vocabulary, important examples, and five takeaways. Clearly flag anything the sources do not establish.',
-  },
-] as const
 
 function formatBytes(n: number) {
   return n < 1024 * 1024 ? `${(n / 1024).toFixed(0)} KB` : `${(n / (1024 * 1024)).toFixed(1)} MB`
@@ -84,8 +46,6 @@ export function StudyPage() {
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [streamingLive, setStreamingLive] = useState(false)
   const [listening, setListening] = useState(false)
-  const [sourceFiles, setSourceFiles] = useState<File[]>([])
-  const [generatingTool, setGeneratingTool] = useState<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -153,35 +113,6 @@ export function StudyPage() {
     setPendingFiles(next)
   }
 
-  const addSourceFiles = (incoming: FileList | File[]) => {
-    const arr = Array.from(incoming)
-    addFiles(arr)
-    setSourceFiles(prev => {
-      const existing = new Set(prev.map(file => `${file.name}:${file.size}:${file.lastModified}`))
-      return [...prev, ...arr.filter(file => !existing.has(`${file.name}:${file.size}:${file.lastModified}`))]
-    })
-  }
-
-  const generateStudyMaterial = async (tool: typeof STUDY_TOOLS[number]) => {
-    if (sourceFiles.length === 0 || loading) return
-    const userMsg: Msg = { id: `u-${Date.now()}`, role: 'user', content: `Create ${tool.label.toLowerCase()} from my ${sourceFiles.length} source${sourceFiles.length === 1 ? '' : 's'}.` }
-    setMessages(prev => [...prev, userMsg])
-    setLoading(true)
-    setGeneratingTool(tool.id)
-    setError('')
-    try {
-      const res = await tutorApi.askWithFiles({ question: tool.prompt, files: sourceFiles })
-      setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'ai', content: res.explanation }])
-      recordStudy(5)
-      awardBadge('source-scholar')
-    } catch (err) {
-      setError(extractError(err, `Could not create the ${tool.label.toLowerCase()}. Please try again.`))
-    } finally {
-      setLoading(false)
-      setGeneratingTool(null)
-    }
-  }
-
   const removeFile = (idx: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== idx))
     setFileError('')
@@ -213,12 +144,6 @@ export function StudyPage() {
     setInput('')
     setError('')
     const sentFiles = pendingFiles
-    if (sentFiles.length > 0) {
-      setSourceFiles(prev => {
-        const existing = new Set(prev.map(file => `${file.name}:${file.size}:${file.lastModified}`))
-        return [...prev, ...sentFiles.filter(file => !existing.has(`${file.name}:${file.size}:${file.lastModified}`))]
-      })
-    }
     setPendingFiles([])
     setFileError('')
     setLoading(true)
@@ -382,49 +307,6 @@ export function StudyPage() {
           </Button>
         </div>
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-          <section className="mb-7 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] p-4 sm:p-5" aria-labelledby="source-studio-title">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="mb-1 flex items-center gap-2 text-[var(--fg-0)]">
-                  <Sparkles size={16} className="text-indigo-400" />
-                  <h2 id="source-studio-title" className="text-sm font-semibold">Source studio</h2>
-                </div>
-                <p className="max-w-xl text-xs leading-5 text-[var(--fg-2)]">Upload your notes, textbook pages or handouts once, then turn them into grounded study materials.</p>
-              </div>
-              <Button type="button" variant="subtle" size="sm" leading={<Paperclip size={13} />} onClick={() => fileInputRef.current?.click()} disabled={loading}>
-                Add sources
-              </Button>
-            </div>
-
-            {sourceFiles.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2" aria-label="Uploaded sources">
-                {sourceFiles.map((file, index) => (
-                  <div key={`${file.name}-${file.lastModified}`} className="flex max-w-full items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-0)] px-2.5 py-2 text-xs text-[var(--fg-1)]">
-                    <AttachmentIcon mime={file.type} />
-                    <span className="max-w-[180px] truncate font-medium">{file.name}</span>
-                    <button type="button" className="rounded p-0.5 text-[var(--fg-3)] hover:text-rose-400" aria-label={`Remove ${file.name} from sources`} onClick={() => setSourceFiles(prev => prev.filter((_, i) => i !== index))}><X size={12} /></button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-4 w-full rounded-xl border border-dashed border-[var(--line)] bg-[var(--bg-0)] px-4 py-5 text-left transition hover:border-indigo-400/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
-                <span className="block text-sm font-semibold text-[var(--fg-1)]">Choose files to begin</span>
-                <span className="mt-1 block text-xs text-[var(--fg-3)]">PDF, DOCX, TXT, Markdown or images. Up to 8 MB each.</span>
-              </button>
-            )}
-
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {STUDY_TOOLS.map(tool => {
-                const Icon = tool.icon
-                return (
-                  <button key={tool.id} type="button" disabled={sourceFiles.length === 0 || loading} onClick={() => void generateStudyMaterial(tool)} className="group flex min-h-[68px] items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--bg-0)] px-3 py-2.5 text-left transition hover:border-indigo-400/60 hover:bg-indigo-500/5 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-500/10 text-indigo-400"><Icon size={17} /></span>
-                    <span className="min-w-0"><span className="block text-[13px] font-semibold text-[var(--fg-1)]">{generatingTool === tool.id ? 'Creating...' : tool.label}</span><span className="mt-0.5 block text-[11px] leading-4 text-[var(--fg-3)]">{tool.description}</span></span>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
           {empty ? (
             <EmptyChat onPromptSelect={text => void send(text)} disabled={outOfChats || loading} />
           ) : (
@@ -504,7 +386,7 @@ export function StudyPage() {
               multiple
               accept={ACCEPT}
               className="hidden"
-              onChange={e => { if (e.target.files) addSourceFiles(e.target.files); e.target.value = '' }}
+              onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }}
             />
 
             {/* Paperclip button */}
