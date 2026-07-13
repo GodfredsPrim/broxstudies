@@ -343,6 +343,30 @@ export interface NewsArticleCreateBody {
   is_pinned?: boolean
 }
 
+export type SocialReaction = 'like' | 'love' | 'insightful'
+
+export interface SocialComment {
+  id: number
+  user_id: number
+  author_name: string
+  content: string
+  created_at: string
+}
+
+export interface SocialPost {
+  id: number
+  user_id: number
+  author_name: string
+  content: string
+  created_at: string
+  updated_at: string
+  likes: number
+  loves: number
+  insightful: number
+  viewer_reaction?: SocialReaction | null
+  comments: SocialComment[]
+}
+
 export interface SmsLogEntry {
   id: number
   phone: string

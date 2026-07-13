@@ -66,7 +66,7 @@ export function ChatSidebar({ open, onClose, onSelectPrompt }: ChatSidebarProps)
     <aside
       className={cn(
         'flex w-72 shrink-0 flex-col border-r border-border bg-[var(--bg-1)]',
-        open ? 'fixed inset-y-0 left-0 z-50 lg:static lg:z-0' : 'hidden lg:flex',
+        open ? 'fixed inset-y-0 left-0 z-50 shadow-2xl' : 'hidden',
       )}
       aria-label="Chat history"
     >
@@ -76,7 +76,7 @@ export function ChatSidebar({ open, onClose, onSelectPrompt }: ChatSidebarProps)
           Conversations
         </div>
         {open && (
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-muted lg:hidden" aria-label="Close sidebar">
+          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-muted" aria-label="Close sidebar">
             <X size={16} />
           </button>
         )}
@@ -132,7 +132,7 @@ export function ChatSidebar({ open, onClose, onSelectPrompt }: ChatSidebarProps)
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} aria-hidden />
+      <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
       {panel}
     </>
   )

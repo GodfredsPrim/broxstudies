@@ -25,6 +25,8 @@ import type {
   MoolreTransactionHistoryItem,
   NewsArticle,
   NewsArticleCreateBody,
+  SocialPost,
+  SocialReaction,
   PaystackInitResponse,
   PaystackVerifyResponse,
   PaymentConfirmResponse,
@@ -276,10 +278,12 @@ export const tutorApi = {
     files: File[]
     history?: Array<{ role: 'user' | 'ai'; content: string }>
     subject?: string
+    persistHistory?: boolean
   }) => {
     const fd = new FormData()
     fd.append('question', opts.question)
     fd.append('history_json', JSON.stringify(opts.history ?? []))
+    fd.append('persist_history', String(opts.persistHistory ?? true))
     if (opts.subject) fd.append('subject', opts.subject)
     for (const f of opts.files) fd.append('files', f)
     return api.post<TutorResponse>('/api/tutor/ask-with-files', fd, {
@@ -405,6 +409,14 @@ export const newsApi = {
       )
       .then(r => r.data)
   },
+}
+
+export const socialApi = {
+  list: () => api.get<SocialPost[]>('/api/admin/social').then(r => r.data),
+  create: (content: string) => api.post<number>('/api/admin/social', { content }).then(r => r.data),
+  comment: (postId: number, content: string) => api.post<number>(`/api/admin/social/${postId}/comments`, { content }).then(r => r.data),
+  react: (postId: number, reaction: SocialReaction | null) =>
+    api.put<{ status: string }>(`/api/admin/social/${postId}/reaction`, { reaction }).then(r => r.data),
 }
 
 /* ------------------------------ UPLOADS ------------------------------ */

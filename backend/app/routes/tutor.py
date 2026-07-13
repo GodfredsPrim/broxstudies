@@ -267,6 +267,7 @@ async def ask_tutor_with_files(
     question: str = Form(""),
     history_json: str = Form("[]"),
     subject: Optional[str] = Form(None),
+    persist_history: bool = Form(True),
     files: List[UploadFile] = File(default=[]),
     current_user: AuthUser = Depends(_get_current_user),
 ):
@@ -372,7 +373,7 @@ async def ask_tutor_with_files(
     except ValueError as ve:
         raise HTTPException(status_code=415, detail=str(ve))
 
-    if current_user:
+    if current_user and persist_history:
         try:
             attachment_label = ", ".join(file_names)
             user_content = f"[Attached: {attachment_label}]\n{question.strip()}" if file_names else question.strip()

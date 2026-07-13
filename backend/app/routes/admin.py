@@ -13,6 +13,7 @@ from app.models import (
     NewsArticle,
     NewsArticleCreateRequest,
     NewsArticleUpdateRequest,
+    SocialPost, SocialPostCreateRequest, SocialCommentCreateRequest, SocialReactionRequest,
     PaymentConfirmResponse,
     SendAccessCodeSmsRequest,
     SmsLogEntry,
@@ -302,3 +303,38 @@ async def upload_news_image(article_id: int, file: UploadFile = File(...), admin
         raise HTTPException(status_code=404, detail="Article not found.")
 
     return {"status": "success", "image_url": image_url}
+
+
+# ── Student social feed ──────────────────────────────────────────────────────
+
+@router.get("/social", response_model=List[SocialPost])
+async def list_social_posts(current_user: AuthUser = Depends(get_current_user)):
+    return [SocialPost(**post) for post in auth_service.list_social_posts(current_user.id)]
+
+
+@router.post("/social", response_model=int)
+async def create_social_post(request: SocialPostCreateRequest, current_user: AuthUser = Depends(get_current_user)):
+    content = request.content.strip()
+    if not content or len(content) > 500:
+        raise HTTPException(status_code=400, detail="Posts must contain 1 to 500 characters.")
+    return auth_service.create_social_post(current_user.id, content)
+
+
+@router.post("/social/{post_id}/comments", response_model=int)
+async def create_social_comment(post_id: int, request: SocialCommentCreateRequest, current_user: AuthUser = Depends(get_current_user)):
+    content = request.content.strip()
+    if not content or len(content) > 300:
+        raise HTTPException(status_code=400, detail="Comments must contain 1 to 300 characters.")
+    comment_id = auth_service.add_social_comment(post_id, current_user.id, content)
+    if not comment_id:
+        raise HTTPException(status_code=404, detail="Post not found.")
+    return comment_id
+
+
+@router.put("/social/{post_id}/reaction")
+async def react_to_social_post(post_id: int, request: SocialReactionRequest, current_user: AuthUser = Depends(get_current_user)):
+    if request.reaction not in {None, "like", "love", "insightful"}:
+        raise HTTPException(status_code=400, detail="Unsupported reaction.")
+    if not auth_service.set_social_reaction(post_id, current_user.id, request.reaction):
+        raise HTTPException(status_code=404, detail="Post not found.")
+    return {"status": "success"}

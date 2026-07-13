@@ -9,30 +9,30 @@
 
 :root {
   /* surfaces — "daylight classroom": cool grey-green paper, not warm cream */
-  --bg-0: #F4F5F1;
+  --bg-0: #F6F8FB;
   --bg-1: #FFFFFF;
-  --bg-2: #ECEEE8;
-  --bg-3: #DFE2D9;
-  --line: rgba(28, 36, 34, 0.10);
-  --line-strong: rgba(28, 36, 34, 0.16);
+  --bg-2: #EEF2F7;
+  --bg-3: #E2E8F0;
+  --line: rgba(15, 35, 63, 0.10);
+  --line-strong: rgba(15, 35, 63, 0.18);
 
   /* text — ink on paper */
-  --fg-0: #1C2422;
-  --fg-1: #3E4A45;
-  --fg-2: #6B7670;
-  --fg-3: #9AA39C;
+  --fg-0: #10233F;
+  --fg-1: #334A68;
+  --fg-2: #60728A;
+  --fg-3: #8796A9;
 
   /* brand — chalk ochre primary */
-  --primary: #B8842A;
-  --primary-strong: #96691E;
-  --primary-tint: rgba(184, 132, 42, 0.12);
-  --primary-glow: rgba(184, 132, 42, 0.30);
+  --primary: #2859C5;
+  --primary-strong: #1D459D;
+  --primary-tint: rgba(40, 89, 197, 0.10);
+  --primary-glow: rgba(40, 89, 197, 0.22);
 
   /* accent — chalk teal-green */
-  --accent: #3F7D63;
-  --accent-strong: #2E5F4A;
-  --accent-tint: rgba(63, 125, 99, 0.12);
-  --accent-glow: rgba(63, 125, 99, 0.28);
+  --accent: #237A70;
+  --accent-strong: #176158;
+  --accent-tint: rgba(35, 122, 112, 0.10);
+  --accent-glow: rgba(35, 122, 112, 0.22);
 
   /* success — chalk green */
   --success: #2E8350;
@@ -134,11 +134,7 @@ html.light { color-scheme: light; }
 body {
   font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: 'ss01', 'cv11';
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, var(--primary-tint), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, var(--accent-tint), transparent),
-    radial-gradient(ellipse 50% 30% at 0% 100%, var(--success-tint), transparent),
-    var(--bg-0);
+  background: var(--bg-0);
   min-height: 100dvh;
   transition: background 300ms ease;
 }
@@ -195,8 +191,8 @@ body {
     @apply disabled:pointer-events-none disabled:opacity-50;
   }
   .v2-btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-    color: #14201B;
+    background: var(--primary);
+    color: #FFFFFF;
     box-shadow: 0 4px 14px -4px var(--primary-glow);
   }
   html.dark .v2-btn-primary { color: #14201B; }
