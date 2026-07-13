@@ -5,7 +5,7 @@ import {
   FileText, ClipboardList, ScrollText, Download, Share2,
   Upload, FileUp,
 } from 'lucide-react'
-import { questionsApi } from '@/api/endpoints'
+import { learningApi, questionsApi } from '@/api/endpoints'
 import { analysisApi } from '@/api/endpoints'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useGeneration } from '@/hooks/useGeneration'
@@ -247,6 +247,7 @@ export function PracticePage() {
         student_answer: answers[i] || '',
       }))
       const res = await questionsApi.markPractice(items, 'guest', selectedName)
+      learningApi.recordMastery({ subject: selectedName, topic: selectedTopics.join(', ') || 'Practice set', correct: res.score_obtained, total: questions.length }).catch(() => {})
       setScore(res.score_obtained)
       setPercentage(res.percentage)
       setMarkResults((res.results as unknown as MarkResult[]) || [])

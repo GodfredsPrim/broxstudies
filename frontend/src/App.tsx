@@ -27,6 +27,7 @@ const LandingPage = lazy(() => import('@/pages/Landing').then(m => ({ default: m
 const DashboardPage = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.DashboardPage })))
 const AnalyticsPage = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.AnalyticsPage })))
 const DocsPage = lazy(() => import('@/pages/Docs').then(m => ({ default: m.DocsPage })))
+const LearningPage = lazy(() => import('@/pages/Learning').then(m => ({ default: m.LearningPage })))
 const NotFoundPage = lazy(() => import('@/pages/stubs').then(m => ({ default: m.NotFoundPage })))
 
 function PageLoader() {
@@ -66,6 +67,7 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<Lazy><DashboardPage /></Lazy>} />
             <Route path="/docs" element={<Lazy><DocsPage /></Lazy>} />
+            <Route path="/learning" element={<Lazy><Gate requireSubscription={false} label="Learning Hub" pitch="Sign in to build your adaptive revision plan."><LearningPage /></Gate></Lazy>} />
             <Route index element={<Lazy><StudyPage /></Lazy>} />
             <Route path="/source-studio" element={<Lazy><SourceStudioPage /></Lazy>} />
             <Route

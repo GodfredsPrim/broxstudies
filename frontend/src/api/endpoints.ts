@@ -1,4 +1,4 @@
-import { api, getToken } from './client'
+import { api, getGuestId, getToken } from './client'
 import type {
   AccessCodeRecord,
   AdminAnalytics,
@@ -36,6 +36,9 @@ import type {
   SubjectsResponse,
   TutorResponse,
   UserProgress,
+  LearningOverview,
+  LearningProfile,
+  StudyPlanItem,
 } from './types'
 
 /* ------------------------------ AUTH ------------------------------ */
@@ -240,6 +243,7 @@ export const tutorApi = {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Guest-ID': getGuestId(),
       },
       body: JSON.stringify(body),
       signal,
@@ -299,6 +303,7 @@ export const tutorApi = {
         { params: { limit } },
       )
       .then(r => r.data),
+  usage: () => api.get<{ tier: string; requests_used: number; requests_limit: number; tokens_used: number; tokens_limit: number; requests_remaining: number }>('/api/tutor/usage').then(r => r.data),
 }
 
 /* ------------------------------ RESOURCES ------------------------------ */
@@ -422,6 +427,33 @@ export const socialApi = {
   comment: (postId: number, content: string) => api.post<number>(`/api/admin/social/${postId}/comments`, { content }).then(r => r.data),
   react: (postId: number, reaction: SocialReaction | null) =>
     api.put<{ status: string }>(`/api/admin/social/${postId}/reaction`, { reaction }).then(r => r.data),
+}
+
+export const learningApi = {
+  overview: () => api.get<LearningOverview>('/api/learning/overview').then(r => r.data),
+  saveProfile: (body: LearningProfile) => api.put<LearningProfile>('/api/learning/profile', body).then(r => r.data),
+  recordMastery: (body: { subject: string; topic: string; correct: number; total: number }) => api.post('/api/learning/mastery', body).then(r => r.data),
+  diagnostic: (items: Array<{ subject: string; topic: string; correct: number; total: number }>) => api.post('/api/learning/diagnostic', items).then(r => r.data),
+  generatePlan: () => api.post<StudyPlanItem[]>('/api/learning/plan/generate').then(r => r.data),
+  completePlan: (id: number) => api.put(`/api/learning/plan/${id}/complete`).then(r => r.data),
+  completeMock: (body: { subject: string; topic?: string; exam_type?: string; total_questions: number; correct_answers: number; duration_minutes: number }) => api.post('/api/learning/mock/complete', body).then(r => r.data),
+  offlinePack: () => api.get('/api/learning/offline-pack').then(r => r.data),
+  feedback: (body: { feature: string; reference_id?: string; rating: string; details?: string }) => api.post('/api/learning/feedback', body).then(r => r.data),
+  reportPost: (postId: number, reason: string) => api.post(`/api/learning/community/posts/${postId}/report`, { reason }).then(r => r.data),
+  blockUser: (userId: number) => api.post(`/api/learning/community/users/${userId}/block`).then(r => r.data),
+  teacherSnapshot: () => api.get<{ topic_snapshot: Array<{ subject: string; topic: string; average_mastery: number; learners: number }>; pending_reports: number }>('/api/learning/teacher/snapshot').then(r => r.data),
+  saveReviewCards: (body: { subject: string; cards: Array<{ front: string; back: string; source?: string }> }) => api.post('/api/learning/reviews/cards', body).then(r => r.data),
+  gradeReviewCard: (id: number, rating: 'again' | 'hard' | 'good' | 'easy') => api.put(`/api/learning/reviews/${id}/grade`, { rating }).then(r => r.data),
+  joinClass: (join_code: string) => api.post('/api/learning/classes/join', { join_code }).then(r => r.data),
+  classes: () => api.get('/api/learning/classes').then(r => r.data),
+  createClass: (name: string) => api.post('/api/learning/teacher/classes', { name }).then(r => r.data),
+  teacherClasses: () => api.get('/api/learning/teacher/classes').then(r => r.data),
+  createAssignment: (classId: number, body: { title: string; subject: string; instructions?: string; due_at?: string }) => api.post(`/api/learning/teacher/classes/${classId}/assignments`, body).then(r => r.data),
+  moderationReports: () => api.get('/api/learning/moderation/reports').then(r => r.data),
+  resolveReport: (id: number, status: 'resolved' | 'dismissed') => api.put(`/api/learning/moderation/reports/${id}`, { rating: status }).then(r => r.data),
+  appealModeration: (event_type: string, details: string) => api.post('/api/learning/moderation/appeals', { event_type, details }).then(r => r.data),
+  pushConfig: () => api.get<{ enabled: boolean; public_key: string }>('/api/learning/push/config').then(r => r.data),
+  subscribePush: (subscription: PushSubscriptionJSON) => api.post('/api/learning/push/subscribe', subscription).then(r => r.data),
 }
 
 /* ------------------------------ UPLOADS ------------------------------ */

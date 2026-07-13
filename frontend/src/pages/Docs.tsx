@@ -78,7 +78,7 @@ export function DocsPage() {
         <H3>Practice and marking</H3><p>Students can generate multiple-choice, short-answer, essay, true/false, and standard question formats by subject, topic, year, difficulty, and quantity. Submitted answers can be marked with expected answers, explanations, scores, and feedback.</p>
         <H3>Exam intelligence</H3><p>The WASSCE/NAPTEX preparation area uses historical patterns, curriculum context, and subject-specific generation services. Confidence and source details should be treated as preparation guidance, not a guarantee of future examination content.</p>
         <H3>Live quizzes and competition</H3><p>Quiz Challenge can create timed rooms, accept player joins, submit answers, and maintain leaderboard-style results. Competition and ranking areas add scheduled activities and broader engagement.</p>
-        <H3>Library and progress</H3><p>The library combines local resources with discovery services. Reading and study progress feed history, analytics, streaks, XP, coins, levels, and badges. Offline history and PWA behavior improve continuity on constrained connections.</p>
+        <H3>Learning Hub, mastery, and revision</H3><p>The Learning Hub stores exam goals, topic mastery, diagnostic results, spaced-review dates, seven-day revision plans, mock-exam grades, and low-data offline packs. AI usage is enforced on the server with per-minute, daily, concurrency, and estimated-token budgets.</p><H3>Library and progress</H3><p>The library combines local resources with discovery services. Reading and study progress feed history, analytics, streaks, XP, coins, levels, and badges. Offline history and PWA behavior improve continuity on constrained connections.</p>
       </>,
     },
     {

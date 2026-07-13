@@ -1,6 +1,18 @@
 import axios, { AxiosError } from 'axios'
 
 export const TOKEN_KEY = 'brox.v2.token'
+const GUEST_ID_KEY = 'brox.v2.guestId'
+
+export function getGuestId(): string {
+  try {
+    let value = localStorage.getItem(GUEST_ID_KEY)
+    if (!value) {
+      value = crypto.randomUUID()
+      localStorage.setItem(GUEST_ID_KEY, value)
+    }
+    return value
+  } catch { return 'browser' }
+}
 
 export function getToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
@@ -23,6 +35,8 @@ api.interceptors.request.use((config) => {
     config.headers = config.headers ?? {}
     config.headers.Authorization = `Bearer ${tok}`
   }
+  config.headers = config.headers ?? {}
+  config.headers['X-Guest-ID'] = getGuestId()
   return config
 })
 

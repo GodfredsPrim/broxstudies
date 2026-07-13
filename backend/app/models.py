@@ -277,22 +277,22 @@ class ExamHistoryResponse(BaseModel):
 
 
 class TutorRequest(BaseModel):
-    question: str
+    question: str = Field(max_length=4000)
     subject: Optional[str] = None
-    context: Optional[str] = None
+    context: Optional[str] = Field(default=None, max_length=4000)
     is_main_concept_only: bool = False
-    history: Optional[List[dict]] = None
+    history: Optional[List[dict]] = Field(default=None, max_length=12)
 
 
 class TutorImageRequest(BaseModel):
-    question: str
+    question: str = Field(max_length=4000)
     subject: Optional[str] = None
-    context: Optional[str] = None
+    context: Optional[str] = Field(default=None, max_length=4000)
     filename: Optional[str] = None
     content_type: Optional[str] = None
     image_base64: str
     is_main_concept_only: bool = False
-    history: Optional[List[dict]] = None
+    history: Optional[List[dict]] = Field(default=None, max_length=12)
 
 
 class TutorResponse(BaseModel):
@@ -303,6 +303,7 @@ class TutorResponse(BaseModel):
     study_tips: Optional[List[str]] = None
     steps: Optional[List[str]] = None
     confidence_note: Optional[str] = None
+    sources: Optional[List[str]] = None
 
 
 class AuthSignupRequest(BaseModel):

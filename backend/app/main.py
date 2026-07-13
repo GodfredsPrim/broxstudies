@@ -9,7 +9,7 @@ from pathlib import Path
 import asyncio
 
 from app.config import settings
-from app.routes import books, questions, uploads, analysis, resources, tutor, auth, admin, payments
+from app.routes import books, questions, uploads, analysis, resources, tutor, auth, admin, payments, learning
 from app.services.batch_loader import BatchLoader
 
 # Setup logging
@@ -139,6 +139,7 @@ app.include_router(books.router, prefix="/api/books", tags=["books"])
 app.include_router(tutor.router, prefix="/api/tutor", tags=["tutor"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
+app.include_router(learning.router, prefix="/api/learning", tags=["learning"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 # Serve static files for frontend assets

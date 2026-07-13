@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { BookOpen, File, FileText, Heart, Image, Lightbulb, MessageCircle, Paperclip, Send, Share2, Sparkles, ThumbsUp, X } from 'lucide-react'
-import { newsApi, socialApi } from '@/api/endpoints'
+import { BookOpen, File, FileText, Heart, Image, Lightbulb, MessageCircle, Paperclip, Send, Share2, ShieldAlert, Sparkles, ThumbsUp, UserX, X } from 'lucide-react'
+import { learningApi, newsApi, socialApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { Button } from '@/components/ui/button'
@@ -31,9 +31,11 @@ interface CommunityPostProps {
   post: SocialPost
   onReact: (postId: number, reaction: SocialReaction | null) => Promise<void>
   onComment: (postId: number, content: string) => Promise<void>
+  onReport: (postId: number) => Promise<void>
+  onBlock: (userId: number) => Promise<void>
 }
 
-const CommunityPost = memo(function CommunityPost({ post, onReact, onComment }: CommunityPostProps) {
+const CommunityPost = memo(function CommunityPost({ post, onReact, onComment, onReport, onBlock }: CommunityPostProps) {
   const [comment, setComment] = useState('')
   const [showComments, setShowComments] = useState(false)
   const [reacting, setReacting] = useState(false)
@@ -82,6 +84,8 @@ const CommunityPost = memo(function CommunityPost({ post, onReact, onComment }: 
             })}
             <button type="button" onClick={() => setShowComments(value => !value)} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--fg-2)] hover:bg-[var(--bg-2)]"><MessageCircle size={14} /> Comment {post.comments.length > 0 && post.comments.length}</button>
             <button type="button" onClick={() => void share()} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--fg-2)] hover:bg-[var(--bg-2)]"><Share2 size={14} /> Share</button>
+            <button type="button" onClick={() => void onReport(post.id)} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--fg-3)] hover:text-[var(--danger)]"><ShieldAlert size={13} /> Report</button>
+            <button type="button" onClick={() => void onBlock(post.user_id)} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--fg-3)] hover:text-[var(--danger)]"><UserX size={13} /> Block</button>
           </div>
           {showComments && <div className="mt-3 space-y-3 border-l-2 border-[var(--line)] pl-3 sm:mt-4">
             {post.comments.map(item => <div key={item.id} className={`text-sm ${item.id < 0 ? 'opacity-65' : ''}`}><span className="font-semibold text-[var(--fg-0)]">{item.author_name}</span><span className="ml-2 text-[var(--fg-3)]">{item.id < 0 ? 'sending…' : relativeDate(item.created_at)}</span><p className="mt-0.5 break-words text-[var(--fg-1)]">{item.content}</p></div>)}
@@ -142,6 +146,20 @@ export function NewsPage() {
     }
   }, [user?.full_name, user?.id])
 
+  const handleReport = useCallback(async (postId: number) => {
+    const reason = window.prompt('Why should this post be reviewed?')?.trim()
+    if (!reason) return
+    await learningApi.reportPost(postId, reason)
+    setError('Post reported. A moderator will review it.')
+    window.setTimeout(() => setError(''), 3500)
+  }, [])
+
+  const handleBlock = useCallback(async (userId: number) => {
+    if (!window.confirm('Block this user and hide their posts from your feed?')) return
+    await learningApi.blockUser(userId)
+    setPosts(current => current.filter(post => post.user_id !== userId))
+  }, [])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if ((!draft.trim() && !attachment) || posting) return
@@ -158,7 +176,7 @@ export function NewsPage() {
     <section className="overflow-hidden border-y border-[var(--line)] bg-[var(--bg-1)] sm:rounded-2xl sm:border sm:shadow-[0_14px_40px_-30px_rgba(20,37,63,.35)]">
       <form onSubmit={submit} className="border-b border-[var(--line)] p-3 sm:p-6"><div className="flex gap-2.5 sm:gap-3"><Avatar name={user?.full_name || 'You'} /><div className="min-w-0 flex-1"><label htmlFor="social-post" className="sr-only">Share with the community</label><textarea id="social-post" value={draft} onChange={event => setDraft(event.target.value)} maxLength={500} rows={3} className="w-full resize-none bg-transparent text-base leading-6 text-[var(--fg-0)] outline-none placeholder:text-[var(--fg-3)] sm:text-[15px]" placeholder="Share a study win, question, tip, or motivation…" />{attachment && <div className="mt-2 flex items-center gap-2 rounded-lg bg-[var(--bg-2)] px-3 py-2 text-xs text-[var(--fg-1)]">{attachment.type.startsWith('image/') ? <Image size={15} /> : <File size={15} />}<span className="min-w-0 flex-1 truncate">{attachment.name}</span><button type="button" onClick={() => { setAttachment(null); if (fileInput.current) fileInput.current.value = '' }} aria-label="Remove attachment"><X size={14} /></button></div>}<div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--line)] pt-3"><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,.pdf,.doc,.docx" className="sr-only" onChange={event => { const file = event.target.files?.[0] || null; if (file && file.size > 10 * 1024 * 1024) { setError('Attachments must be 10 MB or smaller.'); event.target.value = ''; return } setError(''); setAttachment(file) }} /><button type="button" onClick={() => fileInput.current?.click()} className="flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-[var(--fg-2)] hover:bg-[var(--bg-2)]"><Paperclip size={14} className="shrink-0" /><span className="truncate">Add file</span></button><span className="ml-auto hidden text-xs text-[var(--fg-3)] sm:inline">{draft.length}/500</span><Button type="submit" size="sm" disabled={(!draft.trim() && !attachment) || posting} leading={<Send size={13} />}>{posting ? 'Posting…' : 'Post'}</Button></div></div></div></form>
       {error && <div className="m-3 rounded-lg bg-[var(--danger-tint)] px-3 py-2 text-sm text-[var(--danger)] sm:m-4">{error}</div>}
-      {loading ? <LoadingBlock label="Loading the community feed" icon={<Sparkles size={20} />} /> : feed.length === 0 ? <div className="p-10 text-center text-sm text-[var(--fg-2)]">Be the first to start a conversation.</div> : feed.map(entry => entry.kind === 'social' ? <CommunityPost key={`p-${entry.item.id}`} post={entry.item} onReact={handleReact} onComment={handleComment} /> : <CuratedPost key={`a-${entry.item.id}-${entry.item.source}`} article={entry.item} />)}
+      {loading ? <LoadingBlock label="Loading the community feed" icon={<Sparkles size={20} />} /> : feed.length === 0 ? <div className="p-10 text-center text-sm text-[var(--fg-2)]">Be the first to start a conversation.</div> : feed.map(entry => entry.kind === 'social' ? <CommunityPost key={`p-${entry.item.id}`} post={entry.item} onReact={handleReact} onComment={handleComment} onReport={handleReport} onBlock={handleBlock} /> : <CuratedPost key={`a-${entry.item.id}-${entry.item.source}`} article={entry.item} />)}
     </section>
   </PageLayout>
 }

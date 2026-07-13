@@ -98,7 +98,9 @@ async def signup(request: AuthSignupRequest):
         result = auth_service.signup(request.full_name, request.phone, request.password, request.email)
         return AuthOtpRequiredResponse(phone=result["phone"])
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        detail = str(exc)
+        status = 503 if "SMS provider" in detail or "verification code" in detail else 400
+        raise HTTPException(status_code=status, detail=detail) from exc
 
 
 @router.post("/login", response_model=Union[AuthResponse, AuthOtpRequiredResponse])
@@ -106,7 +108,9 @@ async def login(request: AuthLoginRequest):
     try:
         result = auth_service.login(request.identifier, request.password)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        detail = str(exc)
+        status = 503 if "SMS provider" in detail or "verification code" in detail else 400
+        raise HTTPException(status_code=status, detail=detail) from exc
     if isinstance(result, dict):
         return AuthOtpRequiredResponse(**result)
     token, user = result
@@ -133,7 +137,8 @@ async def request_otp(body: OtpRequestBody):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not sms_result.success:
-        raise HTTPException(status_code=502, detail=f"Couldn't send the verification code: {sms_result.message}")
+        status = 503 if sms_result.code in {"SMS_DISABLED", "AIN01", "TIMEOUT", "NETWORK_ERROR"} else 502
+        raise HTTPException(status_code=status, detail=f"Couldn't send the verification code: {sms_result.message}")
     return {"ok": True, "message": "OTP sent. Check your phone."}
 
 

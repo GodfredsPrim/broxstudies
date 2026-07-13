@@ -380,3 +380,42 @@ export interface SmsLogEntry {
   api_data?: string | null
   created_at: string
 }
+
+export interface LearningProfile {
+  exam_date?: string | null
+  target_grade: string
+  daily_minutes: number
+  subjects: string[]
+}
+
+export interface TopicMastery {
+  subject: string
+  topic: string
+  correct_count: number
+  attempt_count: number
+  mastery_score: number
+  next_review_at?: string | null
+  status: 'mastered' | 'developing' | 'needs_revision'
+}
+
+export interface StudyPlanItem {
+  id: number
+  plan_date: string
+  subject: string
+  topic: string
+  minutes: number
+  activity: string
+  completed: boolean
+}
+
+export interface LearningOverview {
+  profile: LearningProfile
+  mastery: TopicMastery[]
+  plan: StudyPlanItem[]
+  due_reviews: ReviewCard[]
+  classes?: LearningClass[]
+}
+
+export interface ReviewCard { id: number; subject: string; front: string; back: string; source?: string; interval_days: number; ease: number; next_review_at: string }
+export interface LearningAssignment { id: number; title: string; subject: string; instructions?: string; due_at?: string | null }
+export interface LearningClass { id: number; name: string; join_code: string; assignments: LearningAssignment[] }

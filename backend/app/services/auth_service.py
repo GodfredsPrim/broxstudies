@@ -1289,9 +1289,13 @@ class AuthService:
         code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
         expires_at = (datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)).isoformat()
         now = datetime.now(timezone.utc).isoformat()
+        window_start = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
 
         with self._connect() as conn:
             self._cleanup_expired_otps(conn, phone)
+            recent = self._execute(conn, "SELECT COUNT(*) AS count FROM otp_codes WHERE phone = ? AND created_at > ?", (phone, window_start)).fetchone()
+            if recent and int(recent["count"] or 0) >= 3:
+                raise ValueError("Too many verification codes requested. Wait 10 minutes before trying again.")
             # Limit to 1 active OTP per phone (invalidate previous)
             self._execute(conn, "UPDATE otp_codes SET used = 1 WHERE phone = ? AND used = 0", (phone,))
             self._execute(
@@ -1303,6 +1307,8 @@ class AuthService:
         sms_result = sms_service.send_otp(phone, code)
         if not sms_result.success:
             logger.error("OTP SMS failed for %s: %s (%s)", phone, sms_result.message, sms_result.code)
+            with self._connect() as conn:
+                self._execute(conn, "DELETE FROM otp_codes WHERE phone = ? AND code = ? AND used = 0", (phone, code))
         self._log_sms(phone, "otp", sms_result)
         return code, sms_result
 
@@ -1982,6 +1988,11 @@ class AuthService:
 
     def list_social_posts(self, viewer_id: int, limit: int = 40) -> list[dict]:
         with self._connect() as conn:
+            try:
+                blocked_rows = self._execute(conn, "SELECT blocked_id FROM social_blocks WHERE blocker_id = ?", (viewer_id,)).fetchall()
+                blocked_ids = {int(row["blocked_id"]) for row in blocked_rows}
+            except Exception:
+                blocked_ids = set()
             posts = self._execute(conn, """
                 SELECT p.id, p.content, p.attachment_url, p.attachment_name, p.attachment_type, p.created_at, p.updated_at, p.user_id,
                        u.full_name AS author_name,
@@ -1998,6 +2009,8 @@ class AuthService:
             result = []
             for post in posts:
                 item = dict(post)
+                if int(item["user_id"]) in blocked_ids:
+                    continue
                 comments = self._execute(conn, """
                     SELECT c.id, c.content, c.created_at, c.user_id, u.full_name AS author_name
                     FROM social_comments c JOIN users u ON u.id = c.user_id

@@ -4,7 +4,7 @@ import {
   XCircle, RotateCcw, Shield, ChevronRight,
   Maximize2, Download, Share2, Upload,
 } from 'lucide-react'
-import { questionsApi } from '@/api/endpoints'
+import { learningApi, questionsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useOfflineHistory } from '@/hooks/useOfflineHistory'
@@ -324,6 +324,7 @@ export function WassceePage() {
         student_answer: answers[i] || '',
       }))
       const res = await questionsApi.markPractice(items, 'guest', selectedName)
+      learningApi.completeMock({ subject: selectedName, topic: 'Full mock', exam_type: curriculumName, total_questions: allQuestions.length, correct_answers: res.score_obtained, duration_minutes: Math.max(1, Math.round((Date.now() - startTime) / 60000)) }).catch(() => {})
       setScore(res.score_obtained)
       setPercentage(res.percentage)
       setMarkResults((res.results as unknown as MarkResult[]) || [])

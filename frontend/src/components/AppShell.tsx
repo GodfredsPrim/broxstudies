@@ -4,6 +4,7 @@ import {
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
   WifiOff, Download, LayoutDashboard, BarChart3, UserCog, LibraryBig, Files,
   BellRing,
+  GraduationCap,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -40,6 +41,7 @@ const NAV: NavDef[] = [
   { to: '/library',   label: 'Library',             short: 'Library',   icon: BookOpen,        group: 'prep' },
   { to: '/history',   label: 'History',             short: 'History',   icon: Clock,           group: 'prep' },
   { to: '/analytics', label: 'Analytics',           short: 'Analytics', icon: BarChart3,        group: 'insights' },
+  { to: '/learning',  label: 'Learning Hub',        short: 'Learning',  icon: GraduationCap,    group: 'insights' },
 ]
 
 export function AppShell() {

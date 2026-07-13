@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     PAYSTACK_PUBLIC_KEY: str = ""
     PAYSTACK_ENABLED: bool = False
     PUBLIC_APP_URL: str = "http://localhost:5173"
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_CONTACT_EMAIL: str = "admin@broxstudies.com"
 
     # OTP auth settings
     OTP_EXPIRE_MINUTES: int = 5

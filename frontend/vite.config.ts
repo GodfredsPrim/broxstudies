@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'icons/*.png'],
+      includeAssets: ['icon.svg', 'icons/*.png', 'push-handler.js'],
       manifest: {
         name: 'BroxStudies for SHS/STEM/TVET',
         short_name: 'BroxStudies',
@@ -31,6 +31,7 @@ export default defineConfig({
         categories: ['education'],
       },
       workbox: {
+        importScripts: ['/push-handler.js'],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
@@ -78,6 +79,16 @@ export default defineConfig({
               cacheName: 'api-tutor-history-cache',
               networkTimeoutSeconds: 8,
               expiration: { maxEntries: 5, maxAgeSeconds: 60 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/api\/learning\/(overview|offline-pack)/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'learning-hub-cache',
+              networkTimeoutSeconds: 6,
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 7 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
