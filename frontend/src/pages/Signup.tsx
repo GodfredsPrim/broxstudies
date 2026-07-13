@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Mail, KeyRound, User, Eye, EyeOff, ArrowRight, Phone, Hash } from 'lucide-react'
+import { Mail, KeyRound, User, Eye, EyeOff, ArrowRight, Phone, Hash, MessageCircle, X } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -32,6 +32,9 @@ export function SignupPage() {
   const [otpError, setOtpError] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
+  const [showCommunityInvite, setShowCommunityInvite] = useState(false)
+  const [verifiedUser, setVerifiedUser] = useState<AuthUser | null>(null)
+  const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/GDc8d4lzz8UDaVtZwqnjeI?mode=gi_t'
 
   useEffect(() => {
     authApi.config()
@@ -74,7 +77,8 @@ export function SignupPage() {
     try {
       const res = await authApi.verifyOtp(pendingPhone, otpCode.trim())
       signIn(res.access_token, res.user)
-      afterSignIn(res.user)
+      setVerifiedUser(res.user)
+      setShowCommunityInvite(true)
     } catch (err) {
       setOtpError(extractError(err, 'Invalid or expired code.'))
     } finally {
@@ -97,6 +101,7 @@ export function SignupPage() {
 
   if (pendingPhone) {
     return (
+      <>
       <AuthLayout
         eyebrow="Verify your phone"
         title={<>Check your messages.</>}
@@ -138,6 +143,21 @@ export function SignupPage() {
           </button>
         </form>
       </AuthLayout>
+      {showCommunityInvite && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="community-title">
+          <div className="relative w-full max-w-md rounded-2xl border border-emerald-400/20 bg-[var(--bg-1)] p-6 shadow-2xl">
+            <button type="button" onClick={() => verifiedUser && afterSignIn(verifiedUser)} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-[var(--fg-3)] hover:bg-[var(--bg-2)]" aria-label="Close community invitation"><X size={16} /></button>
+            <span className="grid h-12 w-12 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400"><MessageCircle size={23} /></span>
+            <h2 id="community-title" className="mt-5 text-xl font-bold text-[var(--fg-0)]">Welcome to BroxStudies</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--fg-2)]">Join the official WhatsApp community for study news, product updates, competitions, and help from other BroxStudies learners.</p>
+            <div className="mt-6 grid gap-2">
+              <a href={WHATSAPP_COMMUNITY_URL} target="_blank" rel="noreferrer" onClick={() => setTimeout(() => verifiedUser && afterSignIn(verifiedUser), 300)} className="v2-btn v2-btn-primary h-11 w-full justify-center bg-emerald-600 hover:bg-emerald-700"><MessageCircle size={16} /> Join WhatsApp community</a>
+              <button type="button" onClick={() => verifiedUser && afterSignIn(verifiedUser)} className="v2-btn v2-btn-ghost h-10 w-full justify-center">Maybe later</button>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
     )
   }
 

@@ -3,6 +3,7 @@ import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
   WifiOff, Download, LayoutDashboard, BarChart3, UserCog, LibraryBig, Files,
+  BellRing,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,6 +18,7 @@ import { useNewsUnseen } from '@/hooks/useNewsUnseen'
 import { GamificationBar } from '@/components/gamification/GamificationWidgets'
 import { Logo, LogoMark } from '@/components/Logo'
 import { AddPhoneBanner } from '@/components/AddPhoneBanner'
+import { useAppAlerts } from '@/hooks/useAppAlerts'
 
 interface NavDef {
   to: string
@@ -58,6 +60,7 @@ export function AppShell() {
 
   const { selectedTrack, resetAcademicTrack } = useAcademicTrack()
   const { installPrompt, isOffline, install } = usePWA()
+  const { supported: alertsSupported, permission: alertPermission, enableAlerts } = useAppAlerts()
   const [installDismissed, setInstallDismissed] = useState(() =>
     localStorage.getItem('brox.pwa.dismissed') === '1'
   )
@@ -87,7 +90,7 @@ export function AppShell() {
   const isStudyPage = location.pathname === '/'
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="app-viewport flex min-h-[100svh] w-full overflow-hidden">
       {/* Sidebar — desktop */}
       {!isAdmin && (
         <aside
@@ -339,7 +342,7 @@ export function AppShell() {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/5 bg-[var(--bg-0)]/70 px-4 backdrop-blur-xl lg:px-8">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/5 bg-[var(--bg-0)]/95 px-3 supports-[backdrop-filter]:bg-[var(--bg-0)]/75 supports-[backdrop-filter]:backdrop-blur-md sm:px-4 lg:px-8">
           {!isAdmin && (
             <button
               onClick={() => setMobileOpen(true)}
@@ -440,7 +443,14 @@ export function AppShell() {
           </div>
         )}
 
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {user && alertsSupported && alertPermission === 'default' && !isOffline && (
+          <div className="flex items-center justify-between gap-3 border-b border-indigo-500/20 bg-indigo-500/10 px-4 py-2.5 sm:px-8">
+            <p className="flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-300"><BellRing size={15} /><span>Enable alerts for streak reminders, study goals, news, and important updates.</span></p>
+            <button type="button" onClick={() => void enableAlerts()} className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">Enable alerts</button>
+          </div>
+        )}
+
+        <main className="app-scroll flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
           <Outlet />
         </main>
       </div>

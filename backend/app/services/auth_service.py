@@ -374,6 +374,9 @@ class AuthService:
                     id {id_type},
                     user_id INTEGER NOT NULL,
                     content TEXT NOT NULL,
+                    attachment_url TEXT,
+                    attachment_name TEXT,
+                    attachment_type TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -408,6 +411,27 @@ class AuthService:
             )
             self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_social_posts_created_at ON social_posts (created_at)")
             self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_social_comments_post_id ON social_comments (post_id)")
+
+            # Add attachment metadata to existing social feed tables.
+            social_attachment_columns = (
+                ("attachment_url", "TEXT"),
+                ("attachment_name", "TEXT"),
+                ("attachment_type", "TEXT"),
+            )
+            for column, column_type in social_attachment_columns:
+                try:
+                    if self.is_postgres:
+                        self._execute(conn, f"ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS {column} {column_type}")
+                    else:
+                        existing = {row[1] for row in self._execute(conn, "PRAGMA table_info(social_posts)").fetchall()}
+                        if column not in existing:
+                            self._execute(conn, f"ALTER TABLE social_posts ADD COLUMN {column} {column_type}")
+                except Exception as exc:
+                    logger.warning(f"Social attachment migration warning for {column}: {exc}")
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
 
             # Migration: ensure is_pinned exists on news_articles tables created
             # before pinning was added. See the users-table migration above for
@@ -1925,13 +1949,13 @@ class AuthService:
 
     # ── student social feed methods ──────────────────────────────────────────
 
-    def create_social_post(self, user_id: int, content: str) -> int:
+    def create_social_post(self, user_id: int, content: str, attachment_url: Optional[str] = None, attachment_name: Optional[str] = None, attachment_type: Optional[str] = None) -> int:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
-            query = "INSERT INTO social_posts (user_id, content, created_at, updated_at) VALUES (?, ?, ?, ?)"
+            query = "INSERT INTO social_posts (user_id, content, attachment_url, attachment_name, attachment_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
             if self.is_postgres:
                 query += " RETURNING id"
-            cursor = self._execute(conn, query, (user_id, content, now, now))
+            cursor = self._execute(conn, query, (user_id, content, attachment_url, attachment_name, attachment_type, now, now))
             return cursor.fetchone()["id"] if self.is_postgres else cursor.lastrowid
 
     def add_social_comment(self, post_id: int, user_id: int, content: str) -> int:
@@ -1959,7 +1983,7 @@ class AuthService:
     def list_social_posts(self, viewer_id: int, limit: int = 40) -> list[dict]:
         with self._connect() as conn:
             posts = self._execute(conn, """
-                SELECT p.id, p.content, p.created_at, p.updated_at, p.user_id,
+                SELECT p.id, p.content, p.attachment_url, p.attachment_name, p.attachment_type, p.created_at, p.updated_at, p.user_id,
                        u.full_name AS author_name,
                        COALESCE(SUM(CASE WHEN r.reaction = 'like' THEN 1 ELSE 0 END), 0) AS likes,
                        COALESCE(SUM(CASE WHEN r.reaction = 'love' THEN 1 ELSE 0 END), 0) AS loves,
@@ -1968,7 +1992,7 @@ class AuthService:
                 FROM social_posts p
                 JOIN users u ON u.id = p.user_id
                 LEFT JOIN social_reactions r ON r.post_id = p.id
-                GROUP BY p.id, p.content, p.created_at, p.updated_at, p.user_id, u.full_name
+                GROUP BY p.id, p.content, p.attachment_url, p.attachment_name, p.attachment_type, p.created_at, p.updated_at, p.user_id, u.full_name
                 ORDER BY p.created_at DESC LIMIT ?
             """, (viewer_id, limit)).fetchall()
             result = []

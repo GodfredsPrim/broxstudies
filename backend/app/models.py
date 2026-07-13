@@ -639,6 +639,9 @@ class SocialPost(BaseModel):
     user_id: int
     author_name: str
     content: str
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
+    attachment_type: Optional[str] = None
     created_at: str
     updated_at: str
     likes: int = 0

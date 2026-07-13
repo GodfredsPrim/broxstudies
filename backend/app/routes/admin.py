@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import List
 from pydantic import BaseModel
 from app.models import (
@@ -227,6 +227,17 @@ async def list_news(category: str = "all"):
         ext_articles = []
 
     combined = admin_articles + ext_articles
+    # Keep the feed calm: at most one motivation item per calendar day.
+    seen_motivation_days = set()
+    filtered = []
+    for article in sorted(combined, key=lambda a: a.created_at, reverse=True):
+        if article.category == "motivation":
+            day = article.created_at[:10]
+            if day in seen_motivation_days:
+                continue
+            seen_motivation_days.add(day)
+        filtered.append(article)
+    combined = filtered
     # Stable sort: newest-first within each group, then pinned articles float to the top.
     combined.sort(key=lambda a: a.created_at, reverse=True)
     combined.sort(key=lambda a: a.is_pinned, reverse=True)
@@ -313,11 +324,50 @@ async def list_social_posts(current_user: AuthUser = Depends(get_current_user)):
 
 
 @router.post("/social", response_model=int)
-async def create_social_post(request: SocialPostCreateRequest, current_user: AuthUser = Depends(get_current_user)):
-    content = request.content.strip()
-    if not content or len(content) > 500:
-        raise HTTPException(status_code=400, detail="Posts must contain 1 to 500 characters.")
-    return auth_service.create_social_post(current_user.id, content)
+async def create_social_post(
+    content: str = Form(default=""),
+    attachment: UploadFile | None = File(default=None),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    content = content.strip()
+    if len(content) > 500 or (not content and not attachment):
+        raise HTTPException(status_code=400, detail="Add a message or attachment; messages may contain up to 500 characters.")
+
+    attachment_url = attachment_name = attachment_type = None
+    if attachment:
+        import os, re, uuid
+        allowed = {
+            ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+            ".pdf": "application/pdf", ".doc": "application/msword",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }
+        ext = os.path.splitext(attachment.filename or "")[1].lower()
+        if ext not in allowed:
+            raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP, PDF, DOC, and DOCX files are allowed.")
+        data = await attachment.read(10 * 1024 * 1024 + 1)
+        if len(data) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Attachments must be 10 MB or smaller.")
+        signatures_ok = {
+            ".jpg": data.startswith(b"\xff\xd8\xff"),
+            ".jpeg": data.startswith(b"\xff\xd8\xff"),
+            ".png": data.startswith(b"\x89PNG\r\n\x1a\n"),
+            ".webp": len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP",
+            ".pdf": data.startswith(b"%PDF-"),
+            ".doc": data.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"),
+            ".docx": data.startswith(b"PK\x03\x04"),
+        }
+        if not signatures_ok[ext]:
+            raise HTTPException(status_code=400, detail="The attachment contents do not match its file type.")
+        upload_dir = BACKEND_DIR / "uploads" / "social"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        safe_stem = re.sub(r"[^A-Za-z0-9_-]+", "-", os.path.splitext(attachment.filename or "file")[0]).strip("-")[:60] or "file"
+        stored_name = f"{current_user.id}_{uuid.uuid4().hex}_{safe_stem}{ext}"
+        (upload_dir / stored_name).write_bytes(data)
+        attachment_url = f"/uploads/social/{stored_name}"
+        attachment_name = os.path.basename(attachment.filename or f"attachment{ext}")[:180]
+        attachment_type = allowed[ext]
+
+    return auth_service.create_social_post(current_user.id, content, attachment_url, attachment_name, attachment_type)
 
 
 @router.post("/social/{post_id}/comments", response_model=int)

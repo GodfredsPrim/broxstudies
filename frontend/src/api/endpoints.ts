@@ -413,7 +413,12 @@ export const newsApi = {
 
 export const socialApi = {
   list: () => api.get<SocialPost[]>('/api/admin/social').then(r => r.data),
-  create: (content: string) => api.post<number>('/api/admin/social', { content }).then(r => r.data),
+  create: (content: string, attachment?: File | null) => {
+    const form = new FormData()
+    form.append('content', content)
+    if (attachment) form.append('attachment', attachment)
+    return api.post<number>('/api/admin/social', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
   comment: (postId: number, content: string) => api.post<number>(`/api/admin/social/${postId}/comments`, { content }).then(r => r.data),
   react: (postId: number, reaction: SocialReaction | null) =>
     api.put<{ status: string }>(`/api/admin/social/${postId}/reaction`, { reaction }).then(r => r.data),

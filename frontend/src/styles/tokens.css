@@ -127,6 +127,9 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   transition: background-color 300ms ease, color 300ms ease;
+  min-width: 320px;
+  min-height: 100%;
+  overflow-x: hidden;
 }
 
 html.light { color-scheme: light; }
@@ -136,7 +139,34 @@ body {
   font-feature-settings: 'ss01', 'cv11';
   background: var(--bg-0);
   min-height: 100dvh;
+  min-width: 320px;
+  overflow-x: hidden;
   transition: background 300ms ease;
+}
+
+#root { min-height: 100%; }
+
+.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.app-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+
+@supports (height: 100dvh) {
+  .app-viewport { height: 100dvh; }
+}
+
+@media (max-width: 767px) {
+  .app-scroll { scrollbar-gutter: auto; }
+  .v2-glass {
+    backdrop-filter: blur(8px) saturate(130%);
+    -webkit-backdrop-filter: blur(8px) saturate(130%);
+  }
 }
 
 ::selection { background: var(--primary-tint); color: var(--fg-0); }
