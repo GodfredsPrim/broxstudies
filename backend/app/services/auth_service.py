@@ -366,6 +366,49 @@ class AuthService:
                 """
             )
 
+            # Student social feed. Posts are deliberately separate from curated
+            # news so community content can be moderated and evolved safely.
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS social_posts (
+                    id {id_type},
+                    user_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS social_comments (
+                    id {id_type},
+                    post_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (post_id) REFERENCES social_posts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._execute(conn,
+                """
+                CREATE TABLE IF NOT EXISTS social_reactions (
+                    post_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    reaction TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (post_id, user_id),
+                    FOREIGN KEY (post_id) REFERENCES social_posts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_social_posts_created_at ON social_posts (created_at)")
+            self._execute(conn, "CREATE INDEX IF NOT EXISTS idx_social_comments_post_id ON social_comments (post_id)")
+
             # Migration: ensure is_pinned exists on news_articles tables created
             # before pinning was added. See the users-table migration above for
             # why the PG and SQLite paths differ.
@@ -1431,6 +1474,9 @@ class AuthService:
     # ── account deletion ───────────────────────────────────────────────────────
 
     _DELETE_CASCADE_TABLES = (
+        "social_reactions",
+        "social_comments",
+        "social_posts",
         "chat_history",
         "exam_history",
         "payment_requests",
@@ -1876,6 +1922,66 @@ class AuthService:
                 (image_url, now, article_id),
             )
             return cursor.rowcount > 0
+
+    # ── student social feed methods ──────────────────────────────────────────
+
+    def create_social_post(self, user_id: int, content: str) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            query = "INSERT INTO social_posts (user_id, content, created_at, updated_at) VALUES (?, ?, ?, ?)"
+            if self.is_postgres:
+                query += " RETURNING id"
+            cursor = self._execute(conn, query, (user_id, content, now, now))
+            return cursor.fetchone()["id"] if self.is_postgres else cursor.lastrowid
+
+    def add_social_comment(self, post_id: int, user_id: int, content: str) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            exists = self._execute(conn, "SELECT id FROM social_posts WHERE id = ?", (post_id,)).fetchone()
+            if not exists:
+                return 0
+            query = "INSERT INTO social_comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)"
+            if self.is_postgres:
+                query += " RETURNING id"
+            cursor = self._execute(conn, query, (post_id, user_id, content, now))
+            return cursor.fetchone()["id"] if self.is_postgres else cursor.lastrowid
+
+    def set_social_reaction(self, post_id: int, user_id: int, reaction: Optional[str]) -> bool:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            if not self._execute(conn, "SELECT id FROM social_posts WHERE id = ?", (post_id,)).fetchone():
+                return False
+            self._execute(conn, "DELETE FROM social_reactions WHERE post_id = ? AND user_id = ?", (post_id, user_id))
+            if reaction:
+                self._execute(conn, "INSERT INTO social_reactions (post_id, user_id, reaction, created_at) VALUES (?, ?, ?, ?)", (post_id, user_id, reaction, now))
+            return True
+
+    def list_social_posts(self, viewer_id: int, limit: int = 40) -> list[dict]:
+        with self._connect() as conn:
+            posts = self._execute(conn, """
+                SELECT p.id, p.content, p.created_at, p.updated_at, p.user_id,
+                       u.full_name AS author_name,
+                       COALESCE(SUM(CASE WHEN r.reaction = 'like' THEN 1 ELSE 0 END), 0) AS likes,
+                       COALESCE(SUM(CASE WHEN r.reaction = 'love' THEN 1 ELSE 0 END), 0) AS loves,
+                       COALESCE(SUM(CASE WHEN r.reaction = 'insightful' THEN 1 ELSE 0 END), 0) AS insightful,
+                       MAX(CASE WHEN r.user_id = ? THEN r.reaction ELSE NULL END) AS viewer_reaction
+                FROM social_posts p
+                JOIN users u ON u.id = p.user_id
+                LEFT JOIN social_reactions r ON r.post_id = p.id
+                GROUP BY p.id, p.content, p.created_at, p.updated_at, p.user_id, u.full_name
+                ORDER BY p.created_at DESC LIMIT ?
+            """, (viewer_id, limit)).fetchall()
+            result = []
+            for post in posts:
+                item = dict(post)
+                comments = self._execute(conn, """
+                    SELECT c.id, c.content, c.created_at, c.user_id, u.full_name AS author_name
+                    FROM social_comments c JOIN users u ON u.id = c.user_id
+                    WHERE c.post_id = ? ORDER BY c.created_at ASC LIMIT 50
+                """, (item["id"],)).fetchall()
+                item["comments"] = [dict(comment) for comment in comments]
+                result.append(item)
+            return result
 
     # ── Generation job methods ────────────────────────────────────────────────
 

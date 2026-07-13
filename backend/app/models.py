@@ -614,6 +614,40 @@ class NewsArticleUpdateRequest(BaseModel):
     is_pinned: bool = False
 
 
+class SocialPostCreateRequest(BaseModel):
+    content: str
+
+
+class SocialCommentCreateRequest(BaseModel):
+    content: str
+
+
+class SocialReactionRequest(BaseModel):
+    reaction: Optional[str] = None
+
+
+class SocialComment(BaseModel):
+    id: int
+    user_id: int
+    author_name: str
+    content: str
+    created_at: str
+
+
+class SocialPost(BaseModel):
+    id: int
+    user_id: int
+    author_name: str
+    content: str
+    created_at: str
+    updated_at: str
+    likes: int = 0
+    loves: int = 0
+    insightful: int = 0
+    viewer_reaction: Optional[str] = None
+    comments: List[SocialComment] = Field(default_factory=list)
+
+
 class SmsLogEntry(BaseModel):
     id: int
     phone: str

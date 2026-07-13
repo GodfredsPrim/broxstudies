@@ -53,22 +53,6 @@ export function StudyPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
-    if (!isAuth) return
-    tutorApi.history(20)
-      .then(data => {
-        const msgs = (data.messages || [])
-          .slice(-12)
-          .map((m, i): Msg => ({
-            id: `h-${m.id ?? i}`,
-            role: (m.role === 'user' ? 'user' : 'ai'),
-            content: m.content,
-          }))
-        if (msgs.length > 0) setMessages(msgs)
-      })
-      .catch(() => {})
-  }, [isAuth])
-
-  useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
@@ -218,13 +202,20 @@ export function StudyPage() {
     }
     const recognition = new SpeechRecognitionCtor()
     recognition.lang = 'en-GH'
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
+    recognition.interimResults = true
+    recognition.continuous = true
+    recognition.maxAlternatives = 3
     recognition.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[0]?.[0]?.transcript?.trim()
-      if (transcript) setInput(prev => (prev ? `${prev} ${transcript}` : transcript))
+      let finalTranscript = ''
+      for (let index = e.resultIndex; index < e.results.length; index += 1) {
+        if (e.results[index].isFinal) finalTranscript += e.results[index][0]?.transcript ?? ''
+      }
+      if (finalTranscript.trim()) setInput(prev => `${prev}${prev ? ' ' : ''}${finalTranscript.trim()}`)
     }
-    recognition.onerror = () => setListening(false)
+    recognition.onerror = event => {
+      setListening(false)
+      setError(event.error === 'not-allowed' ? 'Microphone access was blocked. Allow it and try again.' : 'Voice input paused. Tap the microphone to continue.')
+    }
     recognition.onend = () => setListening(false)
     recognitionRef.current = recognition
     recognition.start()
@@ -306,7 +297,7 @@ export function StudyPage() {
             New chat
           </Button>
         </div>
-        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-3xl px-4 pb-6 pt-16 sm:px-6 sm:pb-8 sm:pt-16">
           {empty ? (
             <EmptyChat onPromptSelect={text => void send(text)} disabled={outOfChats || loading} />
           ) : (
