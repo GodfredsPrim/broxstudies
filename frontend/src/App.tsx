@@ -6,6 +6,8 @@ import { AdminGate } from '@/components/AdminGate'
 import { BootGate } from '@/components/BootGate'
 import { WelcomeRedirect } from '@/components/routing/RouteGuards'
 import { Spinner } from '@/components/ui/Spinner'
+import { StartupCupVotePrompt } from '@/components/StartupCupVotePrompt'
+import { StartupCupVoteRedirect } from '@/pages/StartupCupVoteRedirect'
 
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 const SignupPage = lazy(() => import('@/pages/Signup').then(m => ({ default: m.SignupPage })))
@@ -44,9 +46,11 @@ function Lazy({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BootGate>
-      <WelcomeRedirect>
-        <Routes>
+    <>
+      <BootGate>
+        <WelcomeRedirect>
+          <Routes>
+          <Route path="/vote" element={<StartupCupVoteRedirect />} />
           <Route path="/welcome" element={<Lazy><LandingPage /></Lazy>} />
 
           <Route path="/login" element={<Lazy><LoginPage /></Lazy>} />
@@ -175,8 +179,10 @@ export default function App() {
           <Route path="/study" element={<Navigate to="/" replace />} />
           <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Lazy><NotFoundPage /></Lazy>} />
-        </Routes>
-      </WelcomeRedirect>
-    </BootGate>
+          </Routes>
+        </WelcomeRedirect>
+      </BootGate>
+      <StartupCupVotePrompt />
+    </>
   )
 }
