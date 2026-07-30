@@ -319,7 +319,7 @@ export function StudyPage() {
       </div>
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-0)]/90 backdrop-blur-xl">
+      <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-0)] sm:bg-[var(--bg-0)]/90 sm:backdrop-blur-xl">
         <div className="mx-auto w-full max-w-3xl px-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 sm:px-6 sm:py-4">
           {outOfChats && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-[13px] text-amber-700 dark:text-amber-200">
@@ -406,12 +406,16 @@ export function StudyPage() {
             </button>
 
             <div className="v2-input flex min-h-11 min-w-0 items-end gap-2 !h-auto !px-3 !py-2.5 sm:min-h-[52px] sm:flex-1 sm:!px-4 sm:!py-3">
+              <label htmlFor="ai-tutor-message" className="sr-only">Message the AI tutor</label>
               <textarea
+                id="ai-tutor-message"
                 ref={textareaRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
+                inputMode="text"
+                enterKeyHint="send"
                 placeholder={
                   outOfChats
                     ? 'Sign up to continue studying'

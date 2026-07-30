@@ -31,6 +31,24 @@ interface AcademicTrackContextValue {
 const AcademicTrackContext = createContext<AcademicTrackContextValue | null>(null)
 const STORAGE_KEY = 'brox.selected-track'
 
+function readStoredTrack(): AcademicTrack | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored === 'shs' || stored === 'tvet' ? stored : null
+  } catch {
+    return null
+  }
+}
+
+function storeTrack(track: AcademicTrack | null) {
+  try {
+    if (track) localStorage.setItem(STORAGE_KEY, track)
+    else localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Keep the in-memory selection working when Safari blocks storage.
+  }
+}
+
 export function AcademicTrackProvider({
   children,
   serverTrack,        // track locked by server (from AuthUser.track)
@@ -40,22 +58,22 @@ export function AcademicTrackProvider({
   serverTrack?: 'shs' | 'tvet' | null
   hasActiveSubscription?: boolean
 }) {
-  const [selectedTrack, setSelectedTrackState] = useState<AcademicTrack | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [selectedTrack, setSelectedTrackState] = useState<AcademicTrack | null>(readStoredTrack)
+  const syncingServerTrack = Boolean(
+    hasActiveSubscription && serverTrack && selectedTrack !== serverTrack,
+  )
 
   useEffect(() => {
     // Server-locked track takes priority when subscription is active
     if (hasActiveSubscription && serverTrack) {
       setSelectedTrackState(serverTrack)
-      localStorage.setItem(STORAGE_KEY, serverTrack)
-      setLoading(false)
+      storeTrack(serverTrack)
       return
     }
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'shs' || stored === 'tvet') {
+    const stored = readStoredTrack()
+    if (stored) {
       setSelectedTrackState(stored)
     }
-    setLoading(false)
   }, [serverTrack, hasActiveSubscription])
 
   const isLocked = Boolean(hasActiveSubscription && serverTrack)
@@ -64,18 +82,24 @@ export function AcademicTrackProvider({
     // Prevent switching tracks when subscription is active
     if (isLocked) return
     setSelectedTrackState(track)
-    localStorage.setItem(STORAGE_KEY, track)
+    storeTrack(track)
   }, [isLocked])
 
   const resetAcademicTrack = useCallback(() => {
     if (isLocked) return
     setSelectedTrackState(null)
-    localStorage.removeItem(STORAGE_KEY)
+    storeTrack(null)
   }, [isLocked])
 
   const value = useMemo(
-    () => ({ selectedTrack, setSelectedTrack, resetAcademicTrack, isLocked, loading }),
-    [selectedTrack, setSelectedTrack, resetAcademicTrack, isLocked, loading],
+    () => ({
+      selectedTrack,
+      setSelectedTrack,
+      resetAcademicTrack,
+      isLocked,
+      loading: syncingServerTrack,
+    }),
+    [selectedTrack, setSelectedTrack, resetAcademicTrack, isLocked, syncingServerTrack],
   )
 
   return (

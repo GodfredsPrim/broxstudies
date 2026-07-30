@@ -9,21 +9,21 @@ function timeBasedTheme(): Theme {
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>('light')
+  const [theme, setThemeState] = useState<Theme>(readInitialTheme)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    const saved = localStorage.getItem('brox.theme') as Theme | null
-    const initial: Theme = saved === 'dark' || saved === 'light' ? saved : timeBasedTheme()
-    setThemeState(initial)
-    applyTheme(initial)
-  }, [])
+    applyTheme(theme)
+  }, [theme])
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme)
-    localStorage.setItem('brox.theme', newTheme)
-    applyTheme(newTheme)
+    try {
+      localStorage.setItem('brox.theme', newTheme)
+    } catch {
+      // Storage may be unavailable in Safari private browsing.
+    }
   }
 
   const toggleTheme = () => {
@@ -33,13 +33,24 @@ export function useTheme() {
   return { theme, setTheme, toggleTheme, mounted }
 }
 
+function readInitialTheme(): Theme {
+  if (typeof document !== 'undefined') {
+    const html = document.documentElement
+    if (html.classList.contains('dark')) return 'dark'
+    if (html.classList.contains('light')) return 'light'
+  }
+  try {
+    const saved = localStorage.getItem('brox.theme') as Theme | null
+    if (saved === 'dark' || saved === 'light') return saved
+  } catch {
+    // Fall through to the time-based default.
+  }
+  return timeBasedTheme()
+}
+
 function applyTheme(theme: Theme) {
   const html = document.documentElement
-  if (theme === 'light') {
-    html.classList.add('light')
-    html.classList.remove('dark')
-  } else {
-    html.classList.remove('light')
-    html.classList.add('dark')
-  }
+  html.classList.toggle('light', theme === 'light')
+  html.classList.toggle('dark', theme === 'dark')
+  html.style.colorScheme = theme
 }

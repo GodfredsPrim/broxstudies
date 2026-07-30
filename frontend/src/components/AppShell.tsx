@@ -423,7 +423,7 @@ export function AppShell() {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 min-w-0 shrink-0 items-center gap-1.5 border-b border-white/5 bg-[var(--bg-0)]/95 px-2 supports-[backdrop-filter]:bg-[var(--bg-0)]/75 supports-[backdrop-filter]:backdrop-blur-md sm:gap-3 sm:px-4 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-14 min-w-0 shrink-0 items-center gap-1.5 border-b border-white/5 bg-[var(--bg-0)] px-2 sm:gap-3 sm:px-4 lg:px-8">
           {!isAdmin && (
             <button
               onClick={() => setMobileOpen(true)}

@@ -6,7 +6,9 @@ export function WelcomeRedirect({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
-  if (loading) return null
+  // Authentication is only needed to decide the /welcome redirect. Blocking
+  // every route here creates an empty frame during startup for signed-in users.
+  if (loading && location.pathname === '/welcome') return null
   if (user && location.pathname === '/welcome') {
     return <Navigate to="/dashboard" replace />
   }
