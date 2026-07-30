@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/shadcn-button'
 import { Card, CardContent } from '@/components/ui/shadcn-card'
 import { AnimatedCounter } from '@/components/shared/AnimatedCounter'
+import { LogoMark } from '@/components/Logo'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/shared/PageTransition'
 import { LandingNavbar, LandingFooter } from '@/components/landing/LandingNav'
 import { cn } from '@/lib/cn'
@@ -101,7 +102,7 @@ export function LandingPage() {
                 rotate: { delay: 0.5, duration: 0.6 },
                 y: { delay: 0.5, duration: 7, repeat: Infinity, ease: 'easeInOut' },
               }}
-              className="absolute -left-6 -top-10 hidden h-28 w-40 rounded-2xl border-2 border-[var(--bg-0)] object-cover shadow-glow-md sm:block lg:-left-16 lg:h-36 lg:w-52"
+              className="brand-image absolute -left-6 -top-10 hidden h-28 w-40 rounded-2xl border-2 border-[var(--bg-0)] object-cover shadow-glow-md sm:block lg:-left-16 lg:h-36 lg:w-52"
             />
             <motion.img
               src="/images/students-quiz-team.jpg"
@@ -113,7 +114,7 @@ export function LandingPage() {
                 rotate: { delay: 0.65, duration: 0.6 },
                 y: { delay: 0.65, duration: 8.5, repeat: Infinity, ease: 'easeInOut' },
               }}
-              className="absolute -right-4 -bottom-8 hidden h-24 w-32 rounded-2xl border-2 border-[var(--bg-0)] object-cover shadow-glow-md sm:block lg:-right-12 lg:h-32 lg:w-44"
+              className="brand-image absolute -right-4 -bottom-8 hidden h-24 w-32 rounded-2xl border-2 border-[var(--bg-0)] object-cover shadow-glow-md sm:block lg:-right-12 lg:h-32 lg:w-44"
             />
             <div className="gradient-border rounded-3xl p-px">
               <div className="overflow-hidden rounded-3xl border border-border bg-[var(--bg-1)] shadow-glow-lg">
@@ -127,7 +128,7 @@ export function LandingPage() {
                 </div>
                 <div className="p-6 space-y-4 min-h-[280px]">
                   <div className="flex gap-3">
-                    <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500" />
+                    <LogoMark size={32} />
                     <div className="rounded-2xl rounded-tl-sm bg-[var(--bg-2)] px-4 py-3 text-sm max-w-md">
                       Explain the difference between ionic and covalent bonding for WASSCE Chemistry.
                     </div>
@@ -183,7 +184,7 @@ export function LandingPage() {
                 alt={img.alt}
                 loading="lazy"
                 decoding="async"
-                className="h-20 w-full rounded-xl border border-[var(--line)] object-cover sm:h-24"
+                className="brand-image h-20 w-full rounded-xl border border-[var(--line)] object-cover shadow-[0_10px_28px_-22px_var(--primary-glow)] sm:h-24"
               />
             ))}
           </div>

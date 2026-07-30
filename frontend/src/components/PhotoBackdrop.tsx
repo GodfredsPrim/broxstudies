@@ -20,8 +20,9 @@ export function PhotoBackdrop({ image, seed = 0 }: { image?: string; seed?: numb
         alt=""
         aria-hidden="true"
         decoding="async"
-        className="h-full w-full scale-105 object-cover opacity-40 grayscale-[15%]"
+        className="brand-image h-full w-full scale-105 object-cover opacity-40"
       />
+      <div className="brand-photo-wash absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-0)] via-[var(--bg-0)]/40 to-[var(--bg-0)]/70" />
       <div className="absolute inset-0 bg-[var(--bg-0)]/20" />
     </div>

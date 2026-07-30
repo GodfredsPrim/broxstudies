@@ -1,12 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">BroxStudies</title>
-  <desc id="desc">The emerald Bx mark shown on the BroxStudies splash screen</desc>
+  <desc id="desc">The navy, blue and cyan Bx mark used throughout BroxStudies</desc>
   <defs>
-    <linearGradient id="splash-gradient" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#34D399"/>
-      <stop offset="1" stop-color="#047857"/>
+    <linearGradient id="brand-gradient" x1="430" y1="40" x2="74" y2="466" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#55E2E7"/>
+      <stop offset="0.38" stop-color="#147FCA"/>
+      <stop offset="0.7" stop-color="#083578"/>
+      <stop offset="1" stop-color="#010433"/>
+    </linearGradient>
+    <linearGradient id="brand-highlight" x1="374" y1="58" x2="184" y2="322" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="brand-shine" x1="98" y1="74" x2="410" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.78"/>
+      <stop offset="0.48" stop-color="#8DEDF1" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.72"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#splash-gradient)"/>
-  <text x="256" y="318" fill="#02180F" font-family="Archivo, Arial, sans-serif" font-size="196" font-weight="800" letter-spacing="-10" text-anchor="middle">Bx</text>
+  <rect x="8" y="8" width="496" height="496" rx="140" fill="url(#brand-gradient)"/>
+  <path d="M64 198C64 112 133 44 219 44h162c37 0 67 30 67 67v16C273 127 134 235 72 390c-6-22-8-46-8-72V198Z" fill="url(#brand-highlight)"/>
+  <rect x="13" y="13" width="486" height="486" rx="135" fill="none" stroke="url(#brand-shine)" stroke-width="10"/>
+  <text x="256" y="336" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="252" font-weight="800" letter-spacing="-24" text-anchor="middle">Bx</text>
 </svg>

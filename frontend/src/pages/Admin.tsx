@@ -19,6 +19,7 @@ import {
   Trash2,
   MessageSquare,
   Pin,
+  BadgeCheck,
 } from 'lucide-react'
 import { adminApi, newsApi } from '@/api/endpoints'
 import { extractError } from '@/api/client'
@@ -36,17 +37,22 @@ import type {
   PaymentConfirmResponse,
   PendingPayment,
   SmsLogEntry,
+  BacktestRun,
+  ImpactSnapshot,
 } from '@/api/types'
 import { cn } from '@/lib/cn'
 
-type Tab = 'overview' | 'payments' | 'codes' | 'competitions' | 'news' | 'sms'
+type Tab = 'overview' | 'impact' | 'payments' | 'codes' | 'competitions' | 'news' | 'teachers' | 'backtesting' | 'sms'
 
 const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'overview',     label: 'Overview',     icon: BarChart3 },
+  { id: 'impact',       label: 'Impact',       icon: Activity },
   { id: 'payments',     label: 'Payments',     icon: Banknote },
   { id: 'codes',        label: 'Access Codes', icon: Ticket },
   { id: 'competitions', label: 'Competitions', icon: Trophy },
   { id: 'news',         label: 'News',         icon: Newspaper },
+  { id: 'teachers',     label: 'Teachers',     icon: BadgeCheck },
+  { id: 'backtesting',  label: 'Backtesting',  icon: BarChart3 },
   { id: 'sms',          label: 'SMS Log',      icon: MessageSquare },
 ]
 
@@ -107,12 +113,211 @@ export function AdminPage() {
 
       <section className="mt-6">
         {tab === 'overview'     && <OverviewPanel />}
+        {tab === 'impact'       && <ImpactPanel />}
         {tab === 'payments'     && <PaymentsPanel />}
         {tab === 'codes'        && <CodesPanel />}
         {tab === 'competitions' && <CompetitionsPanel />}
         {tab === 'news'         && <NewsPanel />}
+        {tab === 'teachers'     && <TeachersPanel />}
+        {tab === 'backtesting'  && <BacktestingPanel />}
         {tab === 'sms'          && <SmsLogPanel />}
       </section>
+    </div>
+  )
+}
+
+function ImpactPanel() {
+  const [data, setData] = useState<ImpactSnapshot | null>(null)
+  const { loading, error, reload } = useAsyncLoad(() => adminApi.impact(), setData)
+  if (loading && !data) return <LoadingBlock label="Loading live impact data…" />
+  if (error) return <ErrorBlock message={error} onRetry={reload} />
+  if (!data) return null
+  const labels: Record<keyof ImpactSnapshot['metrics'], string> = {
+    registered_students: 'Registered students',
+    active_users_30d: 'Active users (30d)',
+    questions_generated: 'Questions generated',
+    practice_sessions_completed: 'Practice sessions',
+    mock_examinations_completed: 'Mock examinations',
+    teacher_verified_questions: 'Teacher-verified questions',
+  }
+  return (
+    <div className="space-y-5">
+      <PanelHeader title="Platform impact" subtitle="Live production database aggregates. Demo records are excluded." onRefresh={reload} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {(Object.entries(data.metrics) as Array<[keyof ImpactSnapshot['metrics'], number]>).map(([key, value]) => (
+          <StatCardView key={key} label={labels[key]} value={formatNumber(value)} icon={<Activity size={14} />} />
+        ))}
+      </div>
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="v2-eyebrow">Measurable score change</p>
+            <p className={`mt-2 text-4xl font-bold ${data.score_change.average_percentage_point_change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {data.score_change.average_percentage_point_change > 0 ? '+' : ''}{data.score_change.average_percentage_point_change} pp
+            </p>
+            <p className="mt-1 text-sm text-ink-400">Average latest-versus-first change across comparable learner-subject histories.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-center text-sm">
+            <div><p className="text-xl font-bold text-emerald-500">{data.score_change.learners_improved}</p><p className="text-xs text-ink-400">Improved</p></div>
+            <div><p className="text-xl font-bold text-rose-500">{data.score_change.learners_declined}</p><p className="text-xs text-ink-400">Declined</p></div>
+            <div><p className="text-xl font-bold text-ink-0">{data.score_change.learner_subject_comparisons}</p><p className="text-xs text-ink-400">Compared</p></div>
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <h3 className="font-display text-lg">Metric definitions</h3>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          {Object.entries(data.definitions).map(([key, definition]) => <div key={key} className="rounded-lg bg-[var(--bg-2)] p-3"><dt className="text-xs font-bold capitalize text-ink-100">{key.replaceAll('_', ' ')}</dt><dd className="mt-1 text-xs leading-relaxed text-ink-400">{definition}</dd></div>)}
+        </dl>
+        <p className="mt-3 text-[11px] text-ink-400">Snapshot generated {new Date(data.generated_at).toLocaleString()} · Source: live database</p>
+      </Card>
+    </div>
+  )
+}
+
+function TeachersPanel() {
+  const [users, setUsers] = useState<Array<{ id: number; full_name: string; email: string; is_admin: boolean; is_teacher: boolean }>>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState<number | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setUsers((await adminApi.users()).users)
+    } catch (err) {
+      setError(extractError(err, 'Could not load users.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  const toggle = async (row: typeof users[number]) => {
+    setBusy(row.id)
+    try {
+      await adminApi.setTeacher(row.id, !row.is_teacher)
+      await load()
+    } catch (err) {
+      setError(extractError(err, 'Could not change teacher authorisation.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (loading) return <LoadingBlock label="Loading teacher authorisations…" />
+  if (error && users.length === 0) return <ErrorBlock message={error} onRetry={load} />
+  return (
+    <div className="space-y-4">
+      <PanelHeader title="Teacher authorisation" subtitle="Only authorised teachers and administrators can review academic content." onRefresh={load} />
+      {error && <InlineError message={error} />}
+      <Card padded={false}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="text-xs uppercase tracking-wide text-ink-400"><tr><Th>Name</Th><Th>Email</Th><Th>Role</Th><Th>Action</Th></tr></thead>
+            <tbody className="divide-y divide-[var(--line)]">
+              {users.map(row => (
+                <tr key={row.id}>
+                  <Td className="font-medium text-ink-0">{row.full_name}</Td>
+                  <Td className="text-ink-300">{row.email}</Td>
+                  <Td>{row.is_admin ? <Badge tone="gold">Administrator</Badge> : row.is_teacher ? <Badge tone="accent">Authorised teacher</Badge> : <Badge>Student</Badge>}</Td>
+                  <Td><Button size="sm" variant="ghost" disabled={row.is_admin || busy === row.id} onClick={() => void toggle(row)}>{row.is_teacher ? 'Revoke' : 'Authorise'}</Button></Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function BacktestingPanel() {
+  const [catalog, setCatalog] = useState<Array<{ subject: string; years: number[] }>>([])
+  const [subject, setSubject] = useState('')
+  const [year, setYear] = useState<number | null>(null)
+  const [result, setResult] = useState<BacktestRun | null>(null)
+  const [history, setHistory] = useState<BacktestRun[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setError('')
+    try {
+      const [available, previous] = await Promise.all([adminApi.backtestingCatalog(), adminApi.backtestingHistory()])
+      setCatalog(available.subjects)
+      setHistory(previous.runs)
+      const first = available.subjects[0]
+      if (first && !subject) {
+        setSubject(first.subject)
+        setYear(first.years[first.years.length - 1] || null)
+      }
+    } catch (err) {
+      setError(extractError(err, 'Could not load historical examination data.'))
+    }
+  }, [subject])
+
+  useEffect(() => { void load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const years = catalog.find(item => item.subject === subject)?.years || []
+
+  const run = async () => {
+    if (!subject || !year) return
+    setBusy(true); setError('')
+    try {
+      const next = await adminApi.runBacktest(subject, year)
+      setResult(next)
+      setHistory(current => [next, ...current.filter(item => item.id !== next.id)])
+    } catch (err) {
+      setError(extractError(err, 'Backtest could not run.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <PanelHeader title="Historical prediction backtesting" subtitle="The selected examination year is hidden until predictions from earlier years are complete." onRefresh={load} />
+      {error && <InlineError message={error} />}
+      <Card>
+        {catalog.length === 0 ? (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-ink-300">
+            No subject currently has at least two year-labelled real papers in the extracted-question cache. Add historical papers and rebuild the cache; no accuracy figures will be fabricated.
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
+            <LabeledField label="Subject">
+              <select className="v2-input" value={subject} onChange={event => { const next = event.target.value; setSubject(next); const available = catalog.find(item => item.subject === next)?.years || []; setYear(available[available.length - 1] || null) }}>
+                {catalog.map(item => <option key={item.subject} value={item.subject}>{item.subject.replaceAll('_', ' ')}</option>)}
+              </select>
+            </LabeledField>
+            <LabeledField label="Hidden real-paper year">
+              <select className="v2-input" value={year || ''} onChange={event => setYear(Number(event.target.value))}>
+                {years.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </LabeledField>
+            <Button onClick={() => void run()} disabled={busy || !year}>{busy ? 'Running…' : 'Run backtest'}</Button>
+          </div>
+        )}
+      </Card>
+      {result && (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><h3 className="font-display text-lg">{result.subject.replaceAll('_', ' ')} · hidden {result.hidden_year}</h3><p className="text-xs text-ink-400">Training years: {result.training_years.join(', ')}</p></div>
+            <Badge tone={result.exclusion_confirmed ? 'accent' : 'danger'}>{result.exclusion_confirmed ? 'Hidden year excluded' : 'Exclusion failed'}</Badge>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Object.entries(result.metrics).map(([key, value]) => <StatCardView key={key} label={key.replaceAll('_', ' ')} value={`${value}%`} icon={<Percent size={14} />} />)}
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div><p className="text-xs font-bold uppercase text-ink-400">Predicted topics</p><p className="mt-1 text-sm text-ink-200">{result.predicted_topics.join(', ') || 'None detected'}</p></div>
+            <div><p className="text-xs font-bold uppercase text-ink-400">Hidden-paper topics</p><p className="mt-1 text-sm text-ink-200">{result.actual_topics.join(', ') || 'None detected'}</p></div>
+          </div>
+          <p className="mt-4 text-xs leading-relaxed text-ink-400">{result.methodology}</p>
+        </Card>
+      )}
+      {history.length > 0 && <Card><h3 className="font-display text-lg">Previous runs</h3><div className="mt-3 space-y-2">{history.slice(0, 10).map(item => <button key={item.id} onClick={() => setResult(item)} className="flex w-full justify-between rounded-lg border border-[var(--line)] p-3 text-left text-sm"><span>{item.subject.replaceAll('_', ' ')} · {item.hidden_year}</span><span className="text-ink-400">{new Date(item.created_at).toLocaleDateString()}</span></button>)}</div></Card>}
     </div>
   )
 }

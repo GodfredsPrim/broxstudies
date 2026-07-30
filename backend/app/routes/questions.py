@@ -34,6 +34,8 @@ from app.services.likely_wassce_generator import LikelyWASSCEGenerator
 from app.services.question_generator import QuestionGenerator
 from app.services.world_class_engine import WorldClassEngine
 from app.services.pdf_generator import PDFGenerator
+from app.services.question_evidence import attach_question_evidence
+from app.services.teacher_verification import teacher_verification_service
 from app.routes.auth import get_optional_user, require_active_subscription
 from app.models import AuthUser
 
@@ -774,6 +776,20 @@ async def generate_professional_mock(
         for paper_key in ["paper_1", "paper_2", "paper_3"]:
             questions.extend(organized_papers.get(paper_key, []))
 
+        generation_mode = result.get("generation_mode", "exam_structured")
+        questions = attach_question_evidence(
+            questions,
+            subject_label=subject_label,
+            topics=result.get("topics") or (),
+            source_used=generation_mode,
+        )
+        questions = teacher_verification_service.record_questions(
+            questions,
+            owner_user_id=current_user.id,
+        )
+        # The same objects are held by organized_papers; assignments above update
+        # their evidence in place.
+
         if current_user and questions:
             try:
                 new_hashes = [likely_wassce_generator.hash_question(q.question_text) for q in questions]
@@ -790,14 +806,14 @@ async def generate_professional_mock(
             organized_papers=organized_papers,
             generation_time=time.time() - start_time,
             model_used="structured_exam_builder",
-            source_used=result.get("generation_mode", "exam_structured"),
+            source_used=generation_mode,
             source_details={
                 "subject": subject_slug,
                 "subject_label": subject_label,
                 "year": year_key,
                 "topics": result.get("topics"),
                 "paper_structure": result.get("paper_structure"),
-                "generation_mode": result.get("generation_mode", "exam_structured"),
+                "generation_mode": generation_mode,
             },
         )
     except Exception as e:

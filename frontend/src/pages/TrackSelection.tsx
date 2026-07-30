@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Sparkles, Lock } from 'lucide-react'
+import { Lock } from 'lucide-react'
 import { TrackSelector } from '@/components/TrackSelector'
+import { LogoMark } from '@/components/Logo'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useAuth } from '@/hooks/useAuth'
 import { Card } from '@/components/ui/card'
@@ -31,8 +32,8 @@ export function TrackSelectionPage() {
         <Card padded={false} className="overflow-hidden border border-white/10 bg-[var(--bg-1)] shadow-xl">
           <div className="p-8 sm:p-10">
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-3xl bg-indigo-500/10 text-indigo-300">
-                <Sparkles size={20} />
+              <div className="mx-auto mb-4 h-12 w-12">
+                <LogoMark size={48} />
               </div>
               <Eyebrow className="mb-3">Welcome</Eyebrow>
               <h1 className="text-3xl font-semibold tracking-tight text-ink-0 sm:text-4xl">

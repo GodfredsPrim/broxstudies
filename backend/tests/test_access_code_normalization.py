@@ -46,7 +46,7 @@ class AccessCodeNormalizationTest(unittest.TestCase):
             if "UPDATE users" in query:
                 # Simulate user subscription activation
                 user_row["subscription_status"] = "active"
-                user_row["subscription_expires_at"] = datetime.now(timezone.utc).isoformat()
+                user_row["subscription_expires_at"] = params[0]
                 user_row["track"] = params[1] if len(params) > 1 else user_row.get("track")
                 return SimpleNamespace()
             return SimpleNamespace()

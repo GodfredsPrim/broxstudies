@@ -6,6 +6,7 @@ import {
   Flame, Target, Trophy, Sparkles, BarChart3, Calendar, Clock,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { LogoMark } from '@/components/Logo'
 import { useAcademicTrack } from '@/hooks/useAcademicTrack'
 import { useGamification } from '@/hooks/useGamification'
 import { useGuestChats } from '@/hooks/useGuestChats'
@@ -279,9 +280,7 @@ export function DashboardPage() {
             <Card className="border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 to-purple-500/5">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500">
-                    <Brain size={20} className="text-white" />
-                  </div>
+                  <LogoMark size={40} />
                   <div>
                     <p className="font-bold">AI Tutor</p>
                     <p className="text-xs text-muted-foreground">Ask anything</p>

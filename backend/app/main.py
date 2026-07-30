@@ -9,7 +9,7 @@ from pathlib import Path
 import asyncio
 
 from app.config import settings
-from app.routes import books, questions, uploads, analysis, resources, tutor, auth, admin, payments, learning
+from app.routes import books, questions, uploads, analysis, resources, tutor, auth, admin, payments, learning, teacher, media
 from app.services.batch_loader import BatchLoader
 
 # Setup logging
@@ -130,6 +130,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_static_cache_headers(request, call_next):
+    """Cache fingerprinted frontend assets; keep app shells and workers fresh."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path.startswith(("/icons/", "/images/")) or path == "/icon.svg":
+        response.headers["Cache-Control"] = "public, max-age=604800"
+    elif path in {"/", "/index.html", "/sw.js", "/registerSW.js"}:
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 # Include routers
 app.include_router(uploads.router, prefix="/api/uploads", tags=["uploads"])
 app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
@@ -141,6 +154,8 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(learning.router, prefix="/api/learning", tags=["learning"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(teacher.router, prefix="/api/teacher", tags=["teacher"])
+app.include_router(media.router, prefix="/api/media", tags=["media"])
 
 # Serve static files for frontend assets
 if FRONTEND_DIST_DIR.exists():

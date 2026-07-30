@@ -5,6 +5,7 @@ import {
   Server, ShieldCheck, TestTube2, Wrench, ChevronRight, ExternalLink,
   Copy, Check, AlertTriangle, Database, Settings,
 } from 'lucide-react'
+import { Logo } from '@/components/Logo'
 
 type DocSection = {
   id: string
@@ -44,13 +45,13 @@ function Steps({ items }: { items: Array<{ title: string; body: React.ReactNode 
   return <ol className="my-4 space-y-4">{items.map((item, index) => <li key={item.title} className="grid grid-cols-[28px_1fr] gap-3"><span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-500/10 text-xs font-bold text-indigo-400">{index + 1}</span><div><div className="font-semibold text-[var(--fg-1)]">{item.title}</div><div className="mt-1 text-sm leading-6 text-[var(--fg-2)]">{item.body}</div></div></li>)}</ol>
 }
 
-export function DocsPage() {
+export function AboutPage() {
   const [query, setQuery] = useState('')
   const sections: DocSection[] = useMemo(() => [
     {
-      id: 'overview', title: 'Project overview', description: 'What BroxStudies is and how the system fits together.', icon: BookOpen, keywords: 'overview architecture students ghana shs tvet purpose',
+      id: 'overview', title: 'About BroxStudies', description: 'What the system is, who it serves, and how it fits together.', icon: BookOpen, keywords: 'about overview architecture students ghana shs tvet purpose',
       content: <>
-        <p>BroxStudies is an AI-assisted learning platform for SHS/STEM and TVET learners. It combines source-grounded tutoring, practice generation, exam preparation, live challenges, learning analytics, a digital library, subscription management, and administration in one responsive web application.</p>
+        <p>BroxStudies helps Ghanaian SHS, STEM, and TVET learners decide what to study, understand difficult topics, practise with feedback, and prepare for WASSCE or NAPTEX. It brings tutoring, practice, exam preparation, study planning, progress tracking, and trusted learning resources into one responsive application.</p>
         <H3>Core architecture</H3>
         <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-[var(--line)] text-[var(--fg-3)]"><th className="py-2 pr-4">Layer</th><th className="py-2 pr-4">Technology</th><th className="py-2">Responsibility</th></tr></thead><tbody className="divide-y divide-[var(--line)] text-[var(--fg-2)]"><tr><td className="py-3 pr-4 font-medium text-[var(--fg-1)]">Frontend</td><td className="py-3 pr-4">React 18, TypeScript, Vite, Tailwind</td><td className="py-3">SPA, PWA, student and admin interfaces</td></tr><tr><td className="py-3 pr-4 font-medium text-[var(--fg-1)]">Backend</td><td className="py-3 pr-4">FastAPI, Python</td><td className="py-3">Authentication, AI orchestration, files, payments and APIs</td></tr><tr><td className="py-3 pr-4 font-medium text-[var(--fg-1)]">Persistence</td><td className="py-3 pr-4">SQLite locally, PostgreSQL in production</td><td className="py-3">Users, subscriptions, history, progress and content</td></tr><tr><td className="py-3 pr-4 font-medium text-[var(--fg-1)]">AI retrieval</td><td className="py-3 pr-4">LLM provider, embeddings, vector store</td><td className="py-3">Grounded answers, question generation and analysis</td></tr></tbody></table></div>
         <H3>Request flow</H3><p>A user action begins in the React client, passes through the typed API layer to a FastAPI route, and is delegated to a focused backend service. Protected operations validate the bearer token and, where required, the subscription. AI operations assemble curriculum, retrieval, uploaded-source, or conversation context before calling the configured model.</p>
@@ -163,8 +164,22 @@ pytest`}</CodeBlock>
     <div className="min-h-full bg-[var(--bg-0)] text-[var(--fg-1)]">
       <div className="border-b border-[var(--line)] bg-[var(--bg-1)]">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="max-w-3xl"><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-400"><BookOpen size={14} /> Product documentation</div><h1 className="text-3xl font-bold tracking-tight text-[var(--fg-0)] sm:text-4xl">BroxStudies documentation</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--fg-2)] sm:text-base">A practical guide to using, developing, configuring, securing, testing, and deploying the complete learning platform.</p></div>
-          <label className="relative mt-7 block max-w-2xl"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-3)]" size={17} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search setup, payments, Source Studio, deployment..." className="h-12 w-full rounded-xl border border-[var(--line)] bg-[var(--bg-0)] pl-11 pr-4 text-sm text-[var(--fg-0)] outline-none transition placeholder:text-[var(--fg-3)] focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/15" /></label>
+          <div className="max-w-4xl">
+            <Logo size={44} />
+            <div className="mt-7 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)]"><BookOpen size={14} /> About the system</div>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[var(--fg-0)] sm:text-5xl">Built to make exam preparation clearer and more focused.</h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--fg-2)] sm:text-base">BroxStudies combines Ghana-aligned AI tutoring, targeted practice, exam intelligence, and a personal Study Plan so learners always have a useful next step.</p>
+          </div>
+          <div className="mt-8 grid gap-4 border-y border-[var(--line)] py-6 sm:grid-cols-3">
+            <div><div className="text-sm font-semibold text-[var(--fg-0)]">For learners</div><p className="mt-1 text-sm leading-6 text-[var(--fg-2)]">Understand topics, practise, review mistakes, and prepare with a daily plan.</p></div>
+            <div><div className="text-sm font-semibold text-[var(--fg-0)]">For teachers</div><p className="mt-1 text-sm leading-6 text-[var(--fg-2)]">Review generated content and guide classes with clearer learning evidence.</p></div>
+            <div><div className="text-sm font-semibold text-[var(--fg-0)]">For schools</div><p className="mt-1 text-sm leading-6 text-[var(--fg-2)]">Support structured revision across SHS, STEM, and TVET pathways.</p></div>
+          </div>
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-xl font-bold text-[var(--fg-0)]">Product documentation</h2>
+            <p className="mt-1 text-sm text-[var(--fg-2)]">Usage, architecture, configuration, security, testing, and deployment references.</p>
+          </div>
+          <label className="relative mt-4 block max-w-2xl"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-3)]" size={17} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search setup, payments, Source Studio, deployment..." className="h-12 w-full rounded-xl border border-[var(--line)] bg-[var(--bg-0)] pl-11 pr-4 text-sm text-[var(--fg-0)] outline-none transition placeholder:text-[var(--fg-3)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-tint)]" /></label>
         </div>
       </div>
 

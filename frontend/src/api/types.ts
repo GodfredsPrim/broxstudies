@@ -7,6 +7,7 @@ export interface AuthUser {
   has_access?: boolean
   subscription_status?: string
   is_admin?: boolean
+  is_teacher?: boolean
   created_at?: string
   selected_track?: 'shs' | 'tvet' | null
   track?: 'shs' | 'tvet' | null   // server-locked track after subscription activation
@@ -138,6 +139,50 @@ export interface Question {
   difficulty_level?: string
   pattern_confidence?: number
   topic?: string
+  evidence?: QuestionEvidence
+  review_status?: 'pending_teacher_review' | 'approved' | 'rejected' | 'verified' | string
+  teacher_verified?: boolean
+  verified_by?: string | null
+  verified_at?: string | null
+}
+
+export interface QuestionEvidence {
+  curriculum_strand: string
+  curriculum_sub_strand: string
+  learning_outcome: string
+  source_document: string
+  source_excerpt: string
+  historical_exam_pattern: string
+  question_difficulty: string
+  marks: number
+  confidence_explanation: string
+  verification_status: string
+  academic_disclaimer: string
+}
+
+export interface TeacherReviewHistory {
+  id: number
+  action: 'approve' | 'edit' | 'reject' | 'verify'
+  review_target: 'question' | 'marking_scheme' | 'both'
+  comment?: string
+  reviewer_name?: string
+  created_at: string
+  before: Question
+  after: Question
+}
+
+export interface TeacherQuestionRecord {
+  id: string
+  subject: string
+  question_type: string
+  review_status: string
+  version: number
+  is_demo: boolean
+  owner_name?: string
+  created_at: string
+  updated_at: string
+  question: Question & { marking_scheme?: string }
+  history?: TeacherReviewHistory[]
 }
 
 export interface GeneratedQuestions {
@@ -414,6 +459,64 @@ export interface LearningOverview {
   plan: StudyPlanItem[]
   due_reviews: ReviewCard[]
   classes?: LearningClass[]
+}
+
+export interface BacktestRun {
+  id: number
+  subject: string
+  hidden_year: number
+  training_years: number[]
+  exclusion_confirmed: boolean
+  predicted_topics: string[]
+  actual_topics: string[]
+  predicted_question_types: Record<string, number>
+  actual_question_types: Record<string, number>
+  predicted_paper_counts: Record<string, number>
+  actual_paper_counts: Record<string, number>
+  metrics: {
+    topic_overlap: number
+    competency_alignment: number
+    question_type_similarity: number
+    paper_format_accuracy: number
+  }
+  methodology: string
+  created_at: string
+}
+
+export interface ImpactSnapshot {
+  generated_at: string
+  metrics: {
+    registered_students: number
+    active_users_30d: number
+    questions_generated: number
+    practice_sessions_completed: number
+    mock_examinations_completed: number
+    teacher_verified_questions: number
+  }
+  score_change: {
+    average_percentage_point_change: number
+    learners_improved: number
+    learners_declined: number
+    learner_subject_comparisons: number
+  }
+  definitions: Record<string, string>
+  data_status: 'live_database'
+}
+
+export interface ReadinessScore {
+  overall_score: number
+  components: Array<{
+    key: 'practice_results' | 'mock_results' | 'mastery' | 'topic_coverage' | 'revision_activity'
+    label: string
+    score: number
+    weight: number
+    weighted_points: number
+  }>
+  strong_topics: Array<{ topic: string; subject: string; score: number }>
+  weak_topics: Array<{ topic: string; subject: string; score: number }>
+  recommended_next_action: { title: string; description: string; action: string }
+  formula: string
+  data_counts: Record<string, number>
 }
 
 export interface ReviewCard { id: number; subject: string; front: string; back: string; source?: string; interval_days: number; ease: number; next_review_at: string }

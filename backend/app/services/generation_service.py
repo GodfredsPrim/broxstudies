@@ -8,6 +8,8 @@ import json
 from app.services.auth_service import AuthService
 from app.services.question_generator import QuestionGenerator
 from app.models import GeneratedQuestions, Subject, SUBJECT_ALIASES, QuestionType
+from app.services.question_evidence import attach_question_evidence
+from app.services.teacher_verification import teacher_verification_service
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,7 @@ class GenerationService:
 
             # Process the generation request
             request_data = job['request_data']
+            request_data["_owner_user_id"] = job.get("user_id")
             
             try:
                 # Call the synchronous generation method
@@ -194,11 +197,23 @@ class GenerationService:
                 semester=semester,
             )
 
+        source_used = source_status.get("source_used", "ai_generated")
+        questions = attach_question_evidence(
+            questions,
+            subject_label=subject_label,
+            topics=request_data.get("topics"),
+            source_used=source_used,
+        )
+        questions = teacher_verification_service.record_questions(
+            questions,
+            owner_user_id=request_data.get("_owner_user_id"),
+        )
+
         return GeneratedQuestions(
             questions=questions,
             generation_time=time.time() - start_time,
             model_used=settings.resolved_llm_model,
-            source_used=source_status.get("source_used", "ai_generated"),
+            source_used=source_used,
         )
 
 # Global instance

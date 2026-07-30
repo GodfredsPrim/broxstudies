@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
   BarChart3, TrendingUp, TrendingDown, Target, Brain, ArrowRight,
   Calendar, Award,
@@ -13,8 +14,11 @@ import { PerformanceChart, StudyHeatmap } from '@/components/charts/AnalyticsCha
 import { useGamification } from '@/hooks/useGamification'
 import { useStudentAnalytics } from '@/hooks/useStudentAnalytics'
 import { cn } from '@/lib/cn'
+import { learningApi } from '@/api/endpoints'
+import type { ReadinessScore } from '@/api/types'
 
 export function AnalyticsPage() {
+  const [readiness, setReadiness] = useState<ReadinessScore | null>(null)
   const { streak, computedLevel } = useGamification()
   const {
     loading,
@@ -27,6 +31,16 @@ export function AnalyticsPage() {
     performanceOverTime,
     recommendations,
   } = useStudentAnalytics()
+
+  useEffect(() => {
+    let active = true
+    learningApi.readiness().then(data => { if (active) setReadiness(data) }).catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  const readinessScore = readiness?.overall_score ?? examReadiness
+  const displayedStrongTopics = readiness?.strong_topics ?? strongTopics
+  const displayedWeakTopics = readiness?.weak_topics ?? weakTopics
 
   return (
     <PageTransition className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
@@ -52,7 +66,7 @@ export function AnalyticsPage() {
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'Exam Readiness', value: `${examReadiness}%`, icon: Award, color: 'text-indigo-400' },
+              { label: 'Exam Readiness', value: `${readinessScore}%`, icon: Award, color: 'text-indigo-400' },
               { label: 'Study Streak', value: `${streak} days`, icon: Calendar, color: 'text-amber-400' },
               { label: 'Level', value: `Lv.${computedLevel}`, icon: TrendingUp, color: 'text-purple-400' },
               { label: 'Avg. Score', value: `${avgScore}%`, icon: BarChart3, color: 'text-emerald-400' },
@@ -99,13 +113,31 @@ export function AnalyticsPage() {
               <FadeIn delay={0.1}>
                 <Card className="text-center">
                   <CardContent className="p-6">
-                    <ProgressRing value={examReadiness} size={140} strokeWidth={10} label={`${examReadiness}%`} sublabel="Exam Ready" color="indigo" />
-                    <p className="mt-4 text-sm text-muted-foreground">Based on your practice exam history and scores.</p>
+                    <ProgressRing value={readinessScore} size={140} strokeWidth={10} label={`${readinessScore}%`} sublabel="Exam Ready" color="indigo" />
+                    <p className="mt-4 text-sm text-muted-foreground">Deterministic score from stored practice, mocks, mastery, coverage, and revision activity.</p>
                   </CardContent>
                 </Card>
               </FadeIn>
 
               <FadeIn delay={0.15}>
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Readiness components</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    {readiness?.components.map(component => (
+                      <div key={component.key}>
+                        <div className="mb-1 flex justify-between gap-3 text-xs">
+                          <span>{component.label} <span className="text-muted-foreground">({component.weight}%)</span></span>
+                          <span className="font-bold">{component.score}%</span>
+                        </div>
+                        <Progress value={component.score} />
+                      </div>
+                    )) || <p className="text-sm text-muted-foreground">Readiness inputs are loading.</p>}
+                    {readiness && <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">{readiness.formula}</p>}
+                  </CardContent>
+                </Card>
+              </FadeIn>
+
+              <FadeIn delay={0.18}>
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base text-emerald-400">
@@ -113,7 +145,7 @@ export function AnalyticsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {strongTopics.length > 0 ? strongTopics.map(t => (
+                    {displayedStrongTopics.length > 0 ? displayedStrongTopics.map(t => (
                       <div key={t.topic}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="font-medium">{t.topic}</span>
@@ -136,7 +168,7 @@ export function AnalyticsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {weakTopics.length > 0 ? weakTopics.map(t => (
+                    {displayedWeakTopics.length > 0 ? displayedWeakTopics.map(t => (
                       <div key={t.topic}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="font-medium">{t.topic}</span>
@@ -155,11 +187,19 @@ export function AnalyticsPage() {
                 <Card className="border-indigo-500/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
-                      <Brain size={16} className="text-indigo-400" /> AI Recommendations
+                      <Brain size={16} className="text-indigo-400" /> Recommended next action
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {recommendations.length > 0 ? recommendations.map(r => (
+                    {readiness ? (
+                      <div className="rounded-xl bg-[var(--bg-2)] p-3">
+                        <p className="text-sm font-semibold">{readiness.recommended_next_action.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{readiness.recommended_next_action.description}</p>
+                        <Link to={readiness.recommended_next_action.action} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-indigo-400 hover:underline">
+                          Take action <ArrowRight size={10} />
+                        </Link>
+                      </div>
+                    ) : recommendations.length > 0 ? recommendations.map(r => (
                       <div key={r.title} className="rounded-xl bg-[var(--bg-2)] p-3">
                         <div className="flex items-center gap-2">
                           <span className={cn('h-1.5 w-1.5 rounded-full', r.priority === 'high' ? 'bg-rose-400' : 'bg-emerald-400')} />

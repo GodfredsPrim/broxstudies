@@ -27,6 +27,23 @@ class AcademicLevel(str, Enum):
     TVET = "tvet"
 
 
+class QuestionEvidence(BaseModel):
+    curriculum_strand: str = "Curriculum alignment pending"
+    curriculum_sub_strand: str = "Sub-strand not captured"
+    learning_outcome: str = "Learning outcome mapping pending"
+    source_document: str = "Source document not captured"
+    source_excerpt: str = "No verbatim source excerpt was retained for this generated item."
+    historical_exam_pattern: str = "No historical pattern was recorded for this item."
+    question_difficulty: str = "standard"
+    marks: int = Field(default=1, ge=1, le=100)
+    confidence_explanation: str = "Confidence is limited because complete provenance was not retained."
+    verification_status: str = "unverified"
+    academic_disclaimer: str = (
+        "This is an independently generated study question, not a leaked or guaranteed examination question. "
+        "Learners should verify it against official curriculum and examination materials."
+    )
+
+
 def normalize_academic_level_value(value):
     if isinstance(value, AcademicLevel):
         return value
@@ -155,6 +172,11 @@ class Question(BaseModel):
     difficulty_level: str  # easy, medium, hard
     year_generated: int
     pattern_confidence: float
+    evidence: QuestionEvidence = Field(default_factory=QuestionEvidence)
+    review_status: str = "pending_teacher_review"
+    teacher_verified: bool = False
+    verified_by: Optional[str] = None
+    verified_at: Optional[str] = None
 
 
 class QuestionGenerationRequest(BaseModel):
@@ -340,6 +362,7 @@ class AuthUser(BaseModel):
     subscription_status: str = "inactive"   # inactive | active | expired
     subscription_expires_at: Optional[str] = None
     is_admin: bool = False
+    is_teacher: bool = False
     track: Optional[str] = None             # shs | tvet — locked once subscription activates
     is_verified: bool = True
 

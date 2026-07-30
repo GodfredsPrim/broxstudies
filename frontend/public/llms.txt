@@ -1,0 +1,14 @@
+# BroxStudies
+
+BroxStudies is an AI-powered learning platform for Ghanaian SHS, STEM, and TVET students.
+
+## Main pages
+
+- [BroxStudies home](https://broxstudies.com/)
+- [Product overview](https://broxstudies.com/welcome)
+- [Documentation](https://broxstudies.com/docs)
+- [Student signup](https://broxstudies.com/signup)
+
+## Guidance
+
+Public product and documentation pages may be indexed. Account, administration, and API routes are not public content.

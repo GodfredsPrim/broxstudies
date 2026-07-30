@@ -3,7 +3,7 @@ export async function celebrateAchievement(kind: 'badge' | 'level' | 'streak' = 
     const confetti = (await import('canvas-confetti')).default
     const colors = kind === 'streak'
       ? ['#FBBF24', '#F59E0B', '#FDE68A']
-      : ['#818CF8', '#A78BFA', '#6366F1', '#34D399']
+      : ['#55E2E7', '#2BC2D7', '#147FCA', '#0754B8']
 
     confetti({
       particleCount: kind === 'level' ? 120 : 80,

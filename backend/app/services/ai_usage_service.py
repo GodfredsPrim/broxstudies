@@ -13,8 +13,10 @@ class AIUsageService:
     LIMITS = {
         "guest": {"minute": 3, "daily": 3, "tokens": 9_000},
         "registered": {"minute": 5, "daily": 10, "tokens": 30_000},
-        "active": {"minute": 10, "daily": 100, "tokens": 250_000},
-        "admin": {"minute": 30, "daily": 500, "tokens": 1_000_000},
+        # Premium and admin accounts have no daily request or token quota.
+        # Per-minute and concurrency controls remain to protect service stability.
+        "active": {"minute": 10, "daily": None, "tokens": None},
+        "admin": {"minute": 30, "daily": None, "tokens": None},
     }
 
     def __init__(self) -> None:
@@ -72,7 +74,11 @@ class AIUsageService:
                 raise ValueError("You already have an AI response in progress. Please let it finish first.")
             requests, tokens = self._today_usage(usage_key)
             estimated_input = max(1, input_chars // 4)
-            if requests >= limits["daily"] or tokens + estimated_input >= limits["tokens"]:
+            daily_limit = limits["daily"]
+            token_limit = limits["tokens"]
+            daily_exhausted = daily_limit is not None and requests >= daily_limit
+            tokens_exhausted = token_limit is not None and tokens + estimated_input >= token_limit
+            if daily_exhausted or tokens_exhausted:
                 raise ValueError("Your AI usage limit for today has been reached. It resets at midnight UTC.")
             recent.append(now)
             self._active.add(usage_key)
@@ -96,10 +102,12 @@ class AIUsageService:
         requests, tokens = self._today_usage(usage_key)
         tier = self.tier(user)
         limits = self.LIMITS[tier]
+        unlimited = limits["daily"] is None and limits["tokens"] is None
         return {
-            "tier": tier, "requests_used": requests, "requests_limit": limits["daily"],
+            "tier": tier, "unlimited": unlimited,
+            "requests_used": requests, "requests_limit": limits["daily"],
             "tokens_used": tokens, "tokens_limit": limits["tokens"],
-            "requests_remaining": max(0, limits["daily"] - requests),
+            "requests_remaining": None if unlimited else max(0, limits["daily"] - requests),
         }
 
 

@@ -2,9 +2,11 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, FileText, TrendingUp, Zap, Megaphone, Trophy, BookOpen, Clock,
   LogOut, ChevronsLeft, Menu, X, LogIn, UserPlus, Sparkles, Moon, Sun, Settings,
-  WifiOff, Download, LayoutDashboard, BarChart3, UserCog, LibraryBig, Files,
+  WifiOff, Download, LayoutDashboard, BarChart3, UserCog, Info, Files,
   BellRing,
   GraduationCap,
+  ShieldCheck,
+  Wifi,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -20,6 +22,7 @@ import { GamificationBar } from '@/components/gamification/GamificationWidgets'
 import { Logo, LogoMark } from '@/components/Logo'
 import { AddPhoneBanner } from '@/components/AddPhoneBanner'
 import { useAppAlerts } from '@/hooks/useAppAlerts'
+import { CommandPalette, type CommandItem } from '@/components/CommandPalette'
 
 interface NavDef {
   to: string
@@ -41,8 +44,24 @@ const NAV: NavDef[] = [
   { to: '/library',   label: 'Library',             short: 'Library',   icon: BookOpen,        group: 'prep' },
   { to: '/history',   label: 'History',             short: 'History',   icon: Clock,           group: 'prep' },
   { to: '/analytics', label: 'Analytics',           short: 'Analytics', icon: BarChart3,        group: 'insights' },
-  { to: '/learning',  label: 'Learning Hub',        short: 'Learning',  icon: GraduationCap,    group: 'insights' },
+  { to: '/learning',  label: 'Study Plan',           short: 'Plan',      icon: GraduationCap,    group: 'insights' },
 ]
+
+const NAV_DESCRIPTIONS: Record<string, string> = {
+  '/dashboard': 'See your learning progress and next steps.',
+  '/': 'Ask questions and learn with the AI tutor.',
+  '/source-studio': 'Study from trusted uploaded source material.',
+  '/practice': 'Generate focused practice questions.',
+  '/wassce': 'Prepare with likely exam topics and simulations.',
+  '/quiz': 'Test yourself in a quick challenge.',
+  '/news': 'Read product and learning updates.',
+  '/rankings': 'View learner rankings and achievements.',
+  '/library': 'Browse books and study resources.',
+  '/history': 'Return to earlier study activity.',
+  '/analytics': 'Understand performance and improvement areas.',
+  '/learning': 'Follow your personalised Study Plan.',
+  '/teacher-review': 'Review and verify generated academic content.',
+}
 
 export function AppShell() {
   const { user, signOut } = useAuth()
@@ -61,7 +80,7 @@ export function AppShell() {
   }, [])
 
   const { selectedTrack, resetAcademicTrack } = useAcademicTrack()
-  const { installPrompt, isOffline, install } = usePWA()
+  const { installPrompt, isInstalled, isOffline, install } = usePWA()
   const { supported: alertsSupported, permission: alertPermission, enableAlerts } = useAppAlerts()
   const [installDismissed, setInstallDismissed] = useState(() =>
     localStorage.getItem('brox.pwa.dismissed') === '1'
@@ -84,16 +103,76 @@ export function AppShell() {
     item.to === '/wassce' && selectedTrack === 'tvet'
       ? { ...item, label: 'Likely NAPTEX Questions', short: 'NAPTEX' }
       : item,
-  )
+  ).concat(user?.is_teacher || user?.is_admin
+    ? [{ to: '/teacher-review', label: 'Teacher Review', short: 'Review', icon: ShieldCheck, group: 'insights' as const }]
+    : [])
 
   const activeNav = pageNav.find(n => (n.to === '/' ? location.pathname === '/' : location.pathname.startsWith(n.to)))
   const isAdmin = location.pathname.startsWith('/admin')
-  const currentTitle = isAdmin ? 'Admin Dashboard' : (activeNav?.label || 'BroxStudies')
+  const isAbout = location.pathname.startsWith('/about')
+  const currentTitle = isAdmin ? 'Admin Dashboard' : isAbout ? 'About BroxStudies' : (activeNav?.label || 'BroxStudies')
   const isStudyPage = location.pathname === '/'
+
+  const commandItems: CommandItem[] = [
+    ...pageNav.map(item => ({
+      id: `navigate-${item.to === '/' ? 'tutor' : item.to.slice(1)}`,
+      label: item.label,
+      description: NAV_DESCRIPTIONS[item.to] || `Open ${item.label}.`,
+      group: 'Navigate' as const,
+      icon: item.icon,
+      keywords: `${item.short || ''} study learn`,
+      onSelect: () => navigate(item.to),
+    })),
+    {
+      id: 'navigate-about',
+      label: 'About BroxStudies',
+      description: 'Learn how the system works and read its documentation.',
+      group: 'Navigate',
+      icon: Info,
+      keywords: 'help documentation docs system',
+      onSelect: () => navigate('/about'),
+    },
+    ...(user ? [{
+      id: 'navigate-settings',
+      label: 'Account settings',
+      description: 'Manage your profile, preferences and account.',
+      group: 'Navigate' as const,
+      icon: UserCog,
+      keywords: 'profile account preferences',
+      onSelect: () => navigate('/settings'),
+    }] : []),
+    {
+      id: 'action-theme',
+      label: `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`,
+      description: 'Change the interface appearance.',
+      group: 'Actions',
+      icon: theme === 'dark' ? Sun : Moon,
+      keywords: 'theme appearance colour color',
+      onSelect: toggleTheme,
+    },
+    ...(installPrompt && !isInstalled ? [{
+      id: 'action-install',
+      label: 'Install BroxStudies',
+      description: 'Add the app to this device for faster access.',
+      group: 'Actions' as const,
+      icon: Download,
+      keywords: 'pwa offline device app',
+      onSelect: () => { void install() },
+    }] : []),
+    ...(user && alertsSupported && alertPermission === 'default' ? [{
+      id: 'action-alerts',
+      label: 'Enable study alerts',
+      description: 'Allow reminders for goals, streaks and updates.',
+      group: 'Actions' as const,
+      icon: BellRing,
+      keywords: 'notifications reminders push',
+      onSelect: () => { void enableAlerts() },
+    }] : []),
+  ]
 
   return (
     <div className="app-viewport flex min-h-[100svh] w-full overflow-hidden">
-      {/* Sidebar — desktop */}
+      {/* Desktop sidebar */}
       {!isAdmin && (
         <aside
           className={cn(
@@ -146,7 +225,7 @@ export function AppShell() {
                 )}
                 {selectedTrack && !collapsed && (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                    <span className="rounded-full bg-[var(--accent-tint)] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
                       {selectedTrack.toUpperCase()}
                     </span>
                     <button
@@ -159,7 +238,7 @@ export function AppShell() {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-[13px] font-bold text-emerald-300 ring-1 ring-emerald-400/20">
+                  <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent-tint)] text-[13px] font-bold text-[var(--accent)] ring-1 ring-[var(--accent)]/20">
                     {initials}
                   </div>
                   {!collapsed && (
@@ -274,7 +353,7 @@ export function AppShell() {
                   {user ? (
                     <>
                       <div className="flex items-center gap-2">
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-[13px] font-bold text-emerald-300 ring-1 ring-emerald-400/20">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent-tint)] text-[13px] font-bold text-[var(--accent)] ring-1 ring-[var(--accent)]/20">
                           {initials}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -284,7 +363,7 @@ export function AppShell() {
                       </div>
                       {selectedTrack && (
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-emerald-300">
+                          <span className="rounded-full bg-[var(--accent-tint)] px-3 py-1 text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
                             {selectedTrack.toUpperCase()}
                           </span>
                           <button
@@ -316,7 +395,7 @@ export function AppShell() {
                     </>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      <div className="v2-eyebrow">Guest — {remaining}/{limit} free chats</div>
+                      <div className="v2-eyebrow">Guest · {remaining}/{limit} free chats</div>
                       <div className="flex gap-2">
                         <NavLink
                           to="/signup"
@@ -373,6 +452,20 @@ export function AppShell() {
               <Sparkles size={10} /> {remaining}/{limit} free
             </Badge>
           )}
+          <div
+            className={cn(
+              'hidden h-8 items-center gap-1.5 rounded-lg border px-2 text-[10px] font-semibold sm:flex',
+              isOffline
+                ? 'border-[var(--gold)]/25 bg-[var(--gold-tint)] text-[var(--gold)]'
+                : 'border-[var(--accent)]/20 bg-[var(--accent-tint)] text-[var(--accent)]',
+            )}
+            role="status"
+            title={isOffline ? 'You are offline. Cached content remains available.' : 'Connected'}
+          >
+            {isOffline ? <WifiOff size={12} /> : <Wifi size={12} />}
+            <span className="hidden xl:inline">{isOffline ? 'Offline' : 'Online'}</span>
+          </div>
+          <CommandPalette items={commandItems} isOffline={isOffline} />
           <button
             onClick={toggleTheme}
             className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 hover:bg-white/5 hover:text-ink-0 transition-colors"
@@ -382,12 +475,12 @@ export function AppShell() {
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <NavLink
-            to="/docs"
-            className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-white/5 hover:text-ink-0"
-            title="Documentation"
-            aria-label="Open documentation"
+            to="/about"
+            className="hidden h-9 w-9 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-white/5 hover:text-ink-0 sm:grid"
+            title="About BroxStudies"
+            aria-label="About BroxStudies"
           >
-            <LibraryBig size={16} />
+            <Info size={16} />
           </NavLink>
           {user?.is_admin || devMode ? (
             <NavLink
@@ -416,27 +509,27 @@ export function AppShell() {
         {isOffline && (
           <div className="flex items-center justify-center gap-2 bg-amber-500/90 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
             <WifiOff size={14} />
-            You're offline — previously loaded content is still available
+            You're offline. Previously loaded content is still available.
           </div>
         )}
 
         {/* PWA install banner */}
         {installPrompt && !installDismissed && !isOffline && (
-          <div className="flex items-center justify-between gap-3 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 sm:px-8">
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--accent)]/20 bg-[var(--accent-tint)] px-4 py-2.5 sm:px-8">
+            <p className="text-sm text-[var(--accent)]">
               Install BroxStudies for offline access and a better experience.
             </p>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 onClick={() => install()}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-strong)]"
               >
                 <Download size={12} />
                 Install
               </button>
               <button
                 onClick={() => { setInstallDismissed(true); localStorage.setItem('brox.pwa.dismissed', '1') }}
-                className="grid h-7 w-7 place-items-center rounded-lg text-emerald-400 hover:bg-white/5"
+                className="grid h-7 w-7 place-items-center rounded-lg text-[var(--accent)] hover:bg-[var(--bg-1)]"
                 aria-label="Dismiss"
               >
                 <X size={14} />
@@ -446,9 +539,9 @@ export function AppShell() {
         )}
 
         {user && alertsSupported && alertPermission === 'default' && !isOffline && (
-          <div className="flex items-center justify-between gap-3 border-b border-indigo-500/20 bg-indigo-500/10 px-4 py-2.5 sm:px-8">
-            <p className="flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-300"><BellRing size={15} /><span>Enable alerts for streak reminders, study goals, news, and important updates.</span></p>
-            <button type="button" onClick={() => void enableAlerts()} className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">Enable alerts</button>
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--accent)]/20 bg-[var(--accent-tint)] px-4 py-2.5 sm:px-8">
+            <p className="flex items-center gap-2 text-sm text-[var(--accent)]"><BellRing size={15} /><span>Enable alerts for streak reminders, study goals, news, and important updates.</span></p>
+            <button type="button" onClick={() => void enableAlerts()} className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-strong)]">Enable alerts</button>
           </div>
         )}
 
@@ -462,7 +555,7 @@ export function AppShell() {
 
 function Brand({ collapsed, selectedTrack }: { collapsed: boolean; selectedTrack: string | null }) {
   return (
-    <NavLink to="/dashboard" className={cn('flex items-center gap-3 px-5 pb-5 pt-6', collapsed && 'justify-center px-0')}>
+    <NavLink to="/dashboard" aria-label="BroxStudies dashboard" className={cn('flex items-center gap-3 px-5 pb-5 pt-6', collapsed && 'justify-center px-0')}>
       {collapsed ? (
         <LogoMark size={36} />
       ) : (
@@ -512,7 +605,7 @@ function NavItem({ item, collapsed, hasUnseenNews, onNavigate }: NavItemProps) {
         cn(
           'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors',
           isActive
-            ? 'bg-indigo-500/10 text-indigo-300'
+            ? 'bg-[var(--accent-tint)] text-[var(--accent)]'
             : 'text-ink-300 hover:bg-white/5 hover:text-ink-0',
           collapsed && 'justify-center px-0',
         )
@@ -522,7 +615,7 @@ function NavItem({ item, collapsed, hasUnseenNews, onNavigate }: NavItemProps) {
       {({ isActive }) => (
         <>
           {isActive && !collapsed && (
-            <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
+            <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent-glow)]" />
           )}
           <span className="relative shrink-0">
             <Icon size={16} />

@@ -11,13 +11,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'inline',
       includeAssets: ['icon.svg', 'icons/*.png', 'push-handler.js'],
       manifest: {
         name: 'BroxStudies for SHS/STEM/TVET',
         short_name: 'BroxStudies',
         description: 'AI-powered learning for Ghanaian SHS, STEM, and TVET students. Master WASSCE with confidence.',
-        theme_color: '#030712',
-        background_color: '#030712',
+        theme_color: '#0754B8',
+        background_color: '#03091F',
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: '/dashboard',

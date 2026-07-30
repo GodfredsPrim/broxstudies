@@ -7,11 +7,11 @@ export interface QuestionSection {
 }
 
 const BRAND = {
-  emerald: [5, 150, 105] as [number, number, number],   // #059669
-  emeraldDark: [4, 120, 87] as [number, number, number], // #047857
-  text: [17, 24, 39] as [number, number, number],         // #111827
-  muted: [107, 114, 128] as [number, number, number],     // #6B7280
-  divider: [229, 231, 235] as [number, number, number],   // #E5E7EB
+  primary: [7, 84, 184] as [number, number, number],      // #0754B8
+  primaryDark: [6, 31, 95] as [number, number, number],   // #061F5F
+  text: [6, 19, 63] as [number, number, number],          // #06133F
+  muted: [70, 95, 131] as [number, number, number],       // #465F83
+  divider: [217, 229, 241] as [number, number, number],   // #D9E5F1
 }
 
 const A4 = { width: 210, height: 297 } // mm
@@ -90,7 +90,7 @@ function letterOf(index: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 function drawHeader(doc: jsPDF, title: string, subtitle: string) {
   // Emerald brand bar
-  doc.setFillColor(...BRAND.emerald)
+  doc.setFillColor(...BRAND.primary)
   doc.rect(0, 0, A4.width, 12, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
@@ -181,7 +181,7 @@ export function downloadQuestionsAsPDF(
 
     // Section heading
     ensureSpace(doc, cursor, 14, drawCurrentHeader)
-    doc.setFillColor(...BRAND.emeraldDark)
+    doc.setFillColor(...BRAND.primaryDark)
     doc.rect(MARGIN.left, cursor.y - 4, CONTENT_WIDTH, 7, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
@@ -232,7 +232,7 @@ export function downloadQuestionsAsPDF(
         cursor.y += 1
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(9)
-        doc.setTextColor(...BRAND.emeraldDark)
+        doc.setTextColor(...BRAND.primaryDark)
         writeWrapped(
           doc,
           `Answer: ${stripLatex(q.correct_answer)}`,

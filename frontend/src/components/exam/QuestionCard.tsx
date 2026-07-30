@@ -1,6 +1,9 @@
 import { memo } from 'react'
+import { BadgeCheck } from 'lucide-react'
 import { MathText } from '@/components/MathText'
 import { cn } from '@/lib/cn'
+import { QuestionEvidencePanel } from '@/components/exam/QuestionEvidencePanel'
+import type { QuestionEvidence } from '@/api/types'
 
 export interface ExamQuestion {
   question_text: string
@@ -9,6 +12,8 @@ export interface ExamQuestion {
   difficulty_level?: string
   correct_answer?: string
   explanation?: string
+  evidence?: QuestionEvidence
+  teacher_verified?: boolean
 }
 
 interface QuestionCardProps {
@@ -64,6 +69,11 @@ function QuestionCardImpl({
             {question.difficulty_level}
           </span>
         )}
+        {question.teacher_verified && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            <BadgeCheck size={12} /> Teacher Verified
+          </span>
+        )}
       </div>
 
       <p className="text-sm font-medium leading-relaxed text-ink-0">
@@ -116,6 +126,8 @@ function QuestionCardImpl({
           className="mt-4 block w-full resize-none rounded-xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-sm text-ink-0 placeholder:text-ink-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-tint)]"
         />
       )}
+
+      <QuestionEvidencePanel evidence={question.evidence} difficulty={question.difficulty_level} />
     </article>
   )
 }

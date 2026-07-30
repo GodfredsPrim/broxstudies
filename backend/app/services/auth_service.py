@@ -106,6 +106,7 @@ class AuthService:
                     subscription_status TEXT NOT NULL DEFAULT 'inactive',
                     subscription_expires_at TEXT,
                     is_admin INTEGER NOT NULL DEFAULT 0,
+                    is_teacher INTEGER NOT NULL DEFAULT 0,
                     session_id TEXT,
                     track TEXT
                 )
@@ -123,6 +124,7 @@ class AuthService:
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS track TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified INTEGER NOT NULL DEFAULT 1",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_teacher INTEGER NOT NULL DEFAULT 0",
                 ):
                     try:
                         self._execute(conn, alter_sql)
@@ -144,6 +146,10 @@ class AuthService:
                         pass
                 try:
                     self._execute(conn, "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 1")
+                except sqlite3.OperationalError:
+                    pass
+                try:
+                    self._execute(conn, "ALTER TABLE users ADD COLUMN is_teacher INTEGER NOT NULL DEFAULT 0")
                 except sqlite3.OperationalError:
                     pass
 
@@ -366,6 +372,21 @@ class AuthService:
                 """
             )
 
+            # Uploaded media lives with application data so it survives
+            # restarts and deploys on hosts with ephemeral filesystems.
+            media_data_type = "BYTEA" if self.is_postgres else "BLOB"
+            self._execute(conn,
+                f"""
+                CREATE TABLE IF NOT EXISTS media_assets (
+                    id TEXT PRIMARY KEY,
+                    filename TEXT NOT NULL,
+                    content_type TEXT NOT NULL,
+                    data {media_data_type} NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+
             # Student social feed. Posts are deliberately separate from curated
             # news so community content can be moderated and evolved safely.
             self._execute(conn,
@@ -540,6 +561,11 @@ class AuthService:
         except (KeyError, IndexError, TypeError):
             row_verified = True
 
+        try:
+            row_teacher = bool(row["is_teacher"])
+        except (KeyError, IndexError, TypeError):
+            row_teacher = False
+
         return AuthUser(
             id=row["id"],
             full_name=row["full_name"],
@@ -549,6 +575,7 @@ class AuthService:
             subscription_status=status,
             subscription_expires_at=expires_at,
             is_admin=bool(row["is_admin"]),
+            is_teacher=row_teacher,
             track=row_track,
             is_verified=row_verified,
         )
@@ -706,7 +733,8 @@ class AuthService:
             provider="static",
             subscription_status="active",
             subscription_expires_at=None,
-            is_admin=True
+            is_admin=True,
+            is_teacher=True,
         )
         return self._issue_token(admin, is_static_admin=True), admin
 
@@ -1900,7 +1928,43 @@ class AuthService:
             cursor = self._execute(conn, "UPDATE users SET is_admin = ? WHERE email = ?", (1 if is_admin else 0, email))
             return cursor.rowcount > 0
 
+    def set_user_teacher(self, user_id: int, is_teacher: bool = True) -> bool:
+        with self._connect() as conn:
+            cursor = self._execute(
+                conn,
+                "UPDATE users SET is_teacher = ? WHERE id = ?",
+                (1 if is_teacher else 0, user_id),
+            )
+            return cursor.rowcount > 0
+
     # ── News article methods ──────────────────────────────────────────────────
+
+    def store_media_asset(self, asset_id: str, filename: str, content_type: str, data: bytes) -> str:
+        now = datetime.now(timezone.utc).isoformat()
+        conn = self._connect()
+        try:
+            self._execute(
+                conn,
+                "INSERT INTO media_assets (id, filename, content_type, data, created_at) VALUES (?, ?, ?, ?, ?)",
+                (asset_id, filename, content_type, data, now),
+            )
+            if not self.is_postgres:
+                conn.commit()
+        finally:
+            conn.close()
+        return f"/api/media/{asset_id}"
+
+    def get_media_asset(self, asset_id: str) -> Optional[dict]:
+        conn = self._connect()
+        try:
+            row = self._execute(
+                conn,
+                "SELECT filename, content_type, data FROM media_assets WHERE id = ?",
+                (asset_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        return dict(row) if row else None
 
     def create_news_article(self, title: str, content: str, category: str, author_name: str, image_url: Optional[str] = None, is_published: bool = True, is_pinned: bool = False) -> int:
         now = datetime.now(timezone.utc).isoformat()

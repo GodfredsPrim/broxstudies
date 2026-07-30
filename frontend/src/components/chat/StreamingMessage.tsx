@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
-import { MarkdownMessage } from '@/components/chat/MarkdownMessage'
+import { lazy, Suspense, useEffect, useState } from 'react'
+
+const MarkdownMessage = lazy(() =>
+  import('@/components/chat/MarkdownMessage').then(module => ({ default: module.MarkdownMessage })),
+)
 
 interface StreamingMessageProps {
   content: string
@@ -41,7 +44,9 @@ export function StreamingMessage({ content, animate = true, live = false, onComp
 
   return (
     <div aria-live="polite" aria-atomic="false">
-      <MarkdownMessage content={visible || '…'} />
+      <Suspense fallback={<p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{visible || '…'}</p>}>
+        <MarkdownMessage content={visible || '…'} />
+      </Suspense>
     </div>
   )
 }

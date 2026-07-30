@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.models import AuthUser
 from app.routes.auth import get_current_user
 from app.services.learning_service import learning_service
+from app.services.readiness_service import readiness_service
 from app.config import settings
 
 router = APIRouter()
@@ -81,6 +82,11 @@ class PushMessageBody(BaseModel):
 async def overview(user: AuthUser = Depends(get_current_user)):
     mastery = learning_service.mastery(user.id)
     return {"profile": learning_service.profile(user.id), "mastery": mastery, "plan": learning_service.plan(user.id), "due_reviews": learning_service.due_review_cards(user.id), "classes": learning_service.classes_and_assignments(user.id)}
+
+
+@router.get("/readiness")
+async def readiness(user: AuthUser = Depends(get_current_user)):
+    return readiness_service.calculate_for_user(user.id)
 
 
 @router.put("/profile")

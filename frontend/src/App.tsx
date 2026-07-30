@@ -6,8 +6,6 @@ import { AdminGate } from '@/components/AdminGate'
 import { BootGate } from '@/components/BootGate'
 import { WelcomeRedirect } from '@/components/routing/RouteGuards'
 import { Spinner } from '@/components/ui/Spinner'
-import { StartupCupVotePrompt } from '@/components/StartupCupVotePrompt'
-import { StartupCupVoteRedirect } from '@/pages/StartupCupVoteRedirect'
 
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 const SignupPage = lazy(() => import('@/pages/Signup').then(m => ({ default: m.SignupPage })))
@@ -28,8 +26,9 @@ const HistoryPage = lazy(() => import('@/pages/History').then(m => ({ default: m
 const LandingPage = lazy(() => import('@/pages/Landing').then(m => ({ default: m.LandingPage })))
 const DashboardPage = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.DashboardPage })))
 const AnalyticsPage = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.AnalyticsPage })))
-const DocsPage = lazy(() => import('@/pages/Docs').then(m => ({ default: m.DocsPage })))
+const AboutPage = lazy(() => import('@/pages/About').then(m => ({ default: m.AboutPage })))
 const LearningPage = lazy(() => import('@/pages/Learning').then(m => ({ default: m.LearningPage })))
+const TeacherReviewPage = lazy(() => import('@/pages/TeacherReview').then(m => ({ default: m.TeacherReviewPage })))
 const NotFoundPage = lazy(() => import('@/pages/stubs').then(m => ({ default: m.NotFoundPage })))
 
 function PageLoader() {
@@ -50,7 +49,6 @@ export default function App() {
       <BootGate>
         <WelcomeRedirect>
           <Routes>
-          <Route path="/vote" element={<StartupCupVoteRedirect />} />
           <Route path="/welcome" element={<Lazy><LandingPage /></Lazy>} />
 
           <Route path="/login" element={<Lazy><LoginPage /></Lazy>} />
@@ -70,8 +68,10 @@ export default function App() {
 
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<Lazy><DashboardPage /></Lazy>} />
-            <Route path="/docs" element={<Lazy><DocsPage /></Lazy>} />
-            <Route path="/learning" element={<Lazy><Gate requireSubscription={false} label="Learning Hub" pitch="Sign in to build your adaptive revision plan."><LearningPage /></Gate></Lazy>} />
+            <Route path="/about" element={<Lazy><AboutPage /></Lazy>} />
+            <Route path="/docs" element={<Navigate to="/about" replace />} />
+            <Route path="/learning" element={<Lazy><Gate requireSubscription={false} label="Study Plan" pitch="Sign in to build a focused daily revision plan from your goals and results."><LearningPage /></Gate></Lazy>} />
+            <Route path="/teacher-review" element={<Lazy><Gate requireSubscription={false} label="Teacher Review" pitch="Authorised teachers can review generated academic content."><TeacherReviewPage /></Gate></Lazy>} />
             <Route index element={<Lazy><StudyPage /></Lazy>} />
             <Route path="/source-studio" element={<Lazy><SourceStudioPage /></Lazy>} />
             <Route
@@ -182,7 +182,6 @@ export default function App() {
           </Routes>
         </WelcomeRedirect>
       </BootGate>
-      <StartupCupVotePrompt />
     </>
   )
 }

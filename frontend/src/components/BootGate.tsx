@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, BookOpenText, FileText, GraduationCap } from 'lucide-react'
 import { systemApi } from '@/api/endpoints'
 import type { LoadingProgress } from '@/api/types'
+import { LogoMark } from '@/components/Logo'
 
 /**
  * Full-screen boot gate. On first mount it polls /api/questions/loading-progress
@@ -116,7 +117,7 @@ function BootScene({ progress, backendReady }: { progress: LoadingProgress | nul
       {/* Slow-breathing radial glow behind everything */}
       <motion.div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[70vmin] w-[70vmin] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{ background: 'radial-gradient(closest-side, rgba(16,185,129,0.16), transparent 70%)' }}
+        style={{ background: 'radial-gradient(closest-side, rgba(43,194,215,0.18), transparent 70%)' }}
         animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
         transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
       />
@@ -164,7 +165,7 @@ function BootScene({ progress, backendReady }: { progress: LoadingProgress | nul
                 className="absolute -inset-2 rounded-[22px]"
                 style={{
                   background:
-                    'conic-gradient(from 0deg, transparent 0%, rgba(52,211,153,0.9) 12%, transparent 30%)',
+                    'conic-gradient(from 0deg, transparent 0%, rgba(85,226,231,0.92) 12%, transparent 30%)',
                   WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
                   WebkitMaskComposite: 'xor',
                   maskComposite: 'exclude',
@@ -177,23 +178,13 @@ function BootScene({ progress, backendReady }: { progress: LoadingProgress | nul
               <motion.div
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-glow-md"
               >
-                <div className="v2-mesh" style={{ inset: 0, opacity: 0.9 }} />
-                {/* Shine sweep */}
-                <motion.span
-                  aria-hidden
-                  className="absolute inset-y-0 w-8 bg-white/30 blur-md"
-                  initial={{ x: -48, skewX: -18 }}
-                  animate={{ x: 80 }}
-                  transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.4, ease: 'easeInOut' }}
-                />
-                <span className="relative font-display text-3xl text-[#02180F]">Bx</span>
+                <LogoMark size={64} />
               </motion.div>
             </motion.div>
 
             {/* Letter-by-letter wordmark */}
-            <h1 className="v2-display mt-5 text-5xl text-ink-0" aria-label={WORDMARK}>
+            <h1 className="brand-wordmark v2-display mt-5 text-5xl" aria-label={WORDMARK}>
               {WORDMARK.split('').map((ch, i) => (
                 <motion.span
                   key={i}
@@ -239,7 +230,7 @@ function BootScene({ progress, backendReady }: { progress: LoadingProgress | nul
                     ? { duration: 3.6, ease: [0.22, 1, 0.36, 1] }
                     : { type: 'spring', stiffness: 140, damping: 24 }
                 }
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.45)]"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-600 to-purple-400 shadow-[0_0_16px_rgba(43,194,215,0.45)]"
               />
             </div>
             <div className="flex items-center justify-between font-mono text-[11px] text-ink-400">

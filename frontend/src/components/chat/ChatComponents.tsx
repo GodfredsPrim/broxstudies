@@ -1,9 +1,14 @@
+import { lazy, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { Sparkles, FileImage, FileText, File, Paperclip } from 'lucide-react'
-import { MarkdownMessage } from '@/components/chat/MarkdownMessage'
+import { FileImage, FileText, File, Paperclip } from 'lucide-react'
 import { StreamingMessage } from '@/components/chat/StreamingMessage'
 import { SuggestedPrompts } from '@/components/chat/SuggestedPrompts'
+import { LogoMark } from '@/components/Logo'
 import { cn } from '@/lib/cn'
+
+const MarkdownMessage = lazy(() =>
+  import('@/components/chat/MarkdownMessage').then(module => ({ default: module.MarkdownMessage })),
+)
 
 export interface ChatAttachment {
   name: string
@@ -33,8 +38,8 @@ export function EmptyChat({ onPromptSelect, disabled }: { onPromptSelect?: (p: s
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="text-center"
       >
-        <div className="relative mx-auto mb-6 grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-glow-md">
-          <Sparkles size={24} className="text-white" />
+        <div className="mx-auto mb-6 h-16 w-16">
+          <LogoMark size={64} />
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
           What would you like to <span className="gradient-text">learn today?</span>
@@ -59,13 +64,13 @@ export function MessageBubble({ msg, streaming = false, streamingLive = false }:
     >
       <div
         className={cn(
-          'mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl text-[10px] font-bold',
+          'mt-0.5 h-8 w-8 shrink-0',
           isUser
-            ? 'bg-[var(--bg-2)] text-foreground ring-1 ring-border'
-            : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white',
+            ? 'grid place-items-center rounded-xl bg-[var(--bg-2)] text-[10px] font-bold text-foreground ring-1 ring-border'
+            : '',
         )}
       >
-        {isUser ? 'You' : <Sparkles size={14} />}
+        {isUser ? 'You' : <LogoMark size={32} />}
       </div>
       <div className={cn('min-w-0 max-w-[85%]', isUser && 'text-right')}>
         {isUser && msg.attachments && msg.attachments.length > 0 && (
@@ -97,7 +102,9 @@ export function MessageBubble({ msg, streaming = false, streamingLive = false }:
             ) : streaming ? (
               <StreamingMessage content={msg.content} live={streamingLive} animate={!streamingLive} />
             ) : (
-              <MarkdownMessage content={msg.content} />
+              <Suspense fallback={<p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{msg.content}</p>}>
+                <MarkdownMessage content={msg.content} />
+              </Suspense>
             )}
           </div>
         )}
@@ -109,9 +116,7 @@ export function MessageBubble({ msg, streaming = false, streamingLive = false }:
 export function TypingBubble() {
   return (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600">
-        <Sparkles size={14} className="text-white" />
-      </div>
+      <LogoMark size={32} />
       <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-card px-4 py-3">
         <Dot delay={0} />
         <Dot delay={0.15} />

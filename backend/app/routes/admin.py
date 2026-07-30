@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import List
+from pathlib import Path
+import uuid
 from pydantic import BaseModel
 from app.models import (
     AuthUser,
@@ -20,15 +22,51 @@ from app.models import (
 )
 from app.routes.auth import get_current_user
 from app.services.auth_service import AuthService
-from app.config import BACKEND_DIR, settings
+from app.config import settings
+from app.services.backtesting_service import backtesting_service
+from app.services.impact_service import impact_service
 
 router = APIRouter()
 auth_service = AuthService()
+
+IMAGE_CONTENT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+
+
+def _store_media(filename: str, content_type: str, data: bytes) -> str:
+    return auth_service.store_media_asset(
+        uuid.uuid4().hex,
+        Path(filename).name[:180] or "upload",
+        content_type,
+        data,
+    )
+
+
+def _valid_image_signature(extension: str, data: bytes) -> bool:
+    return {
+        ".jpg": data.startswith(b"\xff\xd8\xff"),
+        ".jpeg": data.startswith(b"\xff\xd8\xff"),
+        ".png": data.startswith(b"\x89PNG\r\n\x1a\n"),
+        ".webp": len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP",
+    }.get(extension, False)
 
 
 class CouponGenerateRequest(BaseModel):
     quantity: int = 1
     duration_months: int | None = None
+
+
+class TeacherRoleRequest(BaseModel):
+    is_teacher: bool = True
+
+
+class BacktestRequest(BaseModel):
+    subject: str
+    hidden_year: int
 
 def require_admin(current_user: AuthUser = Depends(get_current_user)):
     if not current_user.is_admin:
@@ -48,6 +86,61 @@ async def get_analytics(admin: AuthUser = Depends(require_admin)):
     data = auth_service.get_admin_analytics()
     return AdminAnalytics(**data)
 
+
+@router.get("/users")
+async def list_users(limit: int = 100, admin: AuthUser = Depends(require_admin)):
+    with auth_service._connect() as conn:
+        rows = auth_service._execute(
+            conn,
+            """SELECT id, full_name, email, is_admin, is_teacher, created_at
+               FROM users ORDER BY created_at DESC LIMIT ?""",
+            (max(1, min(limit, 250)),),
+        ).fetchall()
+    return {
+        "users": [
+            {
+                **dict(row),
+                "is_admin": bool(row["is_admin"]),
+                "is_teacher": bool(row["is_teacher"]),
+            }
+            for row in rows
+        ]
+    }
+
+
+@router.put("/users/{user_id}/teacher")
+async def set_teacher_role(
+    user_id: int,
+    body: TeacherRoleRequest,
+    admin: AuthUser = Depends(require_admin),
+):
+    if not auth_service.set_user_teacher(user_id, body.is_teacher):
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {"user_id": user_id, "is_teacher": body.is_teacher}
+
+
+@router.get("/backtesting/catalog")
+async def backtesting_catalog(admin: AuthUser = Depends(require_admin)):
+    return {"subjects": backtesting_service.catalog()}
+
+
+@router.post("/backtesting/run")
+async def run_backtest(body: BacktestRequest, admin: AuthUser = Depends(require_admin)):
+    try:
+        return backtesting_service.run(body.subject, body.hidden_year, admin.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/backtesting/history")
+async def backtesting_history(admin: AuthUser = Depends(require_admin)):
+    return {"runs": backtesting_service.history()}
+
+
+@router.get("/impact")
+async def impact_dashboard(admin: AuthUser = Depends(require_admin)):
+    return impact_service.snapshot()
+
 @router.post("/competitions", response_model=int)
 async def create_comp(request: CompetitionCreateRequest, admin: AuthUser = Depends(require_admin)):
     return auth_service.create_competition(
@@ -62,24 +155,17 @@ async def create_comp(request: CompetitionCreateRequest, admin: AuthUser = Depen
 
 @router.post("/competitions/{comp_id}/upload-pdf")
 async def upload_comp_pdf(comp_id: int, file: UploadFile = File(...), admin: AuthUser = Depends(require_admin)):
-    if not file.filename.lower().endswith('.pdf'):
+    filename = file.filename or "competition.pdf"
+    if Path(filename).suffix.lower() != ".pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-    
-    import os
-    # Create directory if not exists
-    comp_upload_dir = BACKEND_DIR / "uploads" / "competitions"
-    comp_upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save file with unique name
-    filename = f"comp_{comp_id}_{file.filename}"
-    file_path = comp_upload_dir / filename
-    
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
-    # Update DB
-    pdf_url = f"/uploads/competitions/{filename}"
+
+    content = await file.read(15 * 1024 * 1024 + 1)
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Competition PDFs must be 15 MB or smaller.")
+    if not content.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid PDF.")
+
+    pdf_url = _store_media(filename, "application/pdf", content)
     success = auth_service.update_competition_pdf(comp_id, pdf_url)
     
     if not success:
@@ -89,24 +175,18 @@ async def upload_comp_pdf(comp_id: int, file: UploadFile = File(...), admin: Aut
 
 @router.post("/competitions/{comp_id}/upload-image")
 async def upload_comp_image(comp_id: int, file: UploadFile = File(...), admin: AuthUser = Depends(require_admin)):
-    allowed_exts = {".jpg", ".jpeg", ".png", ".webp"}
-    import os
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in allowed_exts:
+    filename = file.filename or "competition-image"
+    ext = Path(filename).suffix.lower()
+    if ext not in IMAGE_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Only images (JPG, PNG, WEBP) are allowed.")
-    
-    # Create directory if not exists
-    img_upload_dir = BACKEND_DIR / "uploads" / "ads"
-    img_upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    filename = f"ad_{comp_id}{ext}"
-    file_path = img_upload_dir / filename
-    
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
-    image_url = f"/uploads/ads/{filename}"
+
+    content = await file.read(5 * 1024 * 1024 + 1)
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Images must be 5 MB or smaller.")
+    if not _valid_image_signature(ext, content):
+        raise HTTPException(status_code=400, detail="The image contents do not match its file type.")
+
+    image_url = _store_media(filename, IMAGE_CONTENT_TYPES[ext], content)
     success = auth_service.update_competition_image(comp_id, image_url)
     
     if not success:
@@ -291,23 +371,18 @@ async def delete_news(article_id: int, admin: AuthUser = Depends(require_admin))
 
 @router.post("/news/{article_id}/upload-image")
 async def upload_news_image(article_id: int, file: UploadFile = File(...), admin: AuthUser = Depends(require_admin)):
-    allowed_exts = {".jpg", ".jpeg", ".png", ".webp"}
-    import os
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in allowed_exts:
+    filename = file.filename or "news-image"
+    ext = Path(filename).suffix.lower()
+    if ext not in IMAGE_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Only images (JPG, PNG, WEBP) are allowed.")
 
-    news_upload_dir = BACKEND_DIR / "uploads" / "news"
-    news_upload_dir.mkdir(parents=True, exist_ok=True)
+    content = await file.read(5 * 1024 * 1024 + 1)
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Images must be 5 MB or smaller.")
+    if not _valid_image_signature(ext, content):
+        raise HTTPException(status_code=400, detail="The image contents do not match its file type.")
 
-    filename = f"news_{article_id}{ext}"
-    file_path = news_upload_dir / filename
-
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-
-    image_url = f"/uploads/news/{filename}"
+    image_url = _store_media(filename, IMAGE_CONTENT_TYPES[ext], content)
     success = auth_service.update_news_article_image(article_id, image_url)
 
     if not success:
@@ -335,7 +410,7 @@ async def create_social_post(
 
     attachment_url = attachment_name = attachment_type = None
     if attachment:
-        import os, re, uuid
+        import os
         allowed = {
             ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
             ".pdf": "application/pdf", ".doc": "application/msword",
@@ -358,14 +433,9 @@ async def create_social_post(
         }
         if not signatures_ok[ext]:
             raise HTTPException(status_code=400, detail="The attachment contents do not match its file type.")
-        upload_dir = BACKEND_DIR / "uploads" / "social"
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        safe_stem = re.sub(r"[^A-Za-z0-9_-]+", "-", os.path.splitext(attachment.filename or "file")[0]).strip("-")[:60] or "file"
-        stored_name = f"{current_user.id}_{uuid.uuid4().hex}_{safe_stem}{ext}"
-        (upload_dir / stored_name).write_bytes(data)
-        attachment_url = f"/uploads/social/{stored_name}"
         attachment_name = os.path.basename(attachment.filename or f"attachment{ext}")[:180]
         attachment_type = allowed[ext]
+        attachment_url = _store_media(attachment_name, attachment_type, data)
 
     return auth_service.create_social_post(current_user.id, content, attachment_url, attachment_name, attachment_type)
 

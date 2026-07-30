@@ -177,6 +177,25 @@ export const questionsApi = {
     api.post('/api/questions/history/exams', body).then(r => r.data),
 }
 
+/* ------------------------------ TEACHER REVIEW ------------------------------ */
+export const teacherApi = {
+  queue: (status?: string) =>
+    api.get<{ questions: import('./types').TeacherQuestionRecord[] }>('/api/teacher/questions', { params: status ? { status } : {} }).then(r => r.data),
+  detail: (id: string) =>
+    api.get<import('./types').TeacherQuestionRecord>(`/api/teacher/questions/${encodeURIComponent(id)}`).then(r => r.data),
+  review: (id: string, body: {
+    action: 'approve' | 'edit' | 'reject' | 'verify'
+    review_target?: 'question' | 'marking_scheme' | 'both'
+    comment?: string
+    question_text?: string
+    options?: string[]
+    correct_answer?: string
+    explanation?: string
+    marking_scheme?: string
+    difficulty_level?: string
+  }) => api.post<import('./types').TeacherQuestionRecord>(`/api/teacher/questions/${encodeURIComponent(id)}/review`, body).then(r => r.data),
+}
+
 export const liveQuizApi = {
   create: (body: {
     player_name: string
@@ -303,7 +322,15 @@ export const tutorApi = {
         { params: { limit } },
       )
       .then(r => r.data),
-  usage: () => api.get<{ tier: string; requests_used: number; requests_limit: number; tokens_used: number; tokens_limit: number; requests_remaining: number }>('/api/tutor/usage').then(r => r.data),
+  usage: () => api.get<{
+    tier: string
+    unlimited: boolean
+    requests_used: number
+    requests_limit: number | null
+    tokens_used: number
+    tokens_limit: number | null
+    requests_remaining: number | null
+  }>('/api/tutor/usage').then(r => r.data),
 }
 
 /* ------------------------------ RESOURCES ------------------------------ */
@@ -344,6 +371,16 @@ export const analysisApi = {
 export const adminApi = {
   analytics: () =>
     api.get<AdminAnalytics>('/api/admin/analytics').then(r => r.data),
+  users: () => api.get<{ users: Array<{ id: number; full_name: string; email: string; is_admin: boolean; is_teacher: boolean }> }>('/api/admin/users').then(r => r.data),
+  setTeacher: (id: number, is_teacher: boolean) =>
+    api.put<{ user_id: number; is_teacher: boolean }>(`/api/admin/users/${id}/teacher`, { is_teacher }).then(r => r.data),
+  backtestingCatalog: () =>
+    api.get<{ subjects: Array<{ subject: string; years: number[] }> }>('/api/admin/backtesting/catalog').then(r => r.data),
+  runBacktest: (subject: string, hidden_year: number) =>
+    api.post<import('./types').BacktestRun>('/api/admin/backtesting/run', { subject, hidden_year }).then(r => r.data),
+  backtestingHistory: () =>
+    api.get<{ runs: import('./types').BacktestRun[] }>('/api/admin/backtesting/history').then(r => r.data),
+  impact: () => api.get<import('./types').ImpactSnapshot>('/api/admin/impact').then(r => r.data),
 
   pendingPayments: () =>
     api.get<PendingPayment[]>('/api/admin/payments/pending').then(r => r.data),
@@ -431,6 +468,7 @@ export const socialApi = {
 
 export const learningApi = {
   overview: () => api.get<LearningOverview>('/api/learning/overview').then(r => r.data),
+  readiness: () => api.get<import('./types').ReadinessScore>('/api/learning/readiness').then(r => r.data),
   saveProfile: (body: LearningProfile) => api.put<LearningProfile>('/api/learning/profile', body).then(r => r.data),
   recordMastery: (body: { subject: string; topic: string; correct: number; total: number }) => api.post('/api/learning/mastery', body).then(r => r.data),
   diagnostic: (items: Array<{ subject: string; topic: string; correct: number; total: number }>) => api.post('/api/learning/diagnostic', items).then(r => r.data),
