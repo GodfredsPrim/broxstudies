@@ -310,7 +310,7 @@ export function AppShell() {
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-                className="fixed inset-y-0 left-0 z-50 flex w-[288px] flex-col border-r border-white/5 bg-[var(--bg-1)] lg:hidden"
+                className="fixed inset-y-0 left-0 z-50 flex w-[min(288px,calc(100vw-1rem))] flex-col border-r border-white/5 bg-[var(--bg-1)] lg:hidden"
               >
                 <div className="flex items-center justify-between px-4 py-4">
                   <Brand collapsed={false} selectedTrack={selectedTrack} />
@@ -423,7 +423,7 @@ export function AppShell() {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/5 bg-[var(--bg-0)]/95 px-3 supports-[backdrop-filter]:bg-[var(--bg-0)]/75 supports-[backdrop-filter]:backdrop-blur-md sm:px-4 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-14 min-w-0 shrink-0 items-center gap-1.5 border-b border-white/5 bg-[var(--bg-0)]/95 px-2 supports-[backdrop-filter]:bg-[var(--bg-0)]/75 supports-[backdrop-filter]:backdrop-blur-md sm:gap-3 sm:px-4 lg:px-8">
           {!isAdmin && (
             <button
               onClick={() => setMobileOpen(true)}
@@ -441,7 +441,7 @@ export function AppShell() {
             <span className="text-[var(--fg-3)]">/</span>
             <span className="text-[var(--fg-1)]">{currentTitle}</span>
           </div>
-          <div className="flex-1" />
+          <div className="hidden flex-1 sm:block" />
           {user && (
             <div className="hidden md:block">
               <GamificationBar />
@@ -494,11 +494,11 @@ export function AppShell() {
           {location.pathname !== '/' && (
             <NavLink
               to="/"
-              className="v2-btn v2-btn-primary h-9 !px-4 text-[13px]"
+              className="v2-btn v2-btn-primary h-9 !w-9 !px-0 text-[13px] sm:!w-auto sm:!px-4"
+              aria-label="Start studying"
             >
               <Sparkles size={14} />
               <span className="hidden sm:inline">Start studying</span>
-              <span className="sm:hidden">Study</span>
             </NavLink>
           )}
         </header>
@@ -515,7 +515,7 @@ export function AppShell() {
 
         {/* PWA install banner */}
         {installPrompt && !installDismissed && !isOffline && (
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--accent)]/20 bg-[var(--accent-tint)] px-4 py-2.5 sm:px-8">
+          <div className="flex flex-col items-start gap-2 border-b border-[var(--accent)]/20 bg-[var(--accent-tint)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8">
             <p className="text-sm text-[var(--accent)]">
               Install BroxStudies for offline access and a better experience.
             </p>
@@ -539,8 +539,8 @@ export function AppShell() {
         )}
 
         {user && alertsSupported && alertPermission === 'default' && !isOffline && (
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--accent)]/20 bg-[var(--accent-tint)] px-4 py-2.5 sm:px-8">
-            <p className="flex items-center gap-2 text-sm text-[var(--accent)]"><BellRing size={15} /><span>Enable alerts for streak reminders, study goals, news, and important updates.</span></p>
+          <div className="flex flex-col items-start gap-2 border-b border-[var(--accent)]/20 bg-[var(--accent-tint)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8">
+            <p className="flex items-start gap-2 text-sm text-[var(--accent)] sm:items-center"><BellRing size={15} className="mt-0.5 shrink-0 sm:mt-0" /><span>Enable alerts for streak reminders, study goals, news, and important updates.</span></p>
             <button type="button" onClick={() => void enableAlerts()} className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-strong)]">Enable alerts</button>
           </div>
         )}

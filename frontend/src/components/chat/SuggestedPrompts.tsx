@@ -20,8 +20,8 @@ interface SuggestedPromptsProps {
 
 export function SuggestedPrompts({ onSelect, disabled }: SuggestedPromptsProps) {
   return (
-    <div className="mt-8">
-      <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="mt-6 sm:mt-8">
+      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:mb-4">
         Try asking
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -35,7 +35,7 @@ export function SuggestedPrompts({ onSelect, disabled }: SuggestedPromptsProps) 
             disabled={disabled}
             onClick={() => onSelect(p.text)}
             className={cn(
-              'group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all',
+              'group flex items-start gap-2.5 rounded-xl border border-border bg-card p-3 text-left transition-all sm:gap-3 sm:rounded-2xl sm:p-4',
               'hover:border-indigo-500/30 hover:bg-indigo-500/5 hover:shadow-glow-sm',
               'disabled:pointer-events-none disabled:opacity-50',
             )}

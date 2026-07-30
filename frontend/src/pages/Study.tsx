@@ -260,7 +260,7 @@ export function StudyPage() {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-1"
+      className="flex h-full min-h-0 min-w-0 flex-1 overflow-x-hidden"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -274,8 +274,8 @@ export function StudyPage() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {isDragging && <DragOverlay />}
 
-      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-y-auto" role="log" aria-live="polite" aria-relevant="additions">
-        <div className="absolute left-4 top-4 z-10 flex gap-2 sm:left-6">
+      <div ref={scrollRef} className="relative min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain" role="log" aria-live="polite" aria-relevant="additions">
+        <div className="absolute left-3 top-3 z-10 flex gap-2 sm:left-6 sm:top-4">
           <Button
             variant="ghost"
             size="sm"
@@ -286,7 +286,7 @@ export function StudyPage() {
             <span className="hidden sm:inline">History</span>
           </Button>
         </div>
-        <div className="absolute right-4 top-4 z-10 sm:right-6">
+        <div className="absolute right-3 top-3 z-10 sm:right-6 sm:top-4">
           <Button
             variant="ghost"
             size="sm"
@@ -297,7 +297,7 @@ export function StudyPage() {
             New chat
           </Button>
         </div>
-        <div className="mx-auto max-w-3xl px-4 pb-6 pt-16 sm:px-6 sm:pb-8 sm:pt-16">
+        <div className="mx-auto w-full max-w-3xl px-3 pb-5 pt-14 sm:px-6 sm:pb-8 sm:pt-16">
           {empty ? (
             <EmptyChat onPromptSelect={text => void send(text)} disabled={outOfChats || loading} />
           ) : (
@@ -319,8 +319,8 @@ export function StudyPage() {
       </div>
 
       {/* Composer */}
-      <div className="border-t border-[var(--line)] bg-[var(--bg-0)]/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+      <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-0)]/90 backdrop-blur-xl">
+        <div className="mx-auto w-full max-w-3xl px-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 sm:px-6 sm:py-4">
           {outOfChats && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-[13px] text-amber-700 dark:text-amber-200">
               <span className="flex items-center gap-2">
@@ -345,11 +345,11 @@ export function StudyPage() {
               {pendingFiles.map((f, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[12px] text-indigo-300"
+                  className="flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[12px] text-indigo-300"
                 >
                   <AttachmentIcon mime={f.type} />
-                  <span className="max-w-[120px] truncate font-medium">{f.name}</span>
-                  <span className="text-indigo-400/70">({formatBytes(f.size)})</span>
+                  <span className="max-w-[45vw] truncate font-medium sm:max-w-[120px]">{f.name}</span>
+                  <span className="hidden text-indigo-400/70 min-[390px]:inline">({formatBytes(f.size)})</span>
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
@@ -369,7 +369,7 @@ export function StudyPage() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="flex items-end gap-2">
+          <form onSubmit={onSubmit} className="grid min-w-0 grid-cols-[44px_44px_minmax(0,1fr)_44px] items-end gap-1.5 sm:flex sm:gap-2">
             {/* Hidden file input */}
             <input
               ref={fileInputRef}
@@ -386,7 +386,7 @@ export function StudyPage() {
               onClick={toggleVoice}
               disabled={outOfChats || loading}
               title={listening ? 'Stop voice input' : 'Speak your question'}
-              className={`grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl border transition disabled:pointer-events-none disabled:opacity-40 ${
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition active:translate-y-px disabled:pointer-events-none disabled:opacity-40 sm:h-[52px] sm:w-[52px] sm:rounded-2xl ${
                 listening
                   ? 'border-rose-400/50 bg-rose-500/10 text-rose-400'
                   : 'border-border bg-card text-muted-foreground hover:border-indigo-400 hover:text-indigo-400'
@@ -400,12 +400,12 @@ export function StudyPage() {
               onClick={() => fileInputRef.current?.click()}
               disabled={outOfChats || loading}
               title="Attach image, PDF, DOCX, or TXT"
-              className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl border border-border bg-card text-muted-foreground transition hover:border-indigo-400 hover:text-indigo-400 disabled:pointer-events-none disabled:opacity-40"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition hover:border-indigo-400 hover:text-indigo-400 active:translate-y-px disabled:pointer-events-none disabled:opacity-40 sm:h-[52px] sm:w-[52px] sm:rounded-2xl"
             >
               <Paperclip size={18} />
             </button>
 
-            <div className="v2-input flex min-h-[52px] flex-1 items-end gap-2 !h-auto !py-3">
+            <div className="v2-input flex min-h-11 min-w-0 items-end gap-2 !h-auto !px-3 !py-2.5 sm:min-h-[52px] sm:flex-1 sm:!px-4 sm:!py-3">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -414,14 +414,14 @@ export function StudyPage() {
                 onPaste={onPaste}
                 placeholder={
                   outOfChats
-                    ? 'Sign up to continue studying…'
+                    ? 'Sign up to continue studying'
                     : pendingFiles.length > 0
-                      ? 'Add a question about the attached file(s)…'
-                      : 'Ask anything — or attach a photo/PDF to solve it step by step.'
+                      ? 'Ask about the attached file'
+                      : 'Ask anything or attach a question'
                 }
                 disabled={outOfChats || loading}
                 rows={1}
-                className="flex-1 resize-none border-0 bg-transparent p-0 text-[14.5px] font-medium text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:outline-none disabled:opacity-60"
+                className="min-w-0 flex-1 resize-none border-0 bg-transparent p-0 text-base font-medium leading-6 text-[var(--fg-0)] placeholder:text-[var(--fg-3)] focus:outline-none disabled:opacity-60 sm:text-[14.5px]"
               />
             </div>
             <Button
@@ -430,16 +430,17 @@ export function StudyPage() {
               size="md"
               disabled={!canSend}
               leading={<Send size={14} />}
-              className="shrink-0 !h-[52px]"
+              aria-label="Send message"
+              className="!h-11 !w-11 shrink-0 !px-0 sm:!h-[52px] sm:!w-auto sm:!px-4"
             >
               <span className="hidden sm:inline">Send</span>
             </Button>
           </form>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--fg-3)]">
+          <div className="mt-2 hidden items-center justify-between text-[11px] text-[var(--fg-3)] sm:flex">
             <span>
               <kbd className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{' '}
               to send · <kbd className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-0.5 font-mono text-[10px]">Shift+Enter</kbd>{' '}
-              new line · 🎤 voice · 📎 paste or drag files
+              for a new line · paste or drag files
             </span>
             <span className="hidden sm:inline text-[var(--fg-2)]">Tip: attach a photo of a question for step-by-step help</span>
           </div>

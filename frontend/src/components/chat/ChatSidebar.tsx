@@ -65,7 +65,7 @@ export function ChatSidebar({ open, onClose, onSelectPrompt }: ChatSidebarProps)
   const panel = (
     <aside
       className={cn(
-        'flex w-72 shrink-0 flex-col border-r border-border bg-[var(--bg-1)]',
+        'flex w-[min(18rem,calc(100vw-1rem))] shrink-0 flex-col border-r border-border bg-[var(--bg-1)]',
         open ? 'fixed inset-y-0 left-0 z-50 shadow-2xl' : 'hidden',
       )}
       aria-label="Chat history"

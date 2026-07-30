@@ -111,7 +111,7 @@ export function AddPhoneBanner() {
                 onChange={e => setPhone(e.target.value)}
                 placeholder="0241234567"
                 autoFocus
-                className="rounded-lg border border-amber-500/30 bg-[var(--bg-0)] px-3 py-1.5 text-sm text-ink-0 outline-none focus:border-amber-500/60"
+                className="w-full rounded-lg border border-amber-500/30 bg-[var(--bg-0)] px-3 py-2 text-base text-ink-0 outline-none focus:border-amber-500/60 sm:w-auto sm:py-1.5 sm:text-sm"
               />
               <button
                 disabled={loading}
@@ -131,7 +131,7 @@ export function AddPhoneBanner() {
                 onChange={e => setCode(e.target.value)}
                 placeholder="123456"
                 autoFocus
-                className="rounded-lg border border-amber-500/30 bg-[var(--bg-0)] px-3 py-1.5 text-sm font-mono tracking-widest text-ink-0 outline-none focus:border-amber-500/60"
+                className="w-full rounded-lg border border-amber-500/30 bg-[var(--bg-0)] px-3 py-2 text-base font-mono tracking-widest text-ink-0 outline-none focus:border-amber-500/60 sm:w-auto sm:py-1.5 sm:text-sm"
               />
               <button
                 disabled={loading}

@@ -31,20 +31,20 @@ function AttachmentIcon({ mime }: { mime: string }) {
 
 export function EmptyChat({ onPromptSelect, disabled }: { onPromptSelect?: (p: string) => void; disabled?: boolean }) {
   return (
-    <div className="py-6">
+    <div className="py-3 sm:py-6">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="text-center"
       >
-        <div className="mx-auto mb-6 h-16 w-16">
-          <LogoMark size={64} />
+        <div className="mx-auto mb-4 h-14 w-14 sm:mb-6 sm:h-16 sm:w-16">
+          <LogoMark size={64} className="h-14 w-14 sm:h-16 sm:w-16" />
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+        <h1 className="text-2xl font-extrabold tracking-tight min-[390px]:text-3xl sm:text-4xl">
           What would you like to <span className="gradient-text">learn today?</span>
         </h1>
-        <p className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground sm:mt-3 sm:text-[15px]">
           Your AI tutor is tuned for Ghana's SHS/STEM & TVET curriculum. Ask anything, attach photos or PDFs, and get step-by-step explanations.
         </p>
       </motion.div>
@@ -60,7 +60,7 @@ export function MessageBubble({ msg, streaming = false, streamingLive = false }:
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-      className={cn('flex gap-3', isUser && 'flex-row-reverse')}
+      className={cn('flex min-w-0 gap-2 sm:gap-3', isUser && 'flex-row-reverse')}
     >
       <div
         className={cn(
@@ -72,7 +72,7 @@ export function MessageBubble({ msg, streaming = false, streamingLive = false }:
       >
         {isUser ? 'You' : <LogoMark size={32} />}
       </div>
-      <div className={cn('min-w-0 max-w-[85%]', isUser && 'text-right')}>
+      <div className={cn('min-w-0 max-w-[calc(100%-2.5rem)] sm:max-w-[85%]', isUser && 'text-right')}>
         {isUser && msg.attachments && msg.attachments.length > 0 && (
           <div className={cn('mb-1.5 flex flex-wrap gap-1', isUser && 'justify-end')}>
             {msg.attachments.map((a, i) => (

@@ -87,7 +87,7 @@ export function CommandPalette({ items, isOffline }: CommandPaletteProps) {
       <Dialog.Trigger asChild>
         <button
           type="button"
-          className="group flex h-9 items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-1)] px-2.5 text-[var(--fg-2)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--fg-0)] sm:min-w-32"
+          className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-1)] px-0 text-[var(--fg-2)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--fg-0)] sm:w-auto sm:min-w-32 sm:justify-start sm:px-2.5"
           aria-label="Search and open commands"
         >
           <Search size={15} />
@@ -109,8 +109,8 @@ export function CommandPalette({ items, isOffline }: CommandPaletteProps) {
             Search pages and run common actions.
           </Dialog.Description>
 
-          <div className="flex items-center gap-3 border-b border-[var(--line)] px-4">
-            <LogoMark size={28} />
+          <div className="flex min-w-0 items-center gap-2 border-b border-[var(--line)] px-3 sm:gap-3 sm:px-4">
+            <LogoMark size={28} className="hidden sm:block" />
             <Search size={17} className="text-[var(--accent)]" />
             <input
               autoFocus
