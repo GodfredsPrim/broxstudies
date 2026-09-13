@@ -101,7 +101,7 @@ cp .env.example .env
 
 6. Add your API keys and configuration to `.env`:
 ```
-OPENAI_API_KEY=your-api-key-here
+DEEPSEEK_API_KEY=your-api-key-here
 DATABASE_URL=sqlite:///./gh_shs.db
 ```
 
@@ -177,8 +177,8 @@ Frontend will be available at `http://localhost:5175`
 ## Environment Variables
 
 ```
-OPENAI_API_KEY          # Your OpenAI API key
-OPENAI_MODEL            # GPT model to use (default: gpt-4-turbo-preview)
+DEEPSEEK_API_KEY          # Your DeepSeek API key
+DEEPSEEK_MODEL            # DeepSeek model to use (default: deepseek-flash)
 DATABASE_URL            # SQLite database URL
 CORS_ORIGINS            # Allowed CORS origins
 PDF_UPLOAD_DIR          # Directory for PDF uploads
@@ -221,7 +221,7 @@ npm run test --prefix frontend
 
 **Issue: "OpenAI API key not found"**
 - Ensure `.env` file exists in backend directory
-- Check that `OPENAI_API_KEY` is set correctly
+- Check that `DEEPSEEK_API_KEY` is set correctly
 
 **Issue: PDF upload fails**
 - Ensure file is valid PDF
@@ -277,3 +277,7 @@ For support, please contact the development team or open an issue on the reposit
 
 
 
+
+### DeepSeek configuration
+
+Set `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL=deepseek-flash`, and `DEEPSEEK_BASE_URL=https://api.deepseek.com/v1` in `backend/.env` or your hosting environment, then restart the backend. Clear any `LLM_API_KEY`, `LLM_MODEL`, and `LLM_BASE_URL` overrides left from another provider. All chat generation, including essays and book quizzes, uses these settings; OpenAI is no longer an automatic fallback. The OpenAI-compatible SDK remains required. The unused legacy embedding helper still requires an OpenAI embedding key and is not used by the current RAG engine.

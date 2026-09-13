@@ -28,7 +28,7 @@ class TutorService:
             
         api_key = settings.resolved_llm_api_key
         if not api_key:
-            raise ValueError("LLM API key (OPENAI_API_KEY or DEEPSEEK_API_KEY) not configured.")
+            raise ValueError("LLM API key (DEEPSEEK_API_KEY or LLM_API_KEY) not configured.")
             
         self.llm = ChatOpenAI(
             model=settings.resolved_llm_model,

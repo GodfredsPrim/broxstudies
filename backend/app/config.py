@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
-    DEEPSEEK_MODEL: str = "deepseek-chat"
+    DEEPSEEK_MODEL: str = "deepseek-flash"
     LLM_FALLBACK_ENABLED: bool = True
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = ""
@@ -134,27 +134,15 @@ class Settings(BaseSettings):
 
     @property
     def resolved_llm_api_key(self) -> str:
-        return self.LLM_API_KEY or self.OPENAI_API_KEY or self.DEEPSEEK_API_KEY
+        return self.LLM_API_KEY or self.DEEPSEEK_API_KEY
 
     @property
     def resolved_llm_model(self) -> str:
-        if self.LLM_MODEL:
-            return self.LLM_MODEL
-        if self.OPENAI_API_KEY:
-            return self.OPENAI_MODEL
-        if self.DEEPSEEK_API_KEY:
-            return self.DEEPSEEK_MODEL
-        return self.OPENAI_MODEL
+        return self.LLM_MODEL or self.DEEPSEEK_MODEL
 
     @property
-    def resolved_llm_base_url(self) -> str | None:
-        if self.LLM_BASE_URL:
-            return self.LLM_BASE_URL
-        if self.OPENAI_BASE_URL:
-            return self.OPENAI_BASE_URL
-        if self.DEEPSEEK_API_KEY and not self.OPENAI_API_KEY:
-            return "https://api.deepseek.com"
-        return None
+    def resolved_llm_base_url(self) -> str:
+        return self.LLM_BASE_URL or self.DEEPSEEK_BASE_URL
 
     class Config:
         env_file = BACKEND_DIR / ".env"

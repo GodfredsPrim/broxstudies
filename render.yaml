@@ -15,14 +15,12 @@ services:
         value: "*"
 
       # LLM
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
       - key: DEEPSEEK_API_KEY
         sync: false
       - key: DEEPSEEK_MODEL
-        value: deepseek-chat
+        value: deepseek-flash
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com/v1
       - key: LLM_FALLBACK_ENABLED
         value: "true"
 

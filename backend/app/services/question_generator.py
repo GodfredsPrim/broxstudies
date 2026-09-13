@@ -217,7 +217,7 @@ Return valid JSON array of {num_questions} objects:
         api_key = settings.resolved_llm_api_key
         if not api_key:
             raise ValueError(
-                "No LLM API key configured. Set OPENAI_API_KEY, or set DEEPSEEK_API_KEY "
+                "No LLM API key configured. Set DEEPSEEK_API_KEY "
                 "for question generation with an OpenAI-compatible chat endpoint."
             )
 
